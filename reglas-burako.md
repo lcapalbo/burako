@@ -1,49 +1,43 @@
 # Burako: guía rápida
 
-Esta guía fija las reglas de esta mesa para el Burako con fichas.
+Reglas de esta mesa para Burako con fichas.
 
 ## Preparación
 
-- Se juega entre 2 o 4 personas; en partidas de 4, se forman dos parejas y cada integrante se sienta frente a su compañero.
-- El juego tiene 104 fichas numeradas (dos copias de los números #1 al #13 en cuatro colores) y 2 **comodines especiales**.
-- Se mezclan las fichas boca abajo. Cada jugador recibe 11; se preparan dos grupos de 11 fichas boca abajo, llamados **muertos**. Las restantes forman el **montón** para robar.
-- El objetivo es sumar puntos con juegos y canastas, en partidas de 2.000, 3.000 o 5.000 puntos, o jugar por corte, como una versión de juego rápido.
+- Pueden jugar 2 o 4 personas. Con 4, se forman dos parejas y sus integrantes se sientan enfrentados.
+- Se usan 104 fichas numeradas (dos copias del #1 al #13 en cuatro colores) y 2 **comodines especiales**.
+- Se mezclan las fichas boca abajo. Cada jugador recibe 11; se preparan dos **muertos** de 11 fichas cada uno. Las restantes forman el **montón** para robar.
+- El objetivo es sumar puntos hasta llegar a 2.000, 3.000 o 5.000, o jugar por corte, en una partida rápida.
 
 ## Combinaciones
 
-Para bajar una combinación se necesitan al menos 3 fichas.
+Para bajar una combinación hacen falta al menos 3 fichas:
 
-Hay dos tipos de combinaciones:
+- **Pierna**: 3 o más fichas del mismo número y de distintos colores.
+- **Escalera**: 3 o más números consecutivos del mismo color. El #1 puede ir antes del #2 o después del #13; la escalera máxima tiene 14 fichas, del #1 al #13 y otro #1.
 
-- **Pierna**: 3 o más fichas del mismo número, de colores distintos.
-- **Escalera**: 3 o más números consecutivos del mismo color. El #1 puede ir antes del #2 y/o después del #13. Así, la escalera máxima tiene 14 fichas: del #1 al #13 y nuevamente al #1.
-
-Se denomina **canasta** a una combinación de 7 o más fichas. Es **limpia** si no usa comodín y **sucia** si usa uno.
+Una combinación de 7 fichas o más es una **canasta**: **limpia** si no usa comodín y **sucia** si usa alguno.
 
 ## Comodines
 
-- Los **#2** sirven de comodines.
-- Los comodines especiales y los #2 pueden sustituir cualquier ficha en una combinación, sin importar el color.
-- Solo puede usarse un comodín por combinación. La única excepción es que en una escalera se utilice un #2 del mismo color, es decir como número, y luego un comodín u otro #2 en otra posición.
-- Una vez bajadas, las fichas no se mueven de una combinación a otra. Solo se puede reubicar un comodín o #2 dentro de la misma combinación. Esto permite reubicar un #2 usado en una escalera del mismo color, limpiando una canasta.
+- Los **#2** y los comodines especiales pueden sustituir cualquier ficha, sin importar el color.
+- Solo se permite un comodín por combinación. Excepción: una escalera puede incluir un #2 de su color como ficha natural y, además, un comodín o un segundo #2 en otra posición.
+- Las fichas bajadas no pueden cambiarse de combinación. Sí se puede reubicar un comodín dentro de la misma combinación. Así, un #2 usado como comodín en una escalera del mismo color puede reubicarse a su posición natural para limpiarla.
 
 ## Cómo es un turno
 
-1. Robá una ficha del montón o levantá el pozo completo de descartes. Sólo podés levantarlo si, al contar las fichas del pozo y las que tenés en el atril, hay al menos 5.
-2. Bajá una o más combinaciones válidas, o agregá fichas a combinaciones ya bajadas por vos o tu pareja.
-3. Terminá descartando una ficha boca arriba al pozo.
+1. Robá una ficha del montón o levantá todo el pozo de descartes. Para levantarlo, entre las fichas del pozo y las de tu atril debés tener al menos 5.
+2. Bajá combinaciones válidas o agregá fichas a las combinaciones tuyas o de tu pareja.
+3. Descartá una ficha boca arriba en el pozo.
 
 ## El muerto y el cierre
 
-- Cada pareja puede tomar un solo muerto. Si un jugador se queda sin fichas al bajar una combinación, toma el muerto y sigue jugando en ese turno (**toma directa**).
-- Si se queda sin fichas al descartar, toma el muerto, pero lo juega en su siguiente turno (**toma indirecta**).
-- Un jugador cierra la mano si ya no tiene muerto que tomar y se queda sin fichas tras descartar al pozo, bajar combinaciones o sumar fichas a combinaciones bajadas. Para cerrar la mano el jugador o la pareja debe tener al menos una canasta, limpia o sucia.
-- La mano también se considera cerrada si ya no hay fichas en el montón para iniciar un turno, y el jugador no desea o no puede levantar el pozo. En este caso no habrá bono por cierre.
-- Cerrar da por terminada la mano. Luego se cuentan las fichas bajadas y los bonos, y se restan las fichas que quedaron en los atriles.
+- Cada pareja puede tomar un solo muerto. Si te quedás sin fichas al bajar una combinación, tomás el muerto y seguís jugando ese turno (**toma directa**). Si te quedás sin fichas al descartar, tomás el muerto y lo jugás en tu próximo turno (**toma indirecta**).
+- Podés **cerrar** si no te queda muerto por tomar y te quedás sin fichas al descartar, bajar combinaciones o agregar fichas a las ya bajadas. Para cerrar, vos o tu pareja deben tener al menos una canasta.
+- La mano también termina si se agota el montón y quien debe jugar no quiere o no puede levantar el pozo. En ese caso no se otorga el bono por cierre.
+- Al terminar la mano, se cuentan las fichas bajadas y los bonos, y se restan las fichas que quedan en los atriles.
 
 ## Puntaje
-
-Los valores de las fichas son:
 
 | Ficha | Puntos |
 | --- | ---: |
@@ -61,6 +55,6 @@ Los valores de las fichas son:
 | Muerto levantado (*) | 100 |
 | Muerto no levantado | -100 |
 
-(*) Si el muerto se levanta por toma indirecta, solo se suman los 100 puntos si el jugador llega a jugar alguna ficha, es decir si juega al menos un turno más antes del cierre de la mano. Caso contrario, resta 100 puntos como si no lo hubiese levantado, y se ignoran las fichas en su atril.
+(*) Si tomás el muerto de forma indirecta, sumás 100 puntos solo si jugás alguna ficha en un turno posterior antes del cierre. Si no, restás 100 puntos como por un muerto no levantado e ignorás las fichas de tu atril.
 
-Se suman los valores de las fichas bajadas sólo si la pareja tiene al menos una canasta. Si no tiene ninguna, los valores de todas sus fichas bajadas se restan junto con los valores de las fichas que quedaron en sus atriles.
+La pareja suma los puntos de sus fichas bajadas solo si tiene al menos una canasta. Si no tiene ninguna, resta los puntos de todas sus fichas bajadas y de las que quedaron en sus atriles.
