@@ -5,6 +5,10 @@
 			"matchCommandLine": true
 		},
 		"npm install": true,
-		"npm audit": true
+		"npm audit": true,
+		"/^node --input-type=module -e 'import \\{ existsSync, readFileSync \\} from \"node:fs\"; import \\{ dirname, resolve \\} from \"node:path\"; const files = \\[\"\\.github/copilot-instructions\\.md\", \"docs/decisions/README\\.md\", \"docs/decisions/0001-stack-web\\.md\", \"docs/decisions/0002-logica-y-pruebas\\.md\", \"docs/decisions/0003-persistencia-local\\.md\", \"docs/sessions/README\\.md\"\\]; let broken = 0; for \\(const file of files\\) \\{ const text = readFileSync\\(file, \"utf8\"\\); for \\(const \\[, target\\] of text\\.matchAll\\(/\\\\\\[\\[\\^\\\\\\]\\]\\+\\\\\\]\\\\\\(\\(\\[\\^\\)\\]\\+\\)\\\\\\)/g\\)\\) \\{ if \\(/\\^\\(https\\?:\\|#\\)/\\.test\\(target\\)\\) continue; const path = resolve\\(dirname\\(file\\), target\\.split\\(\"#\"\\)\\[0\\]\\); if \\(!existsSync\\(path\\)\\) \\{ console\\.error\\(`\\$\\{file\\}: enlace roto -> \\$\\{target\\}`\\); broken \\+= 1; \\} \\} \\} if \\(broken\\) process\\.exit\\(1\\); console\\.log\\(`Enlaces locales válidos en \\$\\{files\\.length\\} documentos\\.`\\);'$/": {
+			"approve": true,
+			"matchCommandLine": true
+		}
 	}
 }
