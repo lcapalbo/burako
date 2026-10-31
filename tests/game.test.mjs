@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, takeDiscardPile, tilePoints } from '../.test-build/game.js';
+import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
 import { runComputerTurn } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
@@ -162,6 +162,22 @@ describe('puntaje de fichas', () => {
     const numberedPoints = Array.from({ length: 13 }, (_, index) => tilePoints(tile(`points-${index + 1}`, 'red', index + 1)));
     assert.deepEqual(numberedPoints, [15, 20, 5, 5, 5, 5, 5, 10, 10, 10, 10, 10, 10]);
     assert.equal(tilePoints(tile('points-joker', null, 0, 'joker')), 50);
+  });
+});
+
+describe('ordenamiento del atril', () => {
+  it('ordena por color y mantiene intacto el orden de entrada', () => {
+    const hand = [tile('green-3', 'green', 3), tile('blue-1', 'blue', 1), tile('red-7', 'red', 7), tile('red-1', 'red', 1)];
+
+    assert.deepEqual(sortTiles(hand).map((item) => item.id), ['red-1', 'red-7', 'blue-1', 'green-3']);
+    assert.deepEqual(hand.map((item) => item.id), ['green-3', 'blue-1', 'red-7', 'red-1']);
+  });
+
+  it('ordena por número y usa el color para desempatar', () => {
+    const hand = [tile('green-3', 'green', 3), tile('blue-1', 'blue', 1), tile('red-7', 'red', 7), tile('red-1', 'red', 1)];
+
+    assert.deepEqual(sortTilesByNumber(hand).map((item) => item.id), ['red-1', 'blue-1', 'green-3', 'red-7']);
+    assert.deepEqual(hand.map((item) => item.id), ['green-3', 'blue-1', 'red-7', 'red-1']);
   });
 });
 

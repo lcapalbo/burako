@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   addToMeld,
   createGame,
@@ -12,6 +12,7 @@ import {
   layMeld,
   nextRound,
   sortTiles,
+  sortTilesByNumber,
   takeDiscardPile,
   type GameState,
   type Target,
@@ -26,6 +27,13 @@ const COLOR_NAMES: Record<string, string> = {
   yellow: 'amarillo',
 };
 const SAVE_KEY = 'burako-local-game-v1';
+type HandSortMode = 'original' | 'color' | 'number';
+
+function sortHandForDisplay(hand: Tile[], mode: HandSortMode): Tile[] {
+  if (mode === 'color') return sortTiles(hand);
+  if (mode === 'number') return sortTilesByNumber(hand);
+  return hand;
+}
 
 function loadSavedGame(): GameState | null {
   try {
@@ -42,7 +50,7 @@ function loadSavedGame(): GameState | null {
 function TileFace({ tile, selected = false }: { tile: Tile; selected?: boolean }) {
   const label = tile.kind === 'joker' ? 'comodín especial' : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}`;
   return (
-    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${selected ? 'is-selected' : ''}`} aria-label={label}>
+    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${selected ? 'is-selected' : ''}`} role="img" aria-label={label}>
       <span className="tile-mark" aria-hidden="true">{tile.kind === 'joker' ? '★' : '●'}</span>
       <strong>{tile.kind === 'joker' ? '★' : tile.value}</strong>
       {tile.kind === 'joker' && <small>COMODÍN</small>}
@@ -56,6 +64,9 @@ export default function App() {
   const [selection, setSelection] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [discardSortMode, setDiscardSortMode] = useState<HandSortMode>('original');
+  const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
+  const discardDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     try {
@@ -81,6 +92,7 @@ export default function App() {
 
   const begin = () => {
     setGame(createGame(target));
+    setHandSortMode('original');
     setSelection([]);
     setError('');
   };
@@ -103,7 +115,7 @@ export default function App() {
 
   const reorderHand = (fromId: string, toId: string) => {
     if (!game || fromId === toId) return;
-    const hand = [...game.players[0].hand];
+    const hand = [...sortHandForDisplay(game.players[0].hand, handSortMode)];
     const from = hand.findIndex((tile) => tile.id === fromId);
     const to = hand.findIndex((tile) => tile.id === toId);
     if (from < 0 || to < 0) return;
@@ -112,11 +124,12 @@ export default function App() {
     const players = [...game.players];
     players[0] = { ...players[0], hand };
     setGame({ ...game, players });
+    setHandSortMode('original');
   };
 
   const moveSelected = (direction: -1 | 1) => {
     if (!game || selection.length !== 1) return;
-    const hand = [...game.players[0].hand];
+    const hand = [...sortHandForDisplay(game.players[0].hand, handSortMode)];
     const from = hand.findIndex((tile) => tile.id === selection[0]);
     const to = from + direction;
     if (from < 0 || to < 0 || to >= hand.length) return;
@@ -124,6 +137,7 @@ export default function App() {
     const players = [...game.players];
     players[0] = { ...human, hand };
     setGame({ ...game, players });
+    setHandSortMode('original');
   };
 
   if (!game) {
@@ -159,9 +173,15 @@ export default function App() {
 
   const human = game.players[0];
   const computer = game.players[1];
+  const displayedHand = sortHandForDisplay(human.hand, handSortMode);
+  const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
+  const discardSortLabel = discardSortMode === 'original' ? 'Ordenar por color' : discardSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const humanTurn = game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
+  const visibleDiscard = game.discard.slice(-3);
+  const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
+  const cycleDiscardSort = () => setDiscardSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
 
   return (
     <main className="game-page">
@@ -200,11 +220,19 @@ export default function App() {
         <div className="piles-row">
           <div className="stock-pile" aria-label={`${game.stock.length} fichas en el montón`}>
             <span className="stack-back"><i /><i /><i /></span>
-            <strong>{game.stock.length}</strong><small>MONTÓN</small>
+            <div className="stock-pile-label"><small>MONTÓN</small><span className="pile-count">{game.stock.length}</span></div>
           </div>
           <div className="discard-pile">
-            {game.discard.length > 0 ? <TileFace tile={game.discard[game.discard.length - 1]} /> : <span className="empty-discard">Pozo vacío</span>}
-            <small>POZO · {game.discard.length}</small>
+            {visibleDiscard.length > 0 ? (
+              <div className="discard-stack" aria-hidden="true" style={{ width: `${48 + (visibleDiscard.length - 1) * 16}px` }}>
+                {visibleDiscard.map((tile, index) => (
+                  <span className="discard-stack-card" key={tile.id} style={{ '--discard-depth': index } as React.CSSProperties}>
+                    <TileFace tile={tile} />
+                  </span>
+                ))}
+              </div>
+            ) : <span className="empty-discard">Pozo vacío</span>}
+            <button className="pile-view-button" type="button" disabled={!game.discard.length} onClick={() => { setDiscardSortMode('original'); discardDialogRef.current?.showModal(); }}>VER POZO <span className="pile-count">{game.discard.length}</span></button>
           </div>
         </div>
         <div className="meld-area">
@@ -222,6 +250,35 @@ export default function App() {
         </div>
       </section>
 
+      <dialog
+        ref={discardDialogRef}
+        className="discard-dialog"
+        aria-labelledby="discard-dialog-title"
+        onClose={() => setDiscardSortMode('original')}
+        onClick={(event) => { if (event.target === event.currentTarget) discardDialogRef.current?.close(); }}
+      >
+        <div className="discard-dialog-content">
+          <header className="discard-dialog-header">
+            <div>
+              <p className="discard-dialog-eyebrow">Pozo de descartes</p>
+              <h2 id="discard-dialog-title">{game.discard.length} {game.discard.length === 1 ? 'ficha' : 'fichas'}</h2>
+            </div>
+            <button className="discard-dialog-close" type="button" aria-label="Cerrar pozo" autoFocus onClick={() => discardDialogRef.current?.close()}>×</button>
+          </header>
+          <ol className="discard-tile-list" aria-label="Fichas del pozo">
+            {sortHandForDisplay(game.discard, discardSortMode).map((tile) => (
+              <li className="discard-tile" key={tile.id}>
+                <TileFace tile={tile} />
+              </li>
+            ))}
+          </ol>
+          <footer className="discard-dialog-footer">
+            <button className="sort-button" type="button" onClick={cycleDiscardSort}>{discardSortLabel}</button>
+            <button className="primary-action" type="button" onClick={() => discardDialogRef.current?.close()}>Cerrar</button>
+          </footer>
+        </div>
+      </dialog>
+
       {game.result && <section className={`result-banner ${game.phase === 'match-over' ? 'is-final' : ''}`} role="status">
         <strong>{game.result}</strong>
         <span>{game.phase === 'round-over' ? `Puntaje: vos ${game.scores[0].toLocaleString('es-AR')} · computadora ${game.scores[1].toLocaleString('es-AR')}` : ''}</span>
@@ -235,15 +292,11 @@ export default function App() {
           <div className="hand-tools">
             <button className="move-button" type="button" disabled={!humanTurn || selection.length !== 1} aria-label="Mover ficha a la izquierda" title="Mover a la izquierda" onClick={() => moveSelected(-1)}>←</button>
             <button className="move-button" type="button" disabled={!humanTurn || selection.length !== 1} aria-label="Mover ficha a la derecha" title="Mover a la derecha" onClick={() => moveSelected(1)}>→</button>
-            <button className="sort-button" type="button" disabled={!humanTurn} onClick={() => {
-              const players = [...game.players];
-              players[0] = { ...human, hand: sortTiles(human.hand) };
-              setGame({ ...game, players });
-            }}>Ordenar</button>
+            <button className="sort-button" type="button" disabled={!humanTurn} onClick={cycleHandSort}>{handSortLabel}</button>
           </div>
         </div>
         <div className="hand-tiles" onDragOver={(event) => event.preventDefault()}>
-          {human.hand.map((tile, index) => (
+          {displayedHand.map((tile, index) => (
             <button
               className={`hand-tile ${selection.includes(tile.id) ? 'selected' : ''}`}
               type="button"

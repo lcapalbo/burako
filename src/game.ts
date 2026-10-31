@@ -142,6 +142,13 @@ export function sortTiles(tiles: Tile[]): Tile[] {
   });
 }
 
+export function sortTilesByNumber(tiles: Tile[]): Tile[] {
+  return [...tiles].sort((a, b) => {
+    const colorOrder = COLORS.indexOf(a.color ?? 'yellow') - COLORS.indexOf(b.color ?? 'yellow');
+    return a.value - b.value || colorOrder || a.id.localeCompare(b.id);
+  });
+}
+
 function createDeck(): Tile[] {
   const tiles: Tile[] = [];
   for (let copy = 0; copy < 2; copy += 1) {
