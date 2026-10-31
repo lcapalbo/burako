@@ -28,7 +28,9 @@ export type GameState = {
   currentPlayer: number;
   roundStarter: number;
   target: Target;
-  phase: 'draw' | 'play' | 'round-over' | 'match-over';
+  phase: 'draw' | 'opening-choice' | 'play' | 'round-over' | 'match-over';
+  openingDrawTileId: string | null;
+  restrictedDiscardTileId: string | null;
   winner: number | null;
   result: string | null;
   round: number;
@@ -70,9 +72,7 @@ function canFormRun(tiles: Tile[], allowWilds = true): boolean {
 }
 
 function canFormLeg(tiles: Tile[], allowWilds = true): boolean {
-  if (tiles.length > COLORS.length) return false;
   for (let value = 1; value <= 13; value += 1) {
-    const used = new Set<TileColor>();
     let wilds = 0;
     let valid = true;
     for (const tile of tiles) {
@@ -84,22 +84,17 @@ function canFormLeg(tiles: Tile[], allowWilds = true): boolean {
         wilds += 1;
         continue;
       }
-      if (tile.value === value && tile.color !== null && !used.has(tile.color)) {
-        used.add(tile.color);
+      if (tile.value === value && tile.color !== null) {
         continue;
       }
-      if (tile.value === 2) {
-        if (!allowWilds) {
-          valid = false;
-          break;
-        }
+      if (tile.value === 2 && allowWilds) {
         wilds += 1;
         continue;
       }
       valid = false;
       break;
     }
-    if (valid && wilds <= 1 && used.size + wilds === tiles.length) return true;
+    if (valid && wilds <= 1 && tiles.length - wilds >= 1) return true;
   }
   return false;
 }
@@ -160,6 +155,8 @@ function shuffle<T>(items: T[], random: () => number): T[] {
 
 export function createGame(target: Target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0): GameState {
   const deck = shuffle(createDeck(), random);
+  const playersCount = 2;
+  const initialStarter = starter % playersCount;
   const players: Player[] = [0, 1].map((id) => ({
     id,
     name: id === 0 ? 'Vos' : 'La computadora',
@@ -176,10 +173,12 @@ export function createGame(target: Target = 2000, random = Math.random, scores =
     players,
     melds: [],
     scores: [...scores],
-    currentPlayer: starter,
-    roundStarter: starter,
+    currentPlayer: initialStarter,
+    roundStarter: initialStarter,
     target,
     phase: 'draw',
+    openingDrawTileId: null,
+    restrictedDiscardTileId: null,
     winner: null,
     result: null,
     round,
@@ -209,7 +208,39 @@ export function drawFromStock(state: GameState, playerId: number): GameState {
   if (state.stock.length === 0) throw new Error('El montón está vacío; levantá el pozo o terminá la mano.');
   const stock = [...state.stock];
   const tile = stock.pop()!;
-  return { ...replacePlayer(state, { ...player, hand: [...player.hand, tile] }), stock, phase: 'play' };
+  const canRedrawOpeningTile = state.turnNumber === 0 && playerId === state.roundStarter;
+  return {
+    ...replacePlayer(state, { ...player, hand: [...player.hand, tile] }),
+    stock,
+    phase: canRedrawOpeningTile ? 'opening-choice' : 'play',
+    openingDrawTileId: canRedrawOpeningTile ? tile.id : null,
+    restrictedDiscardTileId: null,
+  };
+}
+
+export function keepOpeningDraw(state: GameState, playerId: number): GameState {
+  assertTurn(state, playerId, 'opening-choice');
+  return { ...state, phase: 'play', openingDrawTileId: null };
+}
+
+export function discardOpeningDrawAndRedraw(state: GameState, playerId: number): GameState {
+  const player = assertTurn(state, playerId, 'opening-choice');
+  if (state.stock.length === 0) throw new Error('No quedan fichas para el segundo robo.');
+  const openingTileId = state.openingDrawTileId;
+  const openingTile = player.hand.find((tile) => tile.id === openingTileId);
+  if (!openingTile) throw new Error('No se encuentra la ficha del primer robo.');
+
+  const stock = [...state.stock];
+  const secondTile = stock.pop()!;
+  const hand = player.hand.filter((tile) => tile.id !== openingTile.id);
+  return {
+    ...replacePlayer(state, { ...player, hand: [...hand, secondTile] }),
+    stock,
+    discard: [...state.discard, openingTile],
+    phase: 'play',
+    openingDrawTileId: null,
+    restrictedDiscardTileId: null,
+  };
 }
 
 export function takeDiscardPile(state: GameState, playerId: number): GameState {
@@ -220,6 +251,7 @@ export function takeDiscardPile(state: GameState, playerId: number): GameState {
     ...replacePlayer(state, { ...player, hand: [...player.hand, ...state.discard] }),
     discard: [],
     phase: 'play',
+    restrictedDiscardTileId: state.discard.length === 1 ? state.discard[0].id : null,
   };
 }
 
@@ -235,6 +267,13 @@ function teamHasCanasta(state: GameState, team: number, extraMelds: Meld[] = [])
   return [...state.melds, ...extraMelds].some((meld) => meld.team === team && isCanasta(meld));
 }
 
+function ensureCanastaBeforeLastTiles(state: GameState, player: Player, remainingCount: number, melds: Meld[]): void {
+  const teamTakenDead = state.players.some((member) => member.team === player.team && member.deadTaken);
+  if (teamTakenDead && remainingCount <= 1 && !teamHasCanasta({ ...state, melds }, player.team)) {
+    throw new Error('Tu equipo necesita una canasta antes de quedarse sin fichas o con una para descartar.');
+  }
+}
+
 function takeDeadIfNeeded(state: GameState, player: Player, indirect: boolean): { state: GameState; player: Player } {
   const teamTaken = state.players.some((member) => member.team === player.team && member.deadTaken);
   if (teamTaken) return { state, player };
@@ -247,7 +286,7 @@ function takeDeadIfNeeded(state: GameState, player: Player, indirect: boolean): 
     state: { ...state, deadPiles },
     player: {
       ...player,
-      hand: indirect ? player.hand : [...player.hand, ...dead],
+      hand: [...player.hand, ...dead],
       deadTaken: true,
       indirectDead: indirect,
       playedAfterDead: false,
@@ -334,6 +373,7 @@ export function layMeld(state: GameState, playerId: number, tileIds: string[]): 
   const meld: Meld = { id: `meld-${state.round}-${state.melds.length}`, kind, tiles, team: player.team };
   let next = { ...state, melds: [...state.melds, meld] };
   const remaining = removeFromHand(player.hand, tileIds);
+  ensureCanastaBeforeLastTiles(state, player, remaining.length, next.melds);
   const updated = { ...player, hand: remaining, playedAfterDead: player.deadTaken ? true : player.playedAfterDead };
   if (remaining.length === 0) return afterHandEmpties(next, updated, remaining);
   return replacePlayer(next, updated);
@@ -351,6 +391,7 @@ export function addToMeld(state: GameState, playerId: number, meldId: string, ti
   const melds = [...state.melds];
   melds[index] = { ...meld, tiles };
   const remaining = removeFromHand(player.hand, tileIds);
+  ensureCanastaBeforeLastTiles(state, player, remaining.length, melds);
   const updated = { ...player, hand: remaining, playedAfterDead: player.deadTaken ? true : player.playedAfterDead };
   const next = { ...state, melds };
   if (remaining.length === 0) return afterHandEmpties(next, updated, remaining);
@@ -359,10 +400,13 @@ export function addToMeld(state: GameState, playerId: number, meldId: string, ti
 
 export function discardTile(state: GameState, playerId: number, tileId: string): GameState {
   const player = assertTurn(state, playerId, 'play');
+  if (tileId === state.restrictedDiscardTileId) {
+    throw new Error('No podés descartar en este turno la única ficha levantada del pozo.');
+  }
   const hand = removeFromHand(player.hand, [tileId]);
   const tile = player.hand.find((item) => item.id === tileId)!;
   const discard = [...state.discard, tile];
-  let next: GameState = { ...state, discard, phase: 'draw', turnNumber: state.turnNumber + 1 };
+  let next: GameState = { ...state, discard, phase: 'draw', turnNumber: state.turnNumber + 1, restrictedDiscardTileId: null };
   let updated = { ...player, hand };
   if (hand.length === 0) {
     const teamTaken = state.players.some((member) => member.team === player.team && member.deadTaken);
@@ -389,7 +433,29 @@ export function finishEmptyStock(state: GameState, playerId: number): GameState 
 
 export function nextRound(state: GameState): GameState {
   if (state.phase !== 'round-over') throw new Error('La partida no está lista para una nueva mano.');
-  return createGame(state.target, Math.random, state.scores, state.round + 1, (state.roundStarter + 1) % 2);
+  const nextStarter = (state.roundStarter + 1) % state.players.length;
+  if (state.players.length !== 2) {
+    return {
+      ...state,
+      phase: 'draw',
+      currentPlayer: nextStarter,
+      roundStarter: nextStarter,
+      turnNumber: 0,
+      openingDrawTileId: null,
+      restrictedDiscardTileId: null,
+      melds: [],
+      discard: [],
+      players: state.players.map((player) => ({
+        ...player,
+        hand: [...player.hand],
+        deadTaken: false,
+        indirectDead: false,
+        playedAfterDead: false,
+      })),
+      deadPiles: state.deadPiles.map((pile) => [...pile]),
+    };
+  }
+  return createGame(state.target, Math.random, state.scores, state.round + 1, nextStarter);
 }
 
 export function findBestMeld(hand: Tile[]): Tile[] | null {

@@ -3,6 +3,7 @@ import {
   addToMeld,
   chooseDiscard,
   createGame,
+  discardOpeningDrawAndRedraw,
   discardTile,
   drawFromStock,
   findBestMeld,
@@ -10,6 +11,7 @@ import {
   getMeldKind,
   isCanasta,
   isCleanMeld,
+  keepOpeningDraw,
   layMeld,
   nextRound,
   sortTiles,
@@ -75,6 +77,10 @@ function runComputerTurn(state: GameState): GameState {
     } else {
       next = drawFromStock(next, 1);
     }
+  }
+
+  if (next.phase === 'opening-choice' && next.currentPlayer === 1) {
+    next = keepOpeningDraw(next, 1);
   }
 
   while (next.phase === 'play' && next.currentPlayer === 1) {
@@ -216,7 +222,7 @@ export default function App() {
 
   const human = game.players[0];
   const computer = game.players[1];
-  const humanTurn = game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'play');
+  const humanTurn = game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
 
@@ -321,7 +327,11 @@ export default function App() {
 
       {error && <p className="error-message" role="alert">{error}</p>}
       <footer className="action-bar">
-        {game.phase === 'draw' && game.currentPlayer === 0 ? <>
+        {game.phase === 'opening-choice' && game.currentPlayer === 0 ? <>
+          <span className="action-hint">La primera ficha puede cambiarse por otra del montón</span>
+          <button className="primary-action" type="button" onClick={() => perform((current) => keepOpeningDraw(current, 0))}>Jugar con esta ficha</button>
+          <button className="secondary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => discardOpeningDrawAndRedraw(current, 0))}>Descartar y robar otra</button>
+        </> : game.phase === 'draw' && game.currentPlayer === 0 ? <>
           <span className="action-hint">Elegí cómo robar para empezar tu turno</span>
           <button className="primary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => drawFromStock(current, 0))}>Robar del montón <span>{game.stock.length}</span></button>
           <button className="secondary-action" type="button" disabled={!game.discard.length || human.hand.length + game.discard.length < 5} onClick={() => perform((current) => takeDiscardPile(current, 0))}>Levantar el pozo <span>{game.discard.length}</span></button>

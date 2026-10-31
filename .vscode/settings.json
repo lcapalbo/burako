@@ -18,5 +18,9 @@
 			"approve": true,
 			"matchCommandLine": true
 		}
-	}
+	},
+	"cSpell.language": "en,es",
+	"cSpell.words": [
+		"Burako"
+	]
 }
