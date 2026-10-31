@@ -47,6 +47,10 @@ export class GameRuleError extends Error {
 const RUN_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1];
 const isWild = (tile: Tile) => tile.kind === 'joker' || tile.value === 2;
 
+function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
+  return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
+}
+
 function orderRunTiles(tiles: Tile[], allowWilds = true): Tile[] | null {
   if (tiles.length > RUN_VALUES.length) return null;
   for (const color of COLORS) {
@@ -503,6 +507,7 @@ export function findBestMeld(hand: Tile[], isAllowed: (tiles: Tile[]) => boolean
     }
     if (selected.length === hand.length) return;
     for (let index = start; index < hand.length; index += 1) {
+      if (!canStillFormMeld(selected, hand[index])) continue;
       selected.push(hand[index]);
       search(index + 1);
       selected.pop();

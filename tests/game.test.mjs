@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
+import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, findBestMeld, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
 import { runComputerTurn } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
@@ -21,6 +21,28 @@ const computerState = ({ hand, melds = [], stock = [], discard = [], deadTaken =
   const players = [...initial.players];
   players[1] = { ...players[1], hand, deadTaken };
   return { ...initial, players, melds, stock, discard, phase, currentPlayer: 1, deadPiles: [[], []], restrictedDiscardTileId };
+};
+const exhaustiveBestMeld = (hand) => {
+  let best = null;
+  let bestValue = 0;
+  const selected = [];
+  const search = (start) => {
+    if (selected.length >= 3) {
+      const kind = getMeldKind(selected);
+      const value = kind ? selected.length * 10 + (selected.length >= 7 ? 100 : 0) + (kind === 'run' ? 2 : 0) : 0;
+      if (value > bestValue) {
+        best = [...selected];
+        bestValue = value;
+      }
+    }
+    for (let index = start; index < hand.length; index += 1) {
+      selected.push(hand[index]);
+      search(index + 1);
+      selected.pop();
+    }
+  };
+  search(0);
+  return best;
 };
 
 describe('combinaciones, comodines y canastas', () => {
@@ -178,6 +200,24 @@ describe('ordenamiento del atril', () => {
 
     assert.deepEqual(sortTilesByNumber(hand).map((item) => item.id), ['red-1', 'blue-1', 'green-3', 'red-7']);
     assert.deepEqual(hand.map((item) => item.id), ['green-3', 'blue-1', 'red-7', 'red-1']);
+  });
+});
+
+describe('búsqueda de juegos', () => {
+  it('conserva los resultados de la búsqueda exhaustiva con piernas, escaleras y comodines', () => {
+    const hands = [
+      [tile('unrelated-blue-1', 'blue', 1), tile('unrelated-green-9', 'green', 9), tile('unrelated-red-5', 'red', 5), tile('unrelated-yellow-11', 'yellow', 11)],
+      [tile('leg-8-red', 'red', 8), tile('leg-8-blue', 'blue', 8), tile('leg-8-green', 'green', 8), tile('leg-4-yellow', 'yellow', 4)],
+      [tile('run-4-green', 'green', 4), tile('run-6-green', 'green', 6), tile('run-wild-two-blue', 'blue', 2), tile('run-13-red', 'red', 13)],
+      [tile('run-13-red-a', 'red', 13), tile('run-1-red', 'red', 1), tile('run-12-red', 'red', 12), tile('run-joker', null, 0, 'joker')],
+      [tile('double-two-green-a', 'green', 2), tile('double-two-green-b', 'green', 2), tile('double-two-green-3', 'green', 3), tile('double-two-green-4', 'green', 4)],
+    ];
+
+    for (const hand of hands) {
+      const expected = exhaustiveBestMeld(hand)?.map((item) => item.id) ?? null;
+      const actual = findBestMeld(hand)?.map((item) => item.id) ?? null;
+      assert.deepEqual(actual, expected);
+    }
   });
 });
 
@@ -709,5 +749,46 @@ describe('turnos de la computadora', () => {
 
     assert.equal(next.phase, 'round-over');
     assert.match(next.result, /Terminó la mano/);
+  });
+
+  it('extiende una pierna con el mismo número o un comodín, no con fichas incompatibles', () => {
+    const meld = {
+      id: 'computer-leg-eights',
+      kind: 'leg',
+      tiles: [tile('leg-eight-red', 'red', 8), tile('leg-eight-blue', 'blue', 8), tile('leg-eight-green', 'green', 8)],
+      team: 1,
+    };
+    const matching = tile('computer-leg-eight-yellow', 'yellow', 8);
+    const wild = tile('computer-leg-wild-two', 'red', 2);
+    const hand = [tile('computer-leg-unmatched-1', 'blue', 1), matching, tile('computer-leg-unmatched-9', 'green', 9), wild];
+    const state = computerState({ hand, melds: [meld], phase: 'play' });
+
+    const next = runComputerTurn(state);
+
+    assert.ok(next.melds[0].tiles.some((item) => item.id === matching.id));
+    assert.ok(next.melds[0].tiles.some((item) => item.id === wild.id));
+    assert.equal(next.melds[0].tiles.length, 5);
+    assert.ok(next.melds[0].tiles.every((item) => item.id !== 'computer-leg-unmatched-1'));
+    assert.ok(next.melds[0].tiles.every((item) => item.id !== 'computer-leg-unmatched-9'));
+  });
+
+  it('extiende una escalera con el mismo color o un comodín, no con fichas incompatibles', () => {
+    const meld = {
+      id: 'computer-green-run',
+      kind: 'run',
+      tiles: [tile('run-existing-4', 'green', 4), tile('run-existing-5', 'green', 5), tile('run-existing-6', 'green', 6)],
+      team: 1,
+    };
+    const matching = tile('computer-run-7-green', 'green', 7);
+    const wild = tile('computer-run-joker', null, 0, 'joker');
+    const unmatched = [tile('computer-run-unmatched-red-7', 'red', 7), tile('computer-run-unmatched-blue-12', 'blue', 12)];
+    const state = computerState({ hand: [...unmatched, matching, wild], melds: [meld], phase: 'play' });
+
+    const next = runComputerTurn(state);
+
+    assert.ok(next.melds[0].tiles.some((item) => item.id === matching.id));
+    assert.ok(next.melds[0].tiles.some((item) => item.id === wild.id));
+    assert.equal(next.melds[0].tiles.length, 5);
+    for (const tile of unmatched) assert.ok(next.melds[0].tiles.every((item) => item.id !== tile.id));
   });
 });

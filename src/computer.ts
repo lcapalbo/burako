@@ -25,6 +25,13 @@ function canCompleteWithDiscard(hand: Tile[], discard: Tile[]): boolean {
   return false;
 }
 
+function mayExtendMeld(meld: GameState['melds'][number], tile: Tile): boolean {
+  if (tile.kind === 'joker' || tile.value === 2) return true;
+  return meld.tiles.some((existing) => existing.kind === 'number' && (
+    meld.kind === 'leg' ? existing.value === tile.value : existing.color === tile.color
+  ));
+}
+
 function tryRuleAction(action: () => GameState): GameState | null {
   try {
     return action();
@@ -67,6 +74,7 @@ export function runComputerTurn(state: GameState): GameState {
     for (const meld of next.melds) {
       if (meld.team !== 1) continue;
       for (const tile of currentHand) {
+        if (!mayExtendMeld(meld, tile)) continue;
         if (getMeldKind([...meld.tiles, tile]) !== meld.kind) continue;
         const candidate = tryRuleAction(() => addToMeld(next, 1, meld.id, [tile.id]));
         if (!candidate || leavesOnlyRestrictedTile(candidate)) continue;
