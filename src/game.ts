@@ -37,6 +37,13 @@ export type GameState = {
   turnNumber: number;
 };
 
+export class GameRuleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GameRuleError';
+  }
+}
+
 const RUN_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1];
 const isWild = (tile: Tile) => tile.kind === 'joker' || tile.value === 2;
 
@@ -195,12 +202,12 @@ export function createGame(target: Target = 2000, random = Math.random, scores =
 
 function playerFor(state: GameState, playerId = state.currentPlayer): Player {
   const player = state.players[playerId];
-  if (!player) throw new Error('No existe ese jugador.');
+  if (!player) throw new GameRuleError('No existe ese jugador.');
   return player;
 }
 
 function assertTurn(state: GameState, playerId: number, phase: GameState['phase']): Player {
-  if (state.phase !== phase || state.currentPlayer !== playerId) throw new Error('No es el momento de esa jugada.');
+  if (state.phase !== phase || state.currentPlayer !== playerId) throw new GameRuleError('No es el momento de esa jugada.');
   return playerFor(state, playerId);
 }
 
@@ -212,7 +219,7 @@ function replacePlayer(state: GameState, updated: Player): GameState {
 
 export function drawFromStock(state: GameState, playerId: number): GameState {
   const player = assertTurn(state, playerId, 'draw');
-  if (state.stock.length === 0) throw new Error('El montón está vacío; levantá el pozo o terminá la mano.');
+  if (state.stock.length === 0) throw new GameRuleError('El montón está vacío; levantá el pozo o terminá la mano.');
   const stock = [...state.stock];
   const tile = stock.pop()!;
   const canRedrawOpeningTile = state.turnNumber === 0 && playerId === state.roundStarter;
@@ -232,10 +239,10 @@ export function keepOpeningDraw(state: GameState, playerId: number): GameState {
 
 export function discardOpeningDrawAndRedraw(state: GameState, playerId: number): GameState {
   const player = assertTurn(state, playerId, 'opening-choice');
-  if (state.stock.length === 0) throw new Error('No quedan fichas para el segundo robo.');
+  if (state.stock.length === 0) throw new GameRuleError('No quedan fichas para el segundo robo.');
   const openingTileId = state.openingDrawTileId;
   const openingTile = player.hand.find((tile) => tile.id === openingTileId);
-  if (!openingTile) throw new Error('No se encuentra la ficha del primer robo.');
+  if (!openingTile) throw new GameRuleError('No se encuentra la ficha del primer robo.');
 
   const stock = [...state.stock];
   const secondTile = stock.pop()!;
@@ -252,8 +259,8 @@ export function discardOpeningDrawAndRedraw(state: GameState, playerId: number):
 
 export function takeDiscardPile(state: GameState, playerId: number): GameState {
   const player = assertTurn(state, playerId, 'draw');
-  if (state.discard.length === 0) throw new Error('El pozo está vacío.');
-  if (player.hand.length + state.discard.length < 5) throw new Error('Necesitás reunir cinco fichas entre el atril y el pozo.');
+  if (state.discard.length === 0) throw new GameRuleError('El pozo está vacío.');
+  if (player.hand.length + state.discard.length < 5) throw new GameRuleError('Necesitás reunir cinco fichas entre el atril y el pozo.');
   return {
     ...replacePlayer(state, { ...player, hand: [...player.hand, ...state.discard] }),
     discard: [],
@@ -265,7 +272,7 @@ export function takeDiscardPile(state: GameState, playerId: number): GameState {
 function removeFromHand(hand: Tile[], ids: string[]): Tile[] {
   const wanted = new Set(ids);
   if (wanted.size !== ids.length || ids.some((id) => !hand.some((tile) => tile.id === id))) {
-    throw new Error('Seleccioná fichas que estén en tu atril.');
+    throw new GameRuleError('Seleccioná fichas que estén en tu atril.');
   }
   return hand.filter((tile) => !wanted.has(tile.id));
 }
@@ -277,7 +284,7 @@ function teamHasCanasta(state: GameState, team: number, extraMelds: Meld[] = [])
 function ensureCanastaBeforeLastTiles(state: GameState, player: Player, remainingCount: number, melds: Meld[]): void {
   const teamTakenDead = state.players.some((member) => member.team === player.team && member.deadTaken);
   if (teamTakenDead && remainingCount <= 1 && !teamHasCanasta({ ...state, melds }, player.team)) {
-    throw new Error('Tu equipo necesita una canasta antes de quedarse sin fichas o con una para descartar.');
+    throw new GameRuleError('Tu equipo necesita una canasta antes de quedarse sin fichas o con una para descartar.');
   }
 }
 
@@ -327,7 +334,12 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
   if (state.target === 'cut') {
     return closureWinner === null
       ? { ...state, phase: 'match-over', winner: null, result: 'Se agotaron las fichas sin que nadie pudiera cerrar.' }
-      : { ...state, phase: 'match-over', winner: closureWinner, result: `¡${state.players[closureWinner].name} cortó la mano!` };
+      : {
+          ...state,
+          phase: 'match-over',
+          winner: closureWinner,
+          result: closureWinner === 0 ? '¡Vos cortaste la mano!' : '¡La computadora cortó la mano!',
+        };
   }
   const scores = state.scores.map((score, team) => score + handScores[team]);
   const targetScore = typeof state.target === 'number' ? state.target : Number.POSITIVE_INFINITY;
@@ -366,7 +378,7 @@ function afterHandEmpties(state: GameState, player: Player, nextHand: Tile[]): G
     next = replacePlayer(next, updated);
     return closeRound(next, player.id);
   } else {
-    throw new Error('Para cerrar necesitás una canasta de tu equipo.');
+    throw new GameRuleError('Para cerrar necesitás una canasta de tu equipo.');
   }
   return replacePlayer({ ...next, phase: 'play' }, updated);
 }
@@ -374,9 +386,9 @@ function afterHandEmpties(state: GameState, player: Player, nextHand: Tile[]): G
 export function layMeld(state: GameState, playerId: number, tileIds: string[]): GameState {
   const player = assertTurn(state, playerId, 'play');
   const tiles = player.hand.filter((tile) => tileIds.includes(tile.id));
-  if (tiles.length !== tileIds.length) throw new Error('Seleccioná fichas que estén en tu atril.');
+  if (tiles.length !== tileIds.length) throw new GameRuleError('Seleccioná fichas que estén en tu atril.');
   const kind = getMeldKind(tiles);
-  if (!kind) throw new Error('Esa combinación no es válida.');
+  if (!kind) throw new GameRuleError('Esa combinación no es válida.');
   const orderedTiles = kind === 'run' ? orderRunTiles(tiles)! : tiles;
   const meld: Meld = { id: `meld-${state.round}-${state.melds.length}`, kind, tiles: orderedTiles, team: player.team };
   let next = { ...state, melds: [...state.melds, meld] };
@@ -391,11 +403,11 @@ export function addToMeld(state: GameState, playerId: number, meldId: string, ti
   const player = assertTurn(state, playerId, 'play');
   const index = state.melds.findIndex((meld) => meld.id === meldId);
   const meld = state.melds[index];
-  if (!meld || meld.team !== player.team) throw new Error('Solo podés agregar a juegos de tu equipo.');
+  if (!meld || meld.team !== player.team) throw new GameRuleError('Solo podés agregar a juegos de tu equipo.');
   const added = player.hand.filter((tile) => tileIds.includes(tile.id));
-  if (added.length !== tileIds.length || added.length === 0) throw new Error('Seleccioná fichas de tu atril.');
+  if (added.length !== tileIds.length || added.length === 0) throw new GameRuleError('Seleccioná fichas de tu atril.');
   let tiles = [...meld.tiles, ...added];
-  if (getMeldKind(tiles) !== meld.kind) throw new Error('Las fichas no encajan en ese juego.');
+  if (getMeldKind(tiles) !== meld.kind) throw new GameRuleError('Las fichas no encajan en ese juego.');
   if (meld.kind === 'run') tiles = orderRunTiles(tiles)!;
   const melds = [...state.melds];
   melds[index] = { ...meld, tiles };
@@ -410,7 +422,7 @@ export function addToMeld(state: GameState, playerId: number, meldId: string, ti
 export function discardTile(state: GameState, playerId: number, tileId: string): GameState {
   const player = assertTurn(state, playerId, 'play');
   if (tileId === state.restrictedDiscardTileId) {
-    throw new Error('No podés descartar en este turno la única ficha levantada del pozo.');
+    throw new GameRuleError('No podés descartar en este turno la única ficha levantada del pozo.');
   }
   const hand = removeFromHand(player.hand, [tileId]);
   const tile = player.hand.find((item) => item.id === tileId)!;
@@ -427,7 +439,7 @@ export function discardTile(state: GameState, playerId: number, tileId: string):
       next = replacePlayer(next, updated);
       return closeRound(next, player.id);
     } else {
-      throw new Error('Para cerrar necesitás una canasta de tu equipo.');
+      throw new GameRuleError('Para cerrar necesitás una canasta de tu equipo.');
     }
   }
   next = replacePlayer(next, updated);
@@ -436,12 +448,12 @@ export function discardTile(state: GameState, playerId: number, tileId: string):
 
 export function finishEmptyStock(state: GameState, playerId: number): GameState {
   assertTurn(state, playerId, 'draw');
-  if (state.stock.length > 0) throw new Error('Todavía quedan fichas en el montón.');
+  if (state.stock.length > 0) throw new GameRuleError('Todavía quedan fichas en el montón.');
   return scoreRound(state, null);
 }
 
 export function nextRound(state: GameState): GameState {
-  if (state.phase !== 'round-over') throw new Error('La partida no está lista para una nueva mano.');
+  if (state.phase !== 'round-over') throw new GameRuleError('La partida no está lista para una nueva mano.');
   const nextStarter = (state.roundStarter + 1) % state.players.length;
   if (state.players.length !== 2) {
     return {
@@ -467,14 +479,14 @@ export function nextRound(state: GameState): GameState {
   return createGame(state.target, Math.random, state.scores, state.round + 1, nextStarter);
 }
 
-export function findBestMeld(hand: Tile[]): Tile[] | null {
+export function findBestMeld(hand: Tile[], isAllowed: (tiles: Tile[]) => boolean = () => true): Tile[] | null {
   let best: Tile[] | null = null;
   let bestValue = 0;
   const selected: Tile[] = [];
   const search = (start: number) => {
     if (selected.length >= 3) {
       const kind = getMeldKind(selected);
-      if (kind) {
+      if (kind && isAllowed(selected)) {
         const value = selected.length * 10 + (selected.length >= 7 ? 100 : 0) + (kind === 'run' ? 2 : 0);
         if (value > bestValue) {
           best = [...selected];
@@ -493,7 +505,7 @@ export function findBestMeld(hand: Tile[]): Tile[] | null {
   return best;
 }
 
-export function chooseDiscard(hand: Tile[]): Tile {
+export function chooseDiscard(hand: Tile[], excludedTileId: string | null = null): Tile {
   const score = (tile: Tile) => {
     const sameValue = hand.filter((other) => other.id !== tile.id && other.kind === 'number' && other.value === tile.value).length;
     const sameRun = tile.kind === 'number'
@@ -501,5 +513,8 @@ export function chooseDiscard(hand: Tile[]): Tile {
       : 0;
     return (tile.kind === 'joker' ? 100 : tile.value === 2 ? 80 : 0) + sameValue * 12 + sameRun * 8 - tilePoints(tile);
   };
-  return [...hand].sort((a, b) => score(a) - score(b))[0];
+  const candidates = hand.filter((tile) => tile.id !== excludedTileId);
+  const discard = [...candidates].sort((a, b) => score(a) - score(b))[0];
+  if (!discard) throw new GameRuleError('No hay una ficha legal para descartar.');
+  return discard;
 }

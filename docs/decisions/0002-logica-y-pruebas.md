@@ -9,7 +9,7 @@ Las reglas de turnos, combinaciones y puntaje deben poder verificarse sin depend
 
 ## Decisión
 
-Mantener la lógica de dominio en `src/game.ts`, sin dependencia de React, y probarla con el módulo nativo `node:test`. Las reglas funcionales de referencia se mantienen en `reglas-burako.md`.
+Mantener la lógica de dominio en `src/game.ts`, sin dependencia de React, y probarla con el módulo nativo `node:test`. La estrategia de la computadora vive en `src/computer.ts` y compone transiciones del motor, sin duplicar sus reglas. Las reglas funcionales de referencia se mantienen en `reglas-burako.md`.
 
 ## Consecuencias
 

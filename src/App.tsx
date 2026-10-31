@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
   addToMeld,
-  chooseDiscard,
   createGame,
   discardOpeningDrawAndRedraw,
   discardTile,
   drawFromStock,
-  findBestMeld,
   finishEmptyStock,
-  getMeldKind,
   isCanasta,
   isCleanMeld,
   keepOpeningDraw,
@@ -20,6 +17,7 @@ import {
   type Target,
   type Tile,
 } from './game';
+import { runComputerTurn } from './computer';
 
 const COLOR_NAMES: Record<string, string> = {
   red: 'rojo',
@@ -52,65 +50,6 @@ function TileFace({ tile, selected = false }: { tile: Tile; selected?: boolean }
   );
 }
 
-function canCompleteWithDiscard(hand: Tile[], discard: Tile[]): boolean {
-  for (const tile of discard.slice(-4)) {
-    for (let first = 0; first < hand.length; first += 1) {
-      for (let second = first + 1; second < hand.length; second += 1) {
-        if (getMeldKind([tile, hand[first], hand[second]])) return true;
-      }
-    }
-  }
-  return false;
-}
-
-function runComputerTurn(state: GameState): GameState {
-  let next = state;
-  const hand = next.players[1].hand;
-  const shouldLift = next.discard.length > 0 && next.discard.length <= 4 && canCompleteWithDiscard(hand, next.discard);
-
-  if (next.phase === 'draw') {
-    if (next.stock.length === 0) {
-      if (shouldLift) next = takeDiscardPile(next, 1);
-      else return finishEmptyStock(next, 1);
-    } else if (shouldLift) {
-      next = takeDiscardPile(next, 1);
-    } else {
-      next = drawFromStock(next, 1);
-    }
-  }
-
-  if (next.phase === 'opening-choice' && next.currentPlayer === 1) {
-    next = keepOpeningDraw(next, 1);
-  }
-
-  while (next.phase === 'play' && next.currentPlayer === 1) {
-    const currentHand = next.players[1].hand;
-    let extended = false;
-    for (const meld of next.melds) {
-      if (meld.team !== 1) continue;
-      const tile = currentHand.find((candidate) => getMeldKind([...meld.tiles, candidate]) === meld.kind);
-      if (tile) {
-        next = addToMeld(next, 1, meld.id, [tile.id]);
-        extended = true;
-        break;
-      }
-    }
-    if (extended) continue;
-    const best = findBestMeld(currentHand);
-    if (!best) break;
-    try {
-      next = layMeld(next, 1, best.map((tile) => tile.id));
-    } catch {
-      break;
-    }
-  }
-
-  if (next.phase === 'play' && next.currentPlayer === 1 && next.players[1].hand.length > 0) {
-    next = discardTile(next, 1, chooseDiscard(next.players[1].hand).id);
-  }
-  return next;
-}
-
 export default function App() {
   const [game, setGame] = useState<GameState | null>(loadSavedGame);
   const [target, setTarget] = useState<Target>(2000);
@@ -130,14 +69,12 @@ export default function App() {
   useEffect(() => {
     if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over') return;
     const timer = window.setTimeout(() => {
-      setGame((current) => {
-        if (!current || current.currentPlayer !== 1 || current.phase === 'match-over' || current.phase === 'round-over') return current;
-        try {
-          return runComputerTurn(current);
-        } catch {
-          return current;
-        }
-      });
+      try {
+        setGame(runComputerTurn(game));
+        setError('');
+      } catch (issue) {
+        setError(issue instanceof Error ? `La computadora no pudo completar su turno: ${issue.message}` : 'La computadora no pudo completar su turno.');
+      }
     }, 650);
     return () => window.clearTimeout(timer);
   }, [game]);
@@ -251,7 +188,7 @@ export default function App() {
 
       <section className="opponent-bar" aria-label="Atril de la computadora">
         <div className="opponent-avatar" aria-hidden="true">IA</div>
-        <div className="opponent-name"><strong>La computadora</strong><span>{game.currentPlayer === 1 ? 'Está pensando…' : `${computer.hand.length} fichas en el atril`}</span></div>
+        <div className="opponent-name"><strong>La computadora</strong><span>{game.phase === 'round-over' || game.phase === 'match-over' ? `${computer.hand.length} fichas en el atril` : game.currentPlayer === 1 ? error || 'Está pensando…' : `${computer.hand.length} fichas en el atril`}</span></div>
         <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: Math.min(computer.hand.length, 8) }, (_, index) => <span key={index} />)}</div>
       </section>
 

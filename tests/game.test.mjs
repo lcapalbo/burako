@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, takeDiscardPile, tilePoints } from '../.test-build/game.js';
+import { runComputerTurn } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
 const stateWithHand = (hand, melds = []) => {
@@ -14,6 +15,12 @@ const stateAfterDead = (hand, melds = []) => {
   const players = [...state.players];
   players[0] = { ...players[0], deadTaken: true };
   return { ...state, players };
+};
+const computerState = ({ hand, melds = [], stock = [], discard = [], deadTaken = false, phase = 'draw', restrictedDiscardTileId = null }) => {
+  const initial = createGame(2000, () => 0.5);
+  const players = [...initial.players];
+  players[1] = { ...players[1], hand, deadTaken };
+  return { ...initial, players, melds, stock, discard, phase, currentPlayer: 1, deadPiles: [[], []], restrictedDiscardTileId };
 };
 
 describe('combinaciones, comodines y canastas', () => {
@@ -516,6 +523,36 @@ describe('nueva mano y rotación', () => {
   });
 });
 
+describe('cierre por corte', () => {
+  it('anuncia correctamente cuando vos cortás la mano', () => {
+    const initial = createGame('cut', () => 0.5);
+    const canasta = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`cut-human-${value}`, 'red', value));
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand: canasta, deadTaken: true };
+    const state = { ...initial, players, currentPlayer: 0, deadPiles: [[], []], phase: 'play' };
+
+    const ended = layMeld(state, 0, canasta.map((item) => item.id));
+
+    assert.equal(ended.phase, 'match-over');
+    assert.equal(ended.winner, 0);
+    assert.equal(ended.result, '¡Vos cortaste la mano!');
+  });
+
+  it('anuncia correctamente cuando la computadora corta la mano', () => {
+    const initial = createGame('cut', () => 0.5);
+    const canasta = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`cut-computer-${value}`, 'blue', value));
+    const players = [...initial.players];
+    players[1] = { ...players[1], hand: canasta, deadTaken: true };
+    const state = { ...initial, players, currentPlayer: 1, deadPiles: [[], []], phase: 'play' };
+
+    const ended = layMeld(state, 1, canasta.map((item) => item.id));
+
+    assert.equal(ended.phase, 'match-over');
+    assert.equal(ended.winner, 1);
+    assert.equal(ended.result, '¡La computadora cortó la mano!');
+  });
+});
+
 describe('fin por agotamiento del montón', () => {
   it('termina la mano por corte sin cierre si se agota el montón', () => {
     const initial = createGame('cut', () => 0.5);
@@ -583,5 +620,78 @@ describe('fin por agotamiento del montón', () => {
     assert.equal(ended.phase, 'round-over');
     assert.deepEqual(ended.scores, [315, -100]);
     assert.equal(ended.result, 'Terminó la mano.');
+  });
+});
+
+describe('turnos de la computadora', () => {
+  it('roba del montón si una ficha del pozo completaría juego pero no reúne cinco fichas', () => {
+    const hand = [tile('computer-green-9', 'green', 9), tile('computer-green-7', 'green', 7), tile('computer-red-7', 'red', 7)];
+    const topDiscard = tile('computer-green-8-discard', 'green', 8);
+    const stockTile = tile('computer-stock-tile', 'blue', 5);
+    const state = computerState({ hand, stock: [stockTile], discard: [topDiscard], deadTaken: true });
+
+    const next = runComputerTurn(state);
+
+    assert.equal(next.phase, 'draw');
+    assert.equal(next.currentPlayer, 0);
+    assert.deepEqual(next.stock, []);
+    assert.equal(next.players[1].hand.length, 3);
+    assert.ok(next.discard.some((item) => item.id === topDiscard.id));
+  });
+
+  it('rechaza agregar fichas que dejarían una ficha sin canasta y completa el turno', () => {
+    const existing = [tile('meld-eight-red', 'red', 8), tile('meld-eight-blue', 'blue', 8), tile('meld-eight-green', 'green', 8)];
+    const meld = { id: 'computer-leg-eight', kind: 'leg', tiles: existing, team: 1 };
+    const hand = [tile('computer-eight-yellow', 'yellow', 8), tile('computer-eight-red-copy', 'red', 8)];
+    const state = computerState({ hand, melds: [meld], deadTaken: true, phase: 'play' });
+
+    const next = runComputerTurn(state);
+
+    assert.equal(next.phase, 'draw');
+    assert.equal(next.currentPlayer, 0);
+    assert.equal(next.melds[0].tiles.length, 3);
+    assert.equal(next.players[1].hand.length, 1);
+  });
+
+  it('elige una combinación menor en vez de bajar una que dejaría una ficha sin canasta', () => {
+    const hand = [
+      tile('computer-eight-red-0', 'red', 8),
+      tile('computer-eight-blue-0', 'blue', 8),
+      tile('computer-eight-green-0', 'green', 8),
+      tile('computer-eight-yellow-0', 'yellow', 8),
+      tile('computer-eight-red-1', 'red', 8),
+    ];
+    const state = computerState({ hand, deadTaken: true, phase: 'play' });
+
+    const next = runComputerTurn(state);
+
+    assert.equal(next.phase, 'draw');
+    assert.equal(next.currentPlayer, 0);
+    assert.equal(next.melds.length, 1);
+    assert.equal(next.melds[0].tiles.length, 3);
+    assert.equal(next.players[1].hand.length, 1);
+  });
+
+  it('no descarta la única ficha restringida después de levantar un pozo de una ficha', () => {
+    const restricted = tile('computer-restricted-discard', 'green', 3);
+    const hand = [restricted, tile('computer-discard-four', 'blue', 4), tile('computer-discard-nine', 'red', 9)];
+    const state = computerState({ hand, phase: 'play', restrictedDiscardTileId: restricted.id });
+
+    const next = runComputerTurn(state);
+
+    assert.equal(next.phase, 'draw');
+    assert.equal(next.currentPlayer, 0);
+    assert.equal(next.discard[0].id === restricted.id, false);
+    assert.ok(next.players[1].hand.some((item) => item.id === restricted.id));
+  });
+
+  it('termina la mano cuando el montón está vacío y no hay cinco fichas para levantar', () => {
+    const hand = [tile('computer-cannot-lift-1', 'blue', 5), tile('computer-cannot-lift-2', 'green', 7)];
+    const state = computerState({ hand, discard: [tile('computer-cannot-lift-discard-1', 'red', 9), tile('computer-cannot-lift-discard-2', 'yellow', 4)] });
+
+    const next = runComputerTurn(state);
+
+    assert.equal(next.phase, 'round-over');
+    assert.match(next.result, /Terminó la mano/);
   });
 });

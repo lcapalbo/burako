@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "tsc src/game.ts --target ES2020 --module ES2020 --moduleResolution Bundler --strict --skipLibCheck --outDir .test-build && node --test tests/game.test.mjs"
+    "test": "tsc src/game.ts src/computer.ts --target ES2020 --module ES2020 --moduleResolution Bundler --strict --skipLibCheck --outDir .test-build && node --test tests/game.test.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
