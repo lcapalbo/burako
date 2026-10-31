@@ -40,12 +40,13 @@ export type GameState = {
 const RUN_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1];
 const isWild = (tile: Tile) => tile.kind === 'joker' || tile.value === 2;
 
-function canFormRun(tiles: Tile[], allowWilds = true): boolean {
-  if (tiles.length > RUN_VALUES.length) return false;
+function orderRunTiles(tiles: Tile[], allowWilds = true): Tile[] | null {
+  if (tiles.length > RUN_VALUES.length) return null;
   for (const color of COLORS) {
     for (let start = 0; start <= RUN_VALUES.length - tiles.length; start += 1) {
       const positions = RUN_VALUES.slice(start, start + tiles.length);
       const used = new Set<string>();
+      const ordered: Tile[] = [];
       const assign = (index: number, wilds: number): boolean => {
         if (index === positions.length) return true;
         const value = positions[index];
@@ -54,21 +55,27 @@ function canFormRun(tiles: Tile[], allowWilds = true): boolean {
           const natural = tile.kind === 'number' && tile.color === color && tile.value === value;
           if (natural) {
             used.add(tile.id);
+            ordered[index] = tile;
             if (assign(index + 1, wilds)) return true;
             used.delete(tile.id);
           }
           if (!natural && allowWilds && isWild(tile) && wilds < 1) {
             used.add(tile.id);
+            ordered[index] = tile;
             if (assign(index + 1, wilds + 1)) return true;
             used.delete(tile.id);
           }
         }
         return false;
       };
-      if (assign(0, 0)) return true;
+      if (assign(0, 0)) return ordered;
     }
   }
-  return false;
+  return null;
+}
+
+function canFormRun(tiles: Tile[], allowWilds = true): boolean {
+  return orderRunTiles(tiles, allowWilds) !== null;
 }
 
 function canFormLeg(tiles: Tile[], allowWilds = true): boolean {
@@ -370,7 +377,8 @@ export function layMeld(state: GameState, playerId: number, tileIds: string[]): 
   if (tiles.length !== tileIds.length) throw new Error('Seleccioná fichas que estén en tu atril.');
   const kind = getMeldKind(tiles);
   if (!kind) throw new Error('Esa combinación no es válida.');
-  const meld: Meld = { id: `meld-${state.round}-${state.melds.length}`, kind, tiles, team: player.team };
+  const orderedTiles = kind === 'run' ? orderRunTiles(tiles)! : tiles;
+  const meld: Meld = { id: `meld-${state.round}-${state.melds.length}`, kind, tiles: orderedTiles, team: player.team };
   let next = { ...state, melds: [...state.melds, meld] };
   const remaining = removeFromHand(player.hand, tileIds);
   ensureCanastaBeforeLastTiles(state, player, remaining.length, next.melds);
@@ -386,8 +394,9 @@ export function addToMeld(state: GameState, playerId: number, meldId: string, ti
   if (!meld || meld.team !== player.team) throw new Error('Solo podés agregar a juegos de tu equipo.');
   const added = player.hand.filter((tile) => tileIds.includes(tile.id));
   if (added.length !== tileIds.length || added.length === 0) throw new Error('Seleccioná fichas de tu atril.');
-  const tiles = [...meld.tiles, ...added];
+  let tiles = [...meld.tiles, ...added];
   if (getMeldKind(tiles) !== meld.kind) throw new Error('Las fichas no encajan en ese juego.');
+  if (meld.kind === 'run') tiles = orderRunTiles(tiles)!;
   const melds = [...state.melds];
   melds[index] = { ...meld, tiles };
   const remaining = removeFromHand(player.hand, tileIds);

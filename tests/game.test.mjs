@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, finishEmptyStock, getMeldKind, isCleanMeld, keepOpeningDraw, layMeld, nextRound, takeDiscardPile } from '../.test-build/game.js';
+import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, takeDiscardPile, tilePoints } from '../.test-build/game.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
 const stateWithHand = (hand, melds = []) => {
@@ -16,7 +16,7 @@ const stateAfterDead = (hand, melds = []) => {
   return { ...state, players };
 };
 
-describe('validación de combinaciones', () => {
+describe('combinaciones, comodines y canastas', () => {
   it('acepta piernas del mismo número con colores distintos', () => {
     assert.equal(getMeldKind([tile('a', 'red', 8), tile('b', 'blue', 8), tile('c', 'green', 8)]), 'leg');
   });
@@ -36,9 +36,72 @@ describe('validación de combinaciones', () => {
     assert.equal(getMeldKind([tile('d', 'red', 13), tile('e', 'red', 1), tile('f', 'red', 12)]), 'run');
   });
 
+  it('acepta el #1 antes del #2 y limita las escaleras a 14 fichas', () => {
+    assert.equal(getMeldKind([
+      tile('one', 'green', 1),
+      tile('two', 'green', 2),
+      tile('three', 'green', 3),
+    ]), 'run');
+
+    const maximumRun = Array.from({ length: 13 }, (_, index) => tile(`run-${index + 1}`, 'green', index + 1));
+    maximumRun.push(tile('run-second-one', 'green', 1));
+    assert.equal(maximumRun.length, 14);
+    assert.equal(getMeldKind(maximumRun), 'run');
+    assert.equal(getMeldKind([...maximumRun, tile('run-overflow', 'green', 1)]), null);
+  });
+
   it('acepta un comodín en una escalera y rechaza dos comodines', () => {
     assert.equal(getMeldKind([tile('a', 'green', 4), tile('b', null, 0, 'joker'), tile('c', 'green', 6)]), 'run');
     assert.equal(getMeldKind([tile('a', 'green', 4), tile('b', null, 0, 'joker'), tile('c', null, 0, 'joker')]), null);
+  });
+
+  it('usa un #2 de otro color como comodín en una escalera', () => {
+    const four = tile('green-4', 'green', 4);
+    const wildTwo = tile('blue-2', 'blue', 2);
+    const six = tile('green-6', 'green', 6);
+    const leftover = tile('leftover-for-wild-two', 'red', 9);
+    const state = stateWithHand([six, wildTwo, four, leftover]);
+
+    const next = layMeld(state, 0, [six.id, wildTwo.id, four.id]);
+    const meld = next.melds[0];
+
+    assert.equal(meld.kind, 'run');
+    assert.deepEqual(meld.tiles.map((item) => item.id), [four.id, wildTwo.id, six.id]);
+    assert.equal(isCleanMeld(meld), false);
+  });
+
+  it('permite un #2 natural y un segundo #2 como comodín en una escalera', () => {
+    const naturalTwo = tile('natural-two-run', 'green', 2);
+    const wildTwo = tile('wild-two-run', 'green', 2);
+    const meld = {
+      id: 'two-wild-run',
+      kind: 'run',
+      tiles: [naturalTwo, tile('three-run', 'green', 3), tile('four-run', 'green', 4), wildTwo],
+      team: 0,
+    };
+
+    assert.equal(getMeldKind(meld.tiles), 'run');
+    assert.equal(isCleanMeld(meld), false);
+  });
+
+  it('ordena una escalera bajada y reubica el comodín al agregar una ficha', () => {
+    const eleven = tile('eleven', 'green', 11);
+    const nine = tile('nine', 'green', 9);
+    const joker = tile('joker', null, 0, 'joker');
+    const ten = tile('ten', 'green', 10);
+    const leftover = tile('leftover', 'blue', 5);
+    const state = stateWithHand([eleven, nine, joker, ten, leftover]);
+
+    const laid = layMeld(state, 0, [eleven.id, nine.id, joker.id]);
+    assert.deepEqual(laid.melds[0].tiles.map((item) => item.id), [nine.id, joker.id, eleven.id]);
+
+    const extended = addToMeld(laid, 0, laid.melds[0].id, [ten.id]);
+    const orderedIds = extended.melds[0].tiles.map((item) => item.id);
+    const allowedOrders = [
+      [joker.id, nine.id, ten.id, eleven.id],
+      [nine.id, ten.id, eleven.id, joker.id],
+    ];
+    assert.ok(allowedOrders.some((order) => order.every((id, index) => id === orderedIds[index])));
   });
 
   it('acepta una escalera con un 2 natural y otro comodín', () => {
@@ -56,6 +119,46 @@ describe('validación de combinaciones', () => {
     assert.equal(isCleanMeld({ ...meld, tiles: [tile('x', 'green', 4), tile('wild', null, 0, 'joker'), tile('y', 'green', 6)] }), false);
   });
 
+  it('marca como canasta desde siete fichas y distingue limpia de sucia', () => {
+    const sixTileRun = [3, 4, 5, 6, 7, 8].map((value) => tile(`six-${value}`, 'red', value));
+    const cleanCanasta = {
+      id: 'clean-canasta',
+      kind: 'run',
+      tiles: [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`clean-${value}`, 'red', value)),
+      team: 0,
+    };
+    const dirtyCanasta = {
+      id: 'dirty-canasta',
+      kind: 'run',
+      tiles: [
+        tile('dirty-3', 'blue', 3),
+        tile('dirty-4', 'blue', 4),
+        tile('dirty-joker', null, 0, 'joker'),
+        tile('dirty-6', 'blue', 6),
+        tile('dirty-7', 'blue', 7),
+        tile('dirty-8', 'blue', 8),
+        tile('dirty-9', 'blue', 9),
+      ],
+      team: 0,
+    };
+
+    assert.equal(isCanasta({ ...cleanCanasta, tiles: sixTileRun }), false);
+    assert.equal(isCanasta(cleanCanasta), true);
+    assert.equal(isCleanMeld(cleanCanasta), true);
+    assert.equal(isCanasta(dirtyCanasta), true);
+    assert.equal(isCleanMeld(dirtyCanasta), false);
+  });
+});
+
+describe('puntaje de fichas', () => {
+  it('asigna los puntajes acordados a todos los valores y al comodín', () => {
+    const numberedPoints = Array.from({ length: 13 }, (_, index) => tilePoints(tile(`points-${index + 1}`, 'red', index + 1)));
+    assert.deepEqual(numberedPoints, [15, 20, 5, 5, 5, 5, 5, 10, 10, 10, 10, 10, 10]);
+    assert.equal(tilePoints(tile('points-joker', null, 0, 'joker')), 50);
+  });
+});
+
+describe('reparto y turnos', () => {
   it('crea las 106 fichas sin duplicar identificadores', () => {
     const game = createGame(2000, () => 0.5);
     const allTiles = [...game.stock, ...game.discard, ...game.deadPiles.flat(), ...game.players.flatMap((player) => player.hand)];
@@ -115,7 +218,9 @@ describe('validación de combinaciones', () => {
 
     assert.throws(() => takeDiscardPile(state, 0), /cinco fichas/);
   });
+});
 
+describe('muerto, cierre y jugadas', () => {
   it('no permite bajar un juego no canasta si el equipo tomó el muerto y deja cero o una ficha', () => {
     const meldTiles = [tile('run-3', 'red', 3), tile('run-4', 'red', 4), tile('run-5', 'red', 5)];
     const handWithOneLeft = [...meldTiles, tile('keep-1', 'blue', 11)];
@@ -236,17 +341,108 @@ describe('validación de combinaciones', () => {
     assert.deepEqual(next.players[0].hand.map((tile) => tile.id).sort(), initial.deadPiles[0].map((tile) => tile.id).sort());
     assert.equal(next.currentPlayer, 1);
   });
+});
 
+describe('puntaje de la mano', () => {
   it('ignora el atril si se tomó el muerto indirectamente y no se jugó después', () => {
     const initial = createGame(2000, () => 0.5);
     const meldTiles = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`run-${value}`, 'red', value));
     const meld = { id: 'canasta', kind: 'run', tiles: meldTiles, team: 0 };
     const players = [...initial.players];
-    players[0] = { ...players[0], hand: [tile('held', 'blue', 9)], deadTaken: true, indirectDead: true };
+    players[0] = { ...players[0], hand: [...initial.deadPiles[0]], deadTaken: true, indirectDead: true };
     players[1] = { ...players[1], hand: [] };
     const state = { ...initial, players, melds: [meld], stock: [], deadPiles: [[], []], phase: 'draw' };
+    assert.equal(state.players[0].hand.length, 11);
     const ended = finishEmptyStock(state, 0);
     assert.equal(ended.scores[0], 145);
+  });
+
+  it('suma el bono del muerto indirecto si el jugador vuelve a jugar y resta su atril', () => {
+    const initial = createGame(2000, () => 0.5);
+    const meldTiles = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`played-after-dead-${value}`, 'red', value));
+    const meld = { id: 'canasta-after-dead', kind: 'run', tiles: meldTiles, team: 0 };
+    const players = [...initial.players];
+    players[0] = {
+      ...players[0],
+      hand: [tile('after-dead-one', 'blue', 1)],
+      deadTaken: true,
+      indirectDead: true,
+      playedAfterDead: true,
+    };
+    players[1] = { ...players[1], hand: [] };
+    const state = { ...initial, players, melds: [meld], stock: [], deadPiles: [[], []], phase: 'draw' };
+
+    const ended = finishEmptyStock(state, 0);
+    assert.equal(ended.scores[0], 330);
+  });
+
+  it('puntúa la canasta sucia con bono de 100 y aplica el bono del muerto levantado', () => {
+    const initial = createGame(2000, () => 0.5);
+    const meld = {
+      id: 'dirty-canasta-score',
+      kind: 'run',
+      tiles: [
+        tile('dirty-score-3', 'red', 3),
+        tile('dirty-score-4', 'red', 4),
+        tile('dirty-score-joker', null, 0, 'joker'),
+        tile('dirty-score-6', 'red', 6),
+        tile('dirty-score-7', 'red', 7),
+        tile('dirty-score-8', 'red', 8),
+        tile('dirty-score-9', 'red', 9),
+      ],
+      team: 0,
+    };
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand: [], deadTaken: true };
+    players[1] = { ...players[1], hand: [] };
+    const state = { ...initial, players, melds: [meld], stock: [], deadPiles: [[], []], phase: 'draw' };
+
+    const ended = finishEmptyStock(state, 0);
+    assert.equal(ended.scores[0], 290);
+    assert.equal(ended.scores[1], -100);
+  });
+
+  it('resuelve correctamente cuando ambos equipos superan el objetivo en la misma mano', () => {
+    const initial = createGame(2000, () => 0.5, [1990, 1990]);
+    const makeCleanCanasta = (team, prefix) => ({
+      id: `${prefix}-canasta`,
+      kind: 'run',
+      tiles: [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`${prefix}-${value}`, 'red', value)),
+      team,
+    });
+    const makeDirtyCanasta = () => ({
+      id: 'target-dirty-canasta',
+      kind: 'run',
+      tiles: [
+        tile('target-dirty-3', 'blue', 3),
+        tile('target-dirty-4', 'blue', 4),
+        tile('target-dirty-joker', null, 0, 'joker'),
+        tile('target-dirty-6', 'blue', 6),
+        tile('target-dirty-7', 'blue', 7),
+        tile('target-dirty-8', 'blue', 8),
+        tile('target-dirty-9', 'blue', 9),
+      ],
+      team: 1,
+    });
+    const exhaustedState = (melds) => ({
+      ...initial,
+      players: initial.players.map((player) => ({ ...player, hand: [], deadTaken: true })),
+      melds,
+      stock: [],
+      deadPiles: [[], []],
+      phase: 'draw',
+    });
+
+    const higherScoreWins = finishEmptyStock(exhaustedState([makeCleanCanasta(0, 'higher'), makeDirtyCanasta()]), 0);
+    assert.deepEqual(higherScoreWins.scores, [2335, 2280]);
+    assert.equal(higherScoreWins.phase, 'match-over');
+    assert.equal(higherScoreWins.winner, 0);
+
+    const tiedScore = finishEmptyStock(exhaustedState([makeCleanCanasta(0, 'tie-a'), makeCleanCanasta(1, 'tie-b')]), 0);
+    assert.deepEqual(tiedScore.scores, [2335, 2335]);
+    assert.equal(tiedScore.phase, 'match-over');
+    assert.equal(tiedScore.winner, null);
+    assert.match(tiedScore.result, /empate/i);
   });
 
   it('suma bono de canasta y cierre al cerrar legalmente', () => {
@@ -262,6 +458,48 @@ describe('validación de combinaciones', () => {
     assert.equal(ended.phase, 'round-over');
     assert.equal(ended.scores[0], 445);
   });
+});
+
+describe('nueva mano y rotación', () => {
+  it('reparte fichas nuevas al iniciar otra mano, sin conservar fichas de la anterior', () => {
+    const initial = createGame(2000, () => 0.5, [120, 80], 4, 0);
+    const oldTiles = Array.from({ length: 10 }, (_, index) => tile(`old-${index}`, 'red', index + 1));
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand: oldTiles.slice(0, 2) };
+    players[1] = { ...players[1], hand: oldTiles.slice(2, 3) };
+    const state = {
+      ...initial,
+      players,
+      stock: [oldTiles[3]],
+      discard: [oldTiles[4]],
+      deadPiles: [[oldTiles[5]], [oldTiles[6]]],
+      melds: [{ id: 'old-meld', kind: 'leg', tiles: oldTiles.slice(7, 10), team: 0 }],
+      phase: 'round-over',
+    };
+
+    const next = nextRound(state);
+    const allTiles = [
+      ...next.stock,
+      ...next.discard,
+      ...next.deadPiles.flat(),
+      ...next.players.flatMap((player) => player.hand),
+      ...next.melds.flatMap((meld) => meld.tiles),
+    ];
+    const nextTileIds = new Set(allTiles.map((item) => item.id));
+
+    assert.deepEqual(next.players.map((player) => player.hand.length), [11, 11]);
+    assert.deepEqual(next.deadPiles.map((pile) => pile.length), [11, 11]);
+    assert.equal(next.stock.length, 62);
+    assert.equal(next.discard.length, 0);
+    assert.equal(next.melds.length, 0);
+    assert.equal(allTiles.length, 106);
+    assert.equal(nextTileIds.size, 106);
+    assert.ok(oldTiles.every((item) => !nextTileIds.has(item.id)));
+    assert.deepEqual(next.scores, [120, 80]);
+    assert.equal(next.round, 5);
+    assert.equal(next.roundStarter, 1);
+    assert.equal(next.currentPlayer, 1);
+  });
 
   it('rotan el inicio de mano según la cantidad real de jugadores', () => {
     const initial = createGame(2000, () => 0.5, [0, 0], 1, 2);
@@ -276,7 +514,9 @@ describe('validación de combinaciones', () => {
     assert.equal(next.roundStarter, 3);
     assert.equal(next.currentPlayer, 3);
   });
+});
 
+describe('fin por agotamiento del montón', () => {
   it('termina la mano por corte sin cierre si se agota el montón', () => {
     const initial = createGame('cut', () => 0.5);
     const exhausted = { ...initial, stock: [], discard: [], deadPiles: [[], []], phase: 'draw' };
@@ -284,5 +524,64 @@ describe('validación de combinaciones', () => {
     assert.equal(ended.phase, 'match-over');
     assert.equal(ended.winner, null);
     assert.match(ended.result, /agotar|agotaron/i);
+  });
+
+  it('termina la mano si se agota el montón y no reúne cinco fichas para levantar el pozo', () => {
+    const initial = createGame(2000, () => 0.5);
+    const hand = [tile('cannot-lift-5', 'blue', 5), tile('cannot-lift-7', 'green', 7)];
+    const discard = initial.stock.slice(0, 2);
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand, deadTaken: true };
+    players[1] = { ...players[1], hand: [] };
+    const state = { ...initial, players, stock: [], discard, deadPiles: [[], []], phase: 'draw' };
+
+    assert.equal(hand.length + discard.length, 4);
+    assert.throws(() => takeDiscardPile(state, 0), /cinco fichas/);
+    const ended = finishEmptyStock(state, 0);
+    assert.equal(ended.phase, 'round-over');
+    assert.deepEqual(ended.scores, [90, -100]);
+  });
+
+  it('puede seguir jugando el turno si levanta el pozo con el montón vacío', () => {
+    const initial = createGame(2000, () => 0.5);
+    const hand = [tile('continue-hand-1', 'blue', 5), tile('continue-hand-2', 'green', 7)];
+    const discard = initial.stock.slice(0, 3);
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand };
+    const state = { ...initial, players, stock: [], discard, deadPiles: [[], []], phase: 'draw' };
+
+    const lifted = takeDiscardPile(state, 0);
+    assert.equal(lifted.phase, 'play');
+    assert.equal(lifted.players[0].hand.length, 5);
+    assert.equal(lifted.discard.length, 0);
+
+    const afterDiscard = discardTile(lifted, 0, hand[0].id);
+    assert.equal(afterDiscard.phase, 'draw');
+    assert.equal(afterDiscard.currentPlayer, 1);
+    assert.equal(afterDiscard.players[0].hand.length, 4);
+  });
+
+  it('termina por puntos si se agota el montón y no se levanta un pozo disponible, sin bono de cierre', () => {
+    const initial = createGame(2000, () => 0.5);
+    const meldTiles = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`exhausted-${value}`, 'green', value));
+    const meld = { id: 'exhausted-canasta', kind: 'run', tiles: meldTiles, team: 0 };
+    const hand = [
+      tile('exhausted-hand-1', 'blue', 1),
+      tile('exhausted-hand-3', 'blue', 3),
+      tile('exhausted-hand-4', 'blue', 4),
+      tile('exhausted-hand-5', 'blue', 5),
+    ];
+    const discard = [tile('available-discard', 'yellow', 6)];
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand, deadTaken: true };
+    players[1] = { ...players[1], hand: [] };
+    const state = { ...initial, players, melds: [meld], stock: [], discard, deadPiles: [[], []], phase: 'draw' };
+
+    assert.equal(hand.length + discard.length, 5);
+    assert.equal(takeDiscardPile(state, 0).phase, 'play');
+    const ended = finishEmptyStock(state, 0);
+    assert.equal(ended.phase, 'round-over');
+    assert.deepEqual(ended.scores, [315, -100]);
+    assert.equal(ended.result, 'Terminó la mano.');
   });
 });
