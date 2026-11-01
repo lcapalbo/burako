@@ -249,7 +249,8 @@ h1 em { color: var(--coral); font-weight: 500; }
 .error-message { max-width: 1180px; margin: 8px auto 0; color: #a3432f; font-size: 11px; }
 
 @media (max-width: 680px) {
-  .game-page { padding: 0 14px 22px; }
+  body { min-width: 0; }
+  .game-page { padding: 0 14px calc(88px + env(safe-area-inset-bottom)); }
   .game-header { height: 58px; gap: 8px; }
   .game-brand { gap: 7px; font-size: 11px; }
   .game-brand .brand-mark { width: 27px; height: 27px; }
@@ -274,7 +275,7 @@ h1 em { color: var(--coral); font-weight: 500; }
   .hand-tile { padding: 1px; }
   .hand-tile .tile-face { width: 46px; height: 66px; flex-basis: 46px; }
   .hand-tile .tile-face strong { font-size: 28px; }
-  .action-bar { gap: 6px; margin-top: 12px; padding: 9px 0 max(9px, env(safe-area-inset-bottom)); }
+  .action-bar { position: fixed; z-index: 10; right: 0; bottom: 0; left: 0; width: 100%; max-width: none; gap: 6px; margin: 0; padding: 9px max(14px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(14px, env(safe-area-inset-left)); border-top: 1px solid #dce2d9; background: #f2f4ed; backdrop-filter: none; }
   .action-hint { width: 100%; margin: 0 0 2px; }
   .primary-action, .secondary-action, .text-action { min-height: 40px; flex: 1; padding: 0 8px; font-size: 10px; }
   .ai-hint { width: auto; }
