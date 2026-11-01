@@ -305,6 +305,8 @@ export default function App() {
   const humanTurn = game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
+  const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
+  const canLiftDiscard = humanTurn && game.phase === 'draw' && game.discard.length > 0 && human.hand.length + game.discard.length >= 5;
   const visibleDiscard = game.discard.slice(-3);
   const draggedTile = draggedId ? human.hand.find((tile) => tile.id === draggedId) : undefined;
   const recentlyChangedTileIdSet = new Set(recentlyChangedTileIds);
@@ -365,19 +367,34 @@ export default function App() {
 
       <section className="felt-table" aria-label="Mesa de juego">
         <div className="piles-row">
-          <div className="stock-pile" aria-label={`${game.stock.length} fichas en el montón`}>
+          <button
+            className="stock-pile pile-action"
+            type="button"
+            disabled={!canDrawFromStock}
+            aria-label={`Robar ficha del montón (${game.stock.length} restantes)`}
+            title="Robar ficha del montón"
+            onClick={() => perform((current) => drawFromStock(current, 0))}
+          >
             <span className="stack-back"><i /><i /><i /></span>
             <div className="stock-pile-label"><small>MONTÓN</small><span className="pile-count">{game.stock.length}</span></div>
-          </div>
+          </button>
           <div className="discard-pile">
             {visibleDiscard.length > 0 ? (
-              <div className="discard-stack" aria-hidden="true" style={{ width: `${48 + (visibleDiscard.length - 1) * 16}px` }}>
+              <button
+                className="discard-stack pile-action"
+                type="button"
+                disabled={!canLiftDiscard}
+                aria-label={`Levantar todo el pozo (${game.discard.length} fichas)`}
+                title="Levantar todo el pozo"
+                style={{ width: `${48 + (visibleDiscard.length - 1) * 16}px` }}
+                onClick={() => perform((current) => takeDiscardPile(current, 0))}
+              >
                 {visibleDiscard.map((tile, index) => (
                   <span className="discard-stack-card" key={tile.id} style={{ '--discard-depth': index } as React.CSSProperties}>
                     <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} />
                   </span>
                 ))}
-              </div>
+              </button>
             ) : <span className="empty-discard">Pozo vacío</span>}
             <button className="pile-view-button" type="button" disabled={!game.discard.length} onClick={() => { setDiscardSortMode('original'); discardDialogRef.current?.showModal(); }}>VER POZO <span className="pile-count">{game.discard.length}</span></button>
           </div>
