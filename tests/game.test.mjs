@@ -407,6 +407,45 @@ describe('muerto, cierre y jugadas', () => {
 });
 
 describe('puntaje de la mano', () => {
+  it('detalla canasta sucia, muerto, fichas bajadas y fichas en atril', () => {
+    const initial = createGame(5000, () => 0.5, [10, -20], 2);
+    const dirtyTiles = [3, 4, 6, 7, 8, 9].map((value) => tile(`dirty-detail-${value}`, 'red', value));
+    dirtyTiles.push(tile('dirty-detail-joker', null, 0, 'joker'));
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand: [tile('detail-human-rack', 'blue', 5)], deadTaken: true };
+    players[1] = { ...players[1], hand: [tile('detail-computer-rack', 'green', 9)] };
+    const state = {
+      ...initial,
+      players,
+      melds: [{ id: 'dirty-detail-canasta', kind: 'run', tiles: dirtyTiles, team: 0 }],
+      stock: [],
+      deadPiles: [[], []],
+      phase: 'draw',
+    };
+
+    const ended = finishEmptyStock(state, 0);
+
+    assert.deepEqual(ended.roundHistory[0].scores[0], {
+      cleanCanastas: 0,
+      dirtyCanastas: 100,
+      dead: 100,
+      closure: 0,
+      meldTiles: 90,
+      rackTiles: -5,
+      total: 285,
+    });
+    assert.deepEqual(ended.roundHistory[0].scores[1], {
+      cleanCanastas: 0,
+      dirtyCanastas: 0,
+      dead: -100,
+      closure: 0,
+      meldTiles: 0,
+      rackTiles: -10,
+      total: -110,
+    });
+    assert.deepEqual(ended.scores, [295, -130]);
+  });
+
   it('ignora el atril si se tomó el muerto indirectamente y no se jugó después', () => {
     const initial = createGame(2000, () => 0.5);
     const meldTiles = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`run-${value}`, 'red', value));
@@ -520,6 +559,15 @@ describe('puntaje de la mano', () => {
     const ended = discardTile(state, 0, lastTile.id);
     assert.equal(ended.phase, 'round-over');
     assert.equal(ended.scores[0], 445);
+    assert.deepEqual(ended.roundHistory[0].scores[0], {
+      cleanCanastas: 200,
+      dirtyCanastas: 0,
+      dead: 100,
+      closure: 100,
+      meldTiles: 45,
+      rackTiles: 0,
+      total: 445,
+    });
   });
 });
 
@@ -559,6 +607,7 @@ describe('nueva mano y rotación', () => {
     assert.equal(nextTileIds.size, 106);
     assert.ok(oldTiles.every((item) => !nextTileIds.has(item.id)));
     assert.deepEqual(next.scores, [120, 80]);
+    assert.deepEqual(next.roundHistory, state.roundHistory ?? []);
     assert.equal(next.round, 5);
     assert.equal(next.roundStarter, 1);
     assert.equal(next.currentPlayer, 1);

@@ -143,6 +143,17 @@ h1 em { color: var(--coral); font-weight: 500; }
 .discard-tile .tile-face strong { font-size: 27px; }
 .discard-dialog-footer { justify-content: space-between; border-top: 1px solid #dce2d9; }
 .discard-dialog-footer .primary-action { flex: 0 0 auto; }
+.points-table-scroll { max-height: min(58vh, 520px); padding: 8px 20px; overflow: auto; }
+.points-history-note { margin: 8px 0; color: #68766d; font-size: 11px; line-height: 1.5; }
+.points-table { width: 100%; min-width: 430px; border-collapse: collapse; font-size: 11px; }
+.points-table th, .points-table td { padding: 9px 8px; border-bottom: 1px solid #e1e5dc; }
+.points-table th { text-align: left; font-weight: 550; }
+.points-table td { text-align: right; font-variant-numeric: tabular-nums; }
+.points-table thead th { position: sticky; z-index: 1; top: 0; color: #617369; background: var(--paper); font-size: 9px; font-weight: 800; }
+.points-section-row th { padding-top: 14px; color: #374c3f; background: #e9eddc; font-weight: 800; }
+.points-round-total th, .points-round-total td { border-top: 1px solid #bdc9bc; font-weight: 800; }
+.points-match-total th, .points-match-total td { border-top: 2px solid #66766a; background: #f0f3e8; font-weight: 850; }
+.points-dialog .discard-dialog-footer { justify-content: flex-end; }
 .meld-area { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 18px 30px; min-height: 92px; padding: 8px 4px 4px; }
 .empty-table { align-self: center; margin: 10px 0; color: rgba(230, 239, 226, .64); font-family: Georgia, serif; font-size: 14px; font-style: italic; }
 .meld-group { max-width: 100%; }
@@ -165,6 +176,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .result-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 9px 16px; max-width: 1180px; margin: 12px auto; padding: 12px 14px; border-left: 3px solid #d9b752; background: #e9eddc; font-size: 12px; }
 .result-banner > span { color: #68766d; }
 .result-banner button { margin-left: auto; padding: 7px 10px; border: 0; border-radius: 2px; color: white; background: var(--felt); font-size: 11px; font-weight: 700; cursor: pointer; }
+.result-banner .points-detail-button { margin-left: 0; border: 1px solid #cbd6cc; color: var(--ink); background: transparent; }
 .result-banner.is-final { border-left-color: var(--coral); }
 .player-area { max-width: 1180px; margin: 20px auto 0; }
 .player-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -228,6 +240,7 @@ h1 em { color: var(--coral); font-weight: 500; }
   .discard-dialog-content { max-height: calc(100dvh - 20px); }
   .discard-dialog-header, .discard-dialog-footer { padding: 13px 14px; }
   .discard-dialog-header h2 { font-size: 20px; }
+  .points-table-scroll { max-height: 60dvh; padding: 8px 14px; }
   .discard-tile-list { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); max-height: 60dvh; gap: 7px; padding: 12px 14px; }
   .discard-tile .tile-face { width: 40px; height: 57px; flex-basis: 57px; }
   .discard-tile .tile-face strong { font-size: 24px; }

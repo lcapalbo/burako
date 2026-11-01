@@ -17,6 +17,16 @@ export type Player = {
   indirectDead: boolean;
   playedAfterDead: boolean;
 };
+export type HandScoreBreakdown = {
+  cleanCanastas: number;
+  dirtyCanastas: number;
+  dead: number;
+  closure: number;
+  meldTiles: number;
+  rackTiles: number;
+  total: number;
+};
+export type RoundScore = { round: number; scores: [HandScoreBreakdown, HandScoreBreakdown] };
 export type Target = 'cut' | 2000 | 3000 | 5000;
 export type GameState = {
   stock: Tile[];
@@ -25,6 +35,7 @@ export type GameState = {
   players: Player[];
   melds: Meld[];
   scores: number[];
+  roundHistory: RoundScore[];
   currentPlayer: number;
   roundStarter: number;
   target: Target;
@@ -198,6 +209,7 @@ export function createGame(target: Target = 2000, random = Math.random, scores =
     players,
     melds: [],
     scores: [...scores],
+    roundHistory: [],
     currentPlayer: initialStarter,
     roundStarter: initialStarter,
     target,
@@ -320,17 +332,23 @@ function takeDeadIfNeeded(state: GameState, player: Player, indirect: boolean): 
 }
 
 function scoreRound(state: GameState, closureWinner: number | null): GameState {
-  const handScores = [0, 0];
+  const roundScores: [HandScoreBreakdown, HandScoreBreakdown] = [
+    { cleanCanastas: 0, dirtyCanastas: 0, dead: 0, closure: 0, meldTiles: 0, rackTiles: 0, total: 0 },
+    { cleanCanastas: 0, dirtyCanastas: 0, dead: 0, closure: 0, meldTiles: 0, rackTiles: 0, total: 0 },
+  ];
   for (const team of [0, 1]) {
-    const hasCanasta = teamHasCanasta(state, team);
-    const meldPoints = state.melds
-      .filter((meld) => meld.team === team)
+    const teamMelds = state.melds.filter((meld) => meld.team === team);
+    const hasCanasta = teamMelds.some(isCanasta);
+    const cleanCanastas = teamMelds
+      .filter((meld) => isCanasta(meld) && isCleanMeld(meld))
+      .length * 200;
+    const dirtyCanastas = teamMelds
+      .filter((meld) => isCanasta(meld) && !isCleanMeld(meld))
+      .length * 100;
+    const meldPoints = teamMelds
       .reduce((sum, meld) => sum + meld.tiles.reduce((meldSum, tile) => meldSum + tilePoints(tile), 0), 0);
-    const canastaBonus = state.melds
-      .filter((meld) => meld.team === team && isCanasta(meld))
-      .reduce((sum, meld) => sum + (isCleanMeld(meld) ? 200 : 100), 0);
     const ignoredHandPlayer = state.players.find((member) => member.team === team && member.indirectDead && !member.playedAfterDead);
-    const handPoints = state.players
+    const rackPoints = state.players
       .filter((player) => player.team === team && player.id !== ignoredHandPlayer?.id)
       .flatMap((player) => player.hand)
       .reduce((sum, tile) => sum + tilePoints(tile), 0);
@@ -340,7 +358,15 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
       ? player.indirectDead && !player.playedAfterDead ? -100 : 100
       : -100;
     const closureBonus = closureWinner !== null && state.players[closureWinner].team === team ? 100 : 0;
-    handScores[team] = (hasCanasta ? meldPoints + canastaBonus - handPoints : -meldPoints - handPoints) + deadBonus + closureBonus;
+    const breakdown = roundScores[team];
+    breakdown.cleanCanastas = cleanCanastas;
+    breakdown.dirtyCanastas = dirtyCanastas;
+    breakdown.dead = deadBonus;
+    breakdown.closure = closureBonus;
+    breakdown.meldTiles = hasCanasta || meldPoints === 0 ? meldPoints : -meldPoints;
+    breakdown.rackTiles = rackPoints === 0 ? 0 : -rackPoints;
+    breakdown.total = breakdown.cleanCanastas + breakdown.dirtyCanastas + breakdown.dead
+      + breakdown.closure + breakdown.meldTiles + breakdown.rackTiles;
   }
   if (state.target === 'cut') {
     return closureWinner === null
@@ -352,7 +378,7 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
           result: closureWinner === 0 ? '¡Vos cortaste la mano!' : '¡La computadora cortó la mano!',
         };
   }
-  const scores = state.scores.map((score, team) => score + handScores[team]);
+  const scores = state.scores.map((score, team) => score + roundScores[team].total);
   const targetScore = typeof state.target === 'number' ? state.target : Number.POSITIVE_INFINITY;
   const reached = scores.map((score) => score >= targetScore);
   let matchWinner: number | null = null;
@@ -367,6 +393,7 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
   return {
     ...state,
     scores,
+    roundHistory: [...(state.roundHistory ?? []), { round: state.round, scores: roundScores }],
     phase: result ? 'match-over' : 'round-over',
     winner: matchWinner,
     result: result ?? 'Terminó la mano.',
@@ -487,7 +514,10 @@ export function nextRound(state: GameState): GameState {
       deadPiles: state.deadPiles.map((pile) => [...pile]),
     };
   }
-  return createGame(state.target, Math.random, state.scores, state.round + 1, nextStarter);
+  return {
+    ...createGame(state.target, Math.random, state.scores, state.round + 1, nextStarter),
+    roundHistory: state.roundHistory ?? [],
+  };
 }
 
 export function findBestMeld(hand: Tile[], isAllowed: (tiles: Tile[]) => boolean = () => true): Tile[] | null {

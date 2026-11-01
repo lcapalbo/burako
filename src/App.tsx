@@ -67,6 +67,7 @@ export default function App() {
   const [discardSortMode, setDiscardSortMode] = useState<HandSortMode>('original');
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
   const discardDialogRef = useRef<HTMLDialogElement>(null);
+  const pointsDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     try {
@@ -184,6 +185,20 @@ export default function App() {
   const visibleDiscard = game.discard.slice(-3);
   const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const cycleDiscardSort = () => setDiscardSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
+  const pointsHistory = game.roundHistory ?? [];
+  const currentRoundScore = pointsHistory.length ? pointsHistory[pointsHistory.length - 1] : null;
+  const previousRoundScores = currentRoundScore ? pointsHistory.slice(0, -1) : pointsHistory;
+  const pointsRows = currentRoundScore ? [
+    { label: 'Canastas limpias', scores: currentRoundScore.scores.map((score) => score.cleanCanastas) },
+    { label: 'Canastas sucias', scores: currentRoundScore.scores.map((score) => score.dirtyCanastas) },
+    { label: 'Bono del muerto', scores: currentRoundScore.scores.map((score) => score.dead) },
+    { label: 'Bono de cierre', scores: currentRoundScore.scores.map((score) => score.closure) },
+    { label: 'Fichas en juegos bajados', scores: currentRoundScore.scores.map((score) => score.meldTiles) },
+    { label: 'Fichas en atril', scores: currentRoundScore.scores.map((score) => score.rackTiles) },
+  ] : [];
+  const formatHandPoints = (points: number) => points > 0
+    ? `+${points.toLocaleString('es-AR')}`
+    : points.toLocaleString('es-AR');
 
   return (
     <main className="game-page">
@@ -281,9 +296,68 @@ export default function App() {
         </div>
       </dialog>
 
+      <dialog
+        ref={pointsDialogRef}
+        className="discard-dialog points-dialog"
+        aria-labelledby="points-dialog-title"
+        onClick={(event) => { if (event.target === event.currentTarget) pointsDialogRef.current?.close(); }}
+      >
+        <div className="discard-dialog-content">
+          <header className="discard-dialog-header">
+            <div>
+              <p className="discard-dialog-eyebrow">Resumen de la partida</p>
+              <h2 id="points-dialog-title">Detalle de puntos</h2>
+            </div>
+            <button className="discard-dialog-close" type="button" aria-label="Cerrar detalle de puntos" autoFocus onClick={() => pointsDialogRef.current?.close()}>×</button>
+          </header>
+          <div className="points-table-scroll">
+            {pointsHistory.length > 0 && pointsHistory[0].round > 1 && <p className="points-history-note">El detalle de manos anteriores a esta versión no está disponible.</p>}
+            {!currentRoundScore && <p className="points-history-note">El detalle de esta mano no está disponible para esta partida guardada.</p>}
+            <table className="points-table">
+              <thead>
+                <tr><th scope="col">Detalle</th><th scope="col">Vos</th><th scope="col">Computadora</th></tr>
+              </thead>
+              <tbody>
+                {previousRoundScores.map((roundScore) => (
+                  <tr key={roundScore.round}>
+                    <th scope="row">Mano {roundScore.round}</th>
+                    <td>{formatHandPoints(roundScore.scores[0].total)}</td>
+                    <td>{formatHandPoints(roundScore.scores[1].total)}</td>
+                  </tr>
+                ))}
+                {currentRoundScore && <>
+                  <tr className="points-section-row"><th colSpan={3}>Detalle de la mano {currentRoundScore.round}</th></tr>
+                  {pointsRows.map((row) => (
+                    <tr key={row.label}>
+                      <th scope="row">{row.label}</th>
+                      <td>{formatHandPoints(row.scores[0])}</td>
+                      <td>{formatHandPoints(row.scores[1])}</td>
+                    </tr>
+                  ))}
+                  <tr className="points-round-total">
+                    <th scope="row">Total de la mano</th>
+                    <td>{formatHandPoints(currentRoundScore.scores[0].total)}</td>
+                    <td>{formatHandPoints(currentRoundScore.scores[1].total)}</td>
+                  </tr>
+                </>}
+                <tr className="points-match-total">
+                  <th scope="row">Total final</th>
+                  <td>{game.scores[0].toLocaleString('es-AR')}</td>
+                  <td>{game.scores[1].toLocaleString('es-AR')}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <footer className="discard-dialog-footer">
+            <button className="primary-action" type="button" onClick={() => pointsDialogRef.current?.close()}>Cerrar</button>
+          </footer>
+        </div>
+      </dialog>
+
       {game.result && <section className={`result-banner ${game.phase === 'match-over' ? 'is-final' : ''}`} role="status">
         <strong>{game.result}</strong>
         <span>{game.phase === 'round-over' ? `Puntaje: vos ${game.scores[0].toLocaleString('es-AR')} · computadora ${game.scores[1].toLocaleString('es-AR')}` : ''}</span>
+        {game.target !== 'cut' && <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>}
         {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound)}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
         {game.phase === 'match-over' && <button type="button" onClick={() => setGame(null)}>Volver al inicio</button>}
       </section>}
