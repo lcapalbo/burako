@@ -28,6 +28,16 @@ const COLOR_NAMES: Record<string, string> = {
 };
 const SAVE_KEY = 'burako-local-game-v1';
 type HandSortMode = 'original' | 'color' | 'number';
+const TARGET_OPTIONS = [
+  { label: 'A 2000 pts', value: 2000 },
+  { label: 'A 3000 pts', value: 3000 },
+  { label: 'A 5000 pts', value: 5000 },
+  { label: 'Por Corte', value: 'cut' },
+] as const;
+
+function formatTargetLabel(target: Target): string {
+  return target === 'cut' ? 'Por Corte' : `A ${target.toLocaleString('es-AR')} pts`;
+}
 
 function sortHandForDisplay(hand: Tile[], mode: HandSortMode): Tile[] {
   if (mode === 'color') return sortTiles(hand);
@@ -160,20 +170,20 @@ export default function App() {
       <main className="welcome">
         <header className="topbar">
           <span className="brand-mark" aria-hidden="true">B</span>
-          <span className="brand-name">Burako de mesa</span>
+          <span className="brand-name">Burako</span>
           <span className="local-label"><span /> Partida local</span>
         </header>
         <section className="welcome-copy">
           <p className="eyebrow">Una mesa, cuatro colores</p>
-          <h1>Tu próxima<br /><em>canasta</em> empieza acá.</h1>
-          <p className="intro">Una partida tranquila contra la computadora, con las reglas de esta mesa.</p>
+          <h1>Tu próximo<br /><em>burako</em> empieza acá.</h1>
+          <p className="intro">Juega una partida tranquila contra la computadora.</p>
           <div className="target-picker" role="group" aria-label="Objetivo de la partida">
-            {([['2000', 2000], ['3000', 3000], ['5000', 5000], ['Corte', 'cut']] as const).map(([label, value]) => (
+            {TARGET_OPTIONS.map(({ label, value }) => (
               <button key={label} type="button" className={target === value ? 'target-option active' : 'target-option'} onClick={() => setTarget(value)}>{label}</button>
             ))}
           </div>
           <button className="start-button" type="button" onClick={begin}>Preparar la mesa <span aria-hidden="true">→</span></button>
-          <p className="offline-note">Sin cuenta · La partida se juega en este dispositivo</p>
+          <p className="offline-note">Sin cuenta ni publicidad · La partida se juega en tu dispositivo</p>
         </section>
         <aside className="tile-composition" aria-label="Fichas de ejemplo">
           <TileFace tile={{ id: 'welcome-red-7', color: 'red', value: 7, kind: 'number' }} className="tile-one" />
@@ -223,9 +233,9 @@ export default function App() {
     <main className="game-page">
       <header className="game-header">
         <a className="game-brand" href="#" onClick={(event) => { event.preventDefault(); setGame(null); }}>
-          <span className="brand-mark" aria-hidden="true">B</span><span>Burako de mesa</span>
+          <span className="brand-mark" aria-hidden="true">B</span><span>Burako</span>
         </a>
-        <div className="match-meta"><span>Mano {game.round}</span><span className="meta-divider" />{game.target === 'cut' ? 'Por corte' : `A ${game.target.toLocaleString('es-AR')}`}</div>
+        <div className="match-meta"><span>Mano {game.round}</span><span className="meta-divider" />{formatTargetLabel(game.target)}</div>
         <button className="quiet-button" type="button" onClick={() => setGame(null)}>Salir</button>
       </header>
 
