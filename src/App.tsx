@@ -127,6 +127,20 @@ export default function App() {
   const ignoreNextTileClickRef = useRef(false);
   const discardDialogRef = useRef<HTMLDialogElement>(null);
   const pointsDialogRef = useRef<HTMLDialogElement>(null);
+  const opponentBarRef = useRef<HTMLElement>(null);
+  const playerAreaRef = useRef<HTMLElement>(null);
+  const pendingScrollTargetRef = useRef<'player' | 'computer' | null>(null);
+
+  useEffect(() => {
+    const target = pendingScrollTargetRef.current;
+    if (!target) return;
+    pendingScrollTargetRef.current = null;
+    const frame = window.requestAnimationFrame(() => {
+      const section = target === 'player' ? playerAreaRef.current : opponentBarRef.current;
+      section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [game]);
 
   useEffect(() => {
     try {
@@ -168,10 +182,15 @@ export default function App() {
     setError('');
   };
 
-  const perform = (action: (current: GameState) => GameState) => {
+  const perform = (action: (current: GameState) => GameState, scrollTarget?: 'player' | 'computer') => {
     if (!game) return;
     try {
       const next = action(game);
+      const scrollToPlayer = scrollTarget === 'player' && next.currentPlayer === 0
+        && (next.phase === 'draw' || next.phase === 'opening-choice' || next.phase === 'play');
+      const scrollToComputer = scrollTarget === 'computer' && next.currentPlayer === 1
+        && (next.phase === 'draw' || next.phase === 'play');
+      pendingScrollTargetRef.current = scrollToPlayer ? 'player' : scrollToComputer ? 'computer' : null;
       setRecentlyChangedTileIds(getRecentlyChangedTileIds(game, next));
       setGame(next);
       setSelection([]);
@@ -358,7 +377,7 @@ export default function App() {
         <span className="round-indicator">{game.phase === 'play' && game.currentPlayer === 0 ? 'Tu turno' : game.currentPlayer === 1 ? 'Juega la computadora' : game.phase === 'draw' ? 'Robá para empezar' : 'Mano en curso'}</span>
       </section>
 
-      <section className="opponent-bar" aria-label="Atril de la computadora">
+      <section ref={opponentBarRef} className="opponent-bar" aria-label="Atril de la computadora">
         <div className="opponent-avatar" aria-hidden="true">IA</div>
         <div className="opponent-name"><strong>La computadora</strong><span>{roundClosed ? `${computer.hand.length} fichas en el atril` : game.currentPlayer === 1 ? error || 'Está pensando…' : `${computer.hand.length} fichas en el atril`}</span></div>
         {revealComputerHand
@@ -374,7 +393,7 @@ export default function App() {
             disabled={!canDrawFromStock}
             aria-label={`Robar ficha del montón (${game.stock.length} restantes)`}
             title="Robar ficha del montón"
-            onClick={() => perform((current) => drawFromStock(current, 0))}
+            onClick={() => perform((current) => drawFromStock(current, 0), 'player')}
           >
             <span className="stack-back"><i /><i /><i /></span>
             <div className="stock-pile-label"><small>MONTÓN</small><span className="pile-count">{game.stock.length}</span></div>
@@ -389,8 +408,8 @@ export default function App() {
                 title={canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
                 style={{ width: `${48 + (visibleDiscard.length - 1) * 16}px` }}
                 onClick={() => canDiscard
-                  ? perform((current) => discardTile(current, 0, selectedTileIds[0]))
-                  : perform((current) => takeDiscardPile(current, 0))}
+                  ? perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')
+                  : perform((current) => takeDiscardPile(current, 0), 'player')}
               >
                 {visibleDiscard.map((tile, index) => (
                   <span className="discard-stack-card" key={tile.id} style={{ '--discard-depth': index } as React.CSSProperties}>
@@ -399,7 +418,7 @@ export default function App() {
                 ))}
               </button>
             ) : canDiscard
-              ? <button className="empty-discard pile-action" type="button" aria-label="Descartar ficha seleccionada en el pozo vacío" title="Descartar ficha seleccionada" onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]))}>Pozo vacío</button>
+              ? <button className="empty-discard pile-action" type="button" aria-label="Descartar ficha seleccionada en el pozo vacío" title="Descartar ficha seleccionada" onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Pozo vacío</button>
               : <span className="empty-discard">Pozo vacío</span>}
             <button className="pile-view-button" type="button" disabled={!game.discard.length} onClick={() => { setDiscardSortMode('original'); discardDialogRef.current?.showModal(); }}>VER POZO <span className="pile-count">{game.discard.length}</span></button>
           </div>
@@ -575,7 +594,7 @@ export default function App() {
         </div>
       </section>}
 
-      <section className="player-area" aria-label="Tu atril">
+      <section ref={playerAreaRef} className="player-area" aria-label="Tu atril">
         <div className="player-heading">
           <div><span className="player-dot" /><strong>Tu atril</strong><span className="hand-count">{human.hand.length} fichas</span></div>
           <div className="hand-tools">
@@ -628,16 +647,16 @@ export default function App() {
         {game.phase === 'opening-choice' && game.currentPlayer === 0 ? <>
           <span className="action-hint">La primera ficha puede cambiarse por otra del montón</span>
           <button className="primary-action" type="button" onClick={() => perform((current) => keepOpeningDraw(current, 0))}>Jugar con esta ficha</button>
-          <button className="secondary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => discardOpeningDrawAndRedraw(current, 0))}>Descartar y robar otra</button>
+          <button className="secondary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')}>Descartar y robar otra</button>
         </> : game.phase === 'draw' && game.currentPlayer === 0 ? <>
           <span className="action-hint">Elegí cómo robar para empezar tu turno</span>
-          <button className="primary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => drawFromStock(current, 0))}>Robar ficha del montón</button>
-          <button className="secondary-action" type="button" disabled={!game.discard.length || human.hand.length + game.discard.length < 5} onClick={() => perform((current) => takeDiscardPile(current, 0))}>Levantar todo el pozo</button>
+          <button className="primary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => drawFromStock(current, 0), 'player')}>Robar ficha del montón</button>
+          <button className="secondary-action" type="button" disabled={!game.discard.length || human.hand.length + game.discard.length < 5} onClick={() => perform((current) => takeDiscardPile(current, 0), 'player')}>Levantar todo el pozo</button>
           {game.stock.length === 0 && <button className="text-action" type="button" onClick={() => perform((current) => finishEmptyStock(current, 0))}>Terminar la mano</button>}
         </> : game.phase === 'play' && game.currentPlayer === 0 ? <>
           <span className="action-hint">{selection.length ? `${selection.length} seleccionada${selection.length === 1 ? '' : 's'}` : 'Seleccioná fichas del atril'}</span>
           <button className="primary-action" type="button" disabled={selection.length < 3} onClick={() => perform((current) => layMeld(current, 0, selectedTileIds))}>Bajar juego</button>
-          <button className="secondary-action" type="button" disabled={!canDiscard} onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]))}>Descartar</button>
+          <button className="secondary-action" type="button" disabled={!canDiscard} onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Descartar</button>
         </> : <span className="action-hint ai-hint">{game.phase === 'match-over' || game.phase === 'round-over' ? 'La mano está cerrada' : 'La computadora está jugando'}</span>}
       </footer>
     </main>
