@@ -47,6 +47,12 @@ function sortHandForDisplay(hand: Tile[], mode: HandSortMode): Tile[] {
   return hand;
 }
 
+function sortLegTiles(tiles: Tile[]): Tile[] {
+  const wildcards = tiles.filter((tile) => tile.kind === 'joker' || tile.value === 2);
+  const naturalTiles = tiles.filter((tile) => tile.kind !== 'joker' && tile.value !== 2);
+  return [...sortTiles(wildcards), ...sortTiles(naturalTiles)];
+}
+
 function getRecentlyChangedTileIds(previous: GameState, next: GameState): string[] {
   const changed = new Set<string>();
   const previousHumanHand = new Set(previous.players[0].hand.map((tile) => tile.id));
@@ -471,7 +477,8 @@ export default function App() {
                             event.preventDefault();
                             addSelection();
                           };
-                          const shownTiles = previewTiles ?? (meld.kind === 'leg' ? sortTiles(meld.tiles) : meld.tiles);
+                          const tilesToDisplay = previewTiles ?? meld.tiles;
+                          const shownTiles = meld.kind === 'leg' ? sortLegTiles(tilesToDisplay) : tilesToDisplay;
                           return <div
                             className={`meld-group ${canAddSelection ? 'meld-target' : ''}`}
                             key={meld.id}
