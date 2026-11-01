@@ -611,29 +611,36 @@ export default function App() {
           onPointerUp={finishTouchReorder}
           onPointerCancel={cancelTouchReorder}
         >
-          {displayedHand.map((tile, index) => (
-            <button
-              className={`hand-tile ${selection.includes(tile.id) ? 'selected' : ''} ${draggedId === tile.id ? 'is-touch-dragging' : ''}`}
-              type="button"
-              key={tile.id}
-              data-hand-tile-id={tile.id}
-              draggable={humanTurn}
-              disabled={!humanTurn}
-              aria-pressed={selection.includes(tile.id)}
-              aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
-              onClick={() => {
-                if (ignoreNextTileClickRef.current) {
-                  ignoreNextTileClickRef.current = false;
-                  return;
-                }
-                toggleTile(tile.id);
-              }}
-              onDragStart={() => setDraggedId(tile.id)}
-              onDragEnd={() => setDraggedId(null)}
-              onDrop={(event) => { event.preventDefault(); if (draggedId) reorderHand(draggedId, tile.id); setDraggedId(null); }}
-              style={{ '--tile-index': index } as React.CSSProperties}
-            ><TileFace tile={tile} selected={selection.includes(tile.id)} className={recentlyChangedTileIdSet.has(tile.id) && !selection.includes(tile.id) ? 'is-recent' : ''} /></button>
-          ))}
+          {displayedHand.map((tile, index) => {
+            const openingChoiceTile = game.phase === 'opening-choice' && game.openingDrawTileId === tile.id;
+            return (
+              <button
+                className={`hand-tile ${selection.includes(tile.id) ? 'selected' : ''} ${draggedId === tile.id ? 'is-touch-dragging' : ''}`}
+                type="button"
+                key={tile.id}
+                data-hand-tile-id={tile.id}
+                draggable={humanTurn}
+                disabled={!humanTurn}
+                aria-pressed={selection.includes(tile.id)}
+                aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
+                onClick={() => {
+                  if (ignoreNextTileClickRef.current) {
+                    ignoreNextTileClickRef.current = false;
+                    return;
+                  }
+                  toggleTile(tile.id);
+                }}
+                onDragStart={() => setDraggedId(tile.id)}
+                onDragEnd={() => setDraggedId(null)}
+                onDrop={(event) => { event.preventDefault(); if (draggedId) reorderHand(draggedId, tile.id); setDraggedId(null); }}
+                style={{ '--tile-index': index } as React.CSSProperties}
+              ><TileFace
+                tile={tile}
+                selected={selection.includes(tile.id)}
+                className={openingChoiceTile ? 'is-preview' : recentlyChangedTileIdSet.has(tile.id) && !selection.includes(tile.id) ? 'is-recent' : ''}
+              /></button>
+            );
+          })}
         </div>
         {draggedTile && touchDragPosition && <div
           className="touch-drag-ghost"
