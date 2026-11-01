@@ -7,5 +7,6 @@ Este directorio registra las decisiones técnicas vigentes del proyecto mediante
 - [0001: Aplicación web con React, TypeScript y Vite](0001-stack-web.md)
 - [0002: Lógica de juego independiente y pruebas con Node](0002-logica-y-pruebas.md)
 - [0003: Persistencia local de la partida](0003-persistencia-local.md)
+- [0004: Renderizado de reglas en la interfaz](0004-renderizado-reglas.md)
 
 Al cambiar una decisión, marcá el registro anterior como `Reemplazada`, enlazá la decisión sucesora y actualizá esta lista. No uses estos registros para reemplazar las reglas funcionales de [`../../reglas-burako.md`](../../reglas-burako.md).
