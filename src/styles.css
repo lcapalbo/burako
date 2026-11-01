@@ -155,9 +155,14 @@ h1 em { color: var(--coral); font-weight: 500; }
 .points-round-total th, .points-round-total td { border-top: 1px solid #bdc9bc; font-weight: 800; }
 .points-match-total th, .points-match-total td { border-top: 2px solid #66766a; background: #f0f3e8; font-weight: 850; }
 .points-dialog .discard-dialog-footer { justify-content: flex-end; }
-.meld-area { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 18px 30px; min-height: 92px; padding: 8px 4px 4px; }
+.meld-area { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; min-height: 92px; padding: 8px 4px 4px; }
 .empty-table { align-self: center; margin: 10px 0; color: rgba(230, 239, 226, .64); font-family: Georgia, serif; font-size: 14px; font-style: italic; }
-.meld-group { max-width: 100%; }
+.meld-team { min-width: 0; padding: 8px 9px; border: 1px solid rgba(232, 241, 220, .2); border-radius: 4px; background: rgba(9, 48, 36, .12); }
+.meld-team-heading { margin: 0 0 8px; color: #e3eea2; font-size: 10px; font-weight: 800; }
+.empty-team-melds { margin: 0; color: rgba(230, 239, 226, .64); font-size: 9px; font-style: italic; }
+.meld-list { display: grid; gap: 10px; }
+.meld-group { max-width: 100%; min-width: 0; padding-bottom: 8px; border-bottom: 1px solid rgba(232, 241, 220, .14); }
+.meld-group:last-child { padding-bottom: 0; border-bottom: 0; }
 .meld-heading { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; color: #e3ebe0; font-size: 9px; }
 .canasta-badge { padding: 3px 5px; border-radius: 2px; color: #27392e; background: var(--lemon); font-size: 8px; font-weight: 800; }
 .meld-tiles { display: flex; overflow-x: auto; max-width: min(100%, 720px); padding: 0 2px 6px; }
@@ -224,7 +229,7 @@ h1 em { color: var(--coral); font-weight: 500; }
   .opponent-bar { min-height: 48px; }
   .felt-table { min-height: 270px; padding: 13px 12px 16px; }
   .piles-row { min-height: 114px; }
-  .meld-area { min-height: 95px; gap: 14px; }
+  .meld-area { grid-template-columns: minmax(0, 1fr); min-height: 95px; gap: 9px; }
   .empty-table { font-size: 12px; text-align: center; }
   .meld-tiles .tile-face { width: 37px; height: 52px; flex-basis: 37px; }
   .meld-tiles .tile-face strong { font-size: 21px; }

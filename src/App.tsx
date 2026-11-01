@@ -192,6 +192,9 @@ export default function App() {
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
   const visibleDiscard = game.discard.slice(-3);
+  const meldsForTeam = (team: number) => game.melds
+    .filter((meld) => meld.team === team)
+    .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg'));
   const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const cycleDiscardSort = () => setDiscardSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const pointsHistory = game.roundHistory ?? [];
@@ -266,17 +269,26 @@ export default function App() {
           </div>
         </div>
         <div className="meld-area">
-          {game.melds.length === 0 ? (
-            <p className="empty-table">Los juegos que bajes van a aparecer acá</p>
-          ) : game.melds.map((meld) => (
-            <div className="meld-group" key={meld.id}>
-              <div className="meld-heading"><span>{meld.kind === 'run' ? 'Escalera' : 'Pierna'} · {meld.team === 0 ? 'Vos' : 'Computadora'}</span>{isCanasta(meld) && <strong className="canasta-badge">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}</div>
-              <div className="meld-tiles">{meld.tiles.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
-              {selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0 && (
-                <button className="meld-add" type="button" onClick={() => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds))}>Agregar selección a este juego</button>
-              )}
-            </div>
-          ))}
+          {([1, 0] as const).map((team) => {
+            const teamMelds = meldsForTeam(team);
+            const teamName = team === 1 ? 'Computadora' : 'Vos';
+            return (
+              <section className="meld-team" key={team} aria-label={`Juegos de ${teamName}`}>
+                <h3 className="meld-team-heading">{teamName}</h3>
+                {teamMelds.length === 0
+                  ? <p className="empty-team-melds">Sin juegos bajados</p>
+                  : <div className="meld-list">{teamMelds.map((meld) => (
+                    <div className="meld-group" key={meld.id}>
+                      {isCanasta(meld) && <div className="meld-heading"><strong className="canasta-badge">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong></div>}
+                      <div className="meld-tiles">{meld.tiles.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
+                      {selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0 && (
+                        <button className="meld-add" type="button" onClick={() => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds))}>Agregar selección a este juego</button>
+                      )}
+                    </div>
+                  ))}</div>}
+              </section>
+            );
+          })}
         </div>
       </section>
 
