@@ -45,6 +45,27 @@ function sortHandForDisplay(hand: Tile[], mode: HandSortMode): Tile[] {
   return hand;
 }
 
+function getRecentlyChangedTileIds(previous: GameState, next: GameState): string[] {
+  const changed = new Set<string>();
+  const previousHumanHand = new Set(previous.players[0].hand.map((tile) => tile.id));
+  for (const tile of next.players[0].hand) {
+    if (!previousHumanHand.has(tile.id)) changed.add(tile.id);
+  }
+
+  const previousMeldTiles = new Set(previous.melds.flatMap((meld) => meld.tiles.map((tile) => tile.id)));
+  for (const meld of next.melds) {
+    for (const tile of meld.tiles) {
+      if (!previousMeldTiles.has(tile.id)) changed.add(tile.id);
+    }
+  }
+
+  const previousDiscard = new Set(previous.discard.map((tile) => tile.id));
+  for (const tile of next.discard) {
+    if (!previousDiscard.has(tile.id)) changed.add(tile.id);
+  }
+  return [...changed];
+}
+
 function loadSavedGame(): GameState | null {
   try {
     const saved = window.localStorage.getItem(SAVE_KEY);
@@ -84,6 +105,7 @@ export default function App() {
   const [game, setGame] = useState<GameState | null>(loadSavedGame);
   const [target, setTarget] = useState<Target>(2000);
   const [selection, setSelection] = useState<string[]>([]);
+  const [recentlyChangedTileIds, setRecentlyChangedTileIds] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [discardSortMode, setDiscardSortMode] = useState<HandSortMode>('original');
@@ -101,10 +123,18 @@ export default function App() {
   }, [game]);
 
   useEffect(() => {
+    if (recentlyChangedTileIds.length === 0) return;
+    const timer = window.setTimeout(() => setRecentlyChangedTileIds([]), 1400);
+    return () => window.clearTimeout(timer);
+  }, [recentlyChangedTileIds]);
+
+  useEffect(() => {
     if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over') return;
     const timer = window.setTimeout(() => {
       try {
-        setGame(runComputerTurn(game));
+        const next = runComputerTurn(game);
+        setRecentlyChangedTileIds(getRecentlyChangedTileIds(game, next));
+        setGame(next);
         setError('');
       } catch (issue) {
         console.error('Error al completar el turno de la computadora:', issue, issue instanceof Error ? issue.stack : undefined);
@@ -117,6 +147,7 @@ export default function App() {
 
   const begin = () => {
     setGame(createGame(target));
+    setRecentlyChangedTileIds([]);
     setHandSortMode('original');
     setSelection([]);
     setError('');
@@ -125,7 +156,9 @@ export default function App() {
   const perform = (action: (current: GameState) => GameState) => {
     if (!game) return;
     try {
-      setGame(action(game));
+      const next = action(game);
+      setRecentlyChangedTileIds(getRecentlyChangedTileIds(game, next));
+      setGame(next);
       setSelection([]);
       setError('');
     } catch (issue) {
@@ -207,6 +240,7 @@ export default function App() {
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
   const visibleDiscard = game.discard.slice(-3);
+  const recentlyChangedTileIdSet = new Set(recentlyChangedTileIds);
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
     .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg'));
@@ -273,7 +307,7 @@ export default function App() {
               <div className="discard-stack" aria-hidden="true" style={{ width: `${48 + (visibleDiscard.length - 1) * 16}px` }}>
                 {visibleDiscard.map((tile, index) => (
                   <span className="discard-stack-card" key={tile.id} style={{ '--discard-depth': index } as React.CSSProperties}>
-                    <TileFace tile={tile} />
+                    <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} />
                   </span>
                 ))}
               </div>
@@ -304,7 +338,7 @@ export default function App() {
                       <div className="meld-category-games">{category.melds.map((meld) => (
                         <div className="meld-group" key={meld.id}>
                           <div className="meld-tiles">
-                            {(meld.kind === 'leg' ? sortTiles(meld.tiles) : meld.tiles).map((tile) => <TileFace tile={tile} key={tile.id} />)}
+                            {(meld.kind === 'leg' ? sortTiles(meld.tiles) : meld.tiles).map((tile) => <TileFace tile={tile} key={tile.id} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} />)}
                             {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
                           </div>
                           {selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0 && (
@@ -338,7 +372,7 @@ export default function App() {
           <ol className="discard-tile-list" aria-label="Fichas del pozo">
             {sortHandForDisplay(game.discard, discardSortMode).map((tile) => (
               <li className="discard-tile" key={tile.id}>
-                <TileFace tile={tile} />
+                <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} />
               </li>
             ))}
           </ol>
@@ -449,7 +483,7 @@ export default function App() {
               onDragEnd={() => setDraggedId(null)}
               onDrop={(event) => { event.preventDefault(); if (draggedId) reorderHand(draggedId, tile.id); setDraggedId(null); }}
               style={{ '--tile-index': index } as React.CSSProperties}
-            ><TileFace tile={tile} selected={selection.includes(tile.id)} /></button>
+            ><TileFace tile={tile} selected={selection.includes(tile.id)} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} /></button>
           ))}
         </div>
       </section>
