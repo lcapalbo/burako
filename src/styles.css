@@ -50,7 +50,6 @@ h1 em { color: var(--coral); font-weight: 500; }
 .tile-two { left: 112px; top: 22px; color: #17684f; transform: rotate(4deg); }
 .tile-three { left: 211px; top: 74px; color: #5783a2; transform: rotate(15deg); }
 .tile-wild { left: 103px; top: 180px; color: #8d5d42; transform: rotate(-3deg); }
-.composition-caption { position: absolute; left: 244px; top: 252px; color: #718078; font-family: Georgia, serif; font-size: 14px; font-style: italic; transform: rotate(8deg); }
 
 @media (max-width: 760px) {
   .welcome { min-height: 100svh; padding: 20px 22px 34px; background: radial-gradient(ellipse at 50% 88%, rgba(220, 232, 138, .4), transparent 42%), #f2f4ed; }
@@ -64,7 +63,6 @@ h1 em { color: var(--coral); font-weight: 500; }
   .tile-two { left: 88px; top: 22px; }
   .tile-three { left: 166px; top: 66px; }
   .tile-wild { left: 84px; top: 143px; }
-  .composition-caption { display: none; }
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -292,15 +292,15 @@ export default function App() {
           <span className="local-label"><span /> Partida local</span>
         </header>
         <section className="welcome-copy">
-          <p className="eyebrow">Una mesa, cuatro colores</p>
+          <p className="eyebrow">La mesa está lista</p>
           <h1>Tu próximo<br /><em>burako</em> empieza acá.</h1>
-          <p className="intro">Juega una partida tranquila contra la computadora.</p>
+          <p className="intro">Jugá una partida tranquila contra la computadora.</p>
           <div className="target-picker" role="group" aria-label="Objetivo de la partida">
             {TARGET_OPTIONS.map(({ label, value }) => (
               <button key={label} type="button" className={target === value ? 'target-option active' : 'target-option'} onClick={() => setTarget(value)}>{label}</button>
             ))}
           </div>
-          <button className="start-button" type="button" onClick={begin}>Preparar la mesa <span aria-hidden="true">→</span></button>
+          <button className="start-button" type="button" onClick={begin}>Comenzar partida <span aria-hidden="true">→</span></button>
           <p className="offline-note">Sin cuenta ni publicidad · La partida se juega en tu dispositivo</p>
         </section>
         <aside className="tile-composition" aria-label="Fichas de ejemplo">
@@ -308,7 +308,6 @@ export default function App() {
           <TileFace tile={{ id: 'welcome-green-8', color: 'green', value: 8, kind: 'number' }} className="tile-two" />
           <TileFace tile={{ id: 'welcome-blue-9', color: 'blue', value: 9, kind: 'number' }} className="tile-three" />
           <TileFace tile={{ id: 'welcome-yellow-2', color: 'yellow', value: 2, kind: 'number' }} className="tile-wild" />
-          <span className="composition-caption">La mesa está lista</span>
         </aside>
       </main>
     );
