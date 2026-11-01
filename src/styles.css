@@ -172,8 +172,10 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meld-category-heading { margin: 0 0 6px; color: #d3e2d5; font-size: 9px; font-weight: 750; }
 .meld-category-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: start; gap: 8px; }
 .meld-group { max-width: 100%; min-width: 0; }
+.meld-target { cursor: pointer; }
+.meld-target:focus-visible { outline: 2px solid var(--lemon); outline-offset: 3px; }
 .canasta-badge { padding: 3px 5px; border-radius: 2px; color: #27392e; background: var(--lemon); font-size: 8px; font-weight: 800; }
-.meld-tiles { position: relative; display: flex; overflow-x: auto; max-width: min(100%, 720px); padding: 0 2px 6px; }
+.meld-tiles { position: relative; display: flex; overflow-x: auto; max-width: min(100%, 720px); padding: 6px 2px; }
 .meld-tiles .canasta-overlay { position: absolute; z-index: 2; bottom: 6px; left: 2px; white-space: nowrap; }
 .meld-tiles .tile-face { width: 42px; height: 59px; flex: 0 0 42px; margin-right: -10px; }
 .meld-tiles .tile-face strong { font-size: 23px; }
@@ -181,7 +183,9 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meld-add { margin-top: 3px; padding: 4px 0; border: 0; color: #e3eea2; background: none; font-size: 9px; font-weight: 700; cursor: pointer; }
 .tile-face { display: inline-flex; position: relative; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 78px; flex: 0 0 56px; border: 1px solid rgba(28, 54, 41, .15); border-radius: 5px; color: #172a26; background: #fffefa; box-shadow: 0 2px 5px rgba(19, 42, 30, .1); }
 .tile-face.is-recent { overflow: hidden; animation: recent-tile-glow 1.2s ease-out both; }
-.tile-face.is-recent::after { position: absolute; z-index: 2; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .82) 50%, transparent 70%); content: ""; transform: translateX(-120%); animation: recent-tile-shine .8s ease-out both; pointer-events: none; }
+.tile-face.is-preview { overflow: hidden; animation: recent-tile-glow 1.2s ease-out infinite; }
+.tile-face.is-recent::after, .tile-face.is-preview::after { position: absolute; z-index: 2; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .82) 50%, transparent 70%); content: ""; transform: translateX(-120%); animation: recent-tile-shine .8s ease-out both; pointer-events: none; }
+.tile-face.is-preview::after { animation-duration: 1.2s; animation-iteration-count: infinite; }
 @keyframes recent-tile-glow {
   0%, 45% { filter: brightness(1.16); box-shadow: 0 0 0 3px var(--lemon), 0 0 18px rgba(220, 232, 138, .8); }
   100% { filter: none; box-shadow: 0 2px 5px rgba(19, 42, 30, .1); }
@@ -276,6 +280,6 @@ h1 em { color: var(--coral); font-weight: 500; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tile-face.is-recent { animation: none; outline: 3px solid var(--lemon); }
-  .tile-face.is-recent::after { display: none; }
+  .tile-face.is-recent, .tile-face.is-preview { animation: none; outline: 3px solid var(--lemon); }
+  .tile-face.is-recent::after, .tile-face.is-preview::after { display: none; }
 }

@@ -6,6 +6,7 @@ import {
   discardTile,
   drawFromStock,
   finishEmptyStock,
+  GameRuleError,
   isCanasta,
   isCleanMeld,
   keepOpeningDraw,
@@ -65,6 +66,16 @@ function getRecentlyChangedTileIds(previous: GameState, next: GameState): string
     if (!previousDiscard.has(tile.id)) changed.add(tile.id);
   }
   return [...changed];
+}
+
+function previewMeldAddition(state: GameState, meldId: string, tileIds: string[]): Tile[] | null {
+  try {
+    const preview = addToMeld(state, 0, meldId, tileIds);
+    return preview.melds.find((meld) => meld.id === meldId)?.tiles ?? null;
+  } catch (issue) {
+    if (issue instanceof GameRuleError) return null;
+    throw issue;
+  }
 }
 
 function loadSavedGame(): GameState | null {
@@ -337,15 +348,42 @@ export default function App() {
                     <section className="meld-category" key={category.key} aria-label={category.label}>
                       <h4 className="meld-category-heading">{category.label}</h4>
                       <div className="meld-category-games">{category.melds.map((meld) => (
-                        <div className="meld-group" key={meld.id}>
+                        (() => {
+                          const previewTiles = selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0
+                            ? previewMeldAddition(game, meld.id, selectedTileIds)
+                            : null;
+                          const canAddSelection = previewTiles !== null;
+                          const addSelection = () => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds));
+                          const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+                            if (!canAddSelection || (event.key !== 'Enter' && event.key !== ' ')) return;
+                            event.preventDefault();
+                            addSelection();
+                          };
+                          const shownTiles = previewTiles ?? (meld.kind === 'leg' ? sortTiles(meld.tiles) : meld.tiles);
+                          return <div
+                            className={`meld-group ${canAddSelection ? 'meld-target' : ''}`}
+                            key={meld.id}
+                            role={canAddSelection ? 'button' : undefined}
+                            tabIndex={canAddSelection ? 0 : undefined}
+                            aria-label={canAddSelection ? `Agregar ${selection.length} fichas seleccionadas a este juego` : undefined}
+                            onClick={canAddSelection ? addSelection : undefined}
+                            onKeyDown={canAddSelection ? handleKeyDown : undefined}
+                          >
                           <div className="meld-tiles">
-                            {(meld.kind === 'leg' ? sortTiles(meld.tiles) : meld.tiles).map((tile) => <TileFace tile={tile} key={tile.id} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} />)}
+                            {shownTiles.map((tile) => {
+                              const selectedForPreview = canAddSelection && selectedTileIds.includes(tile.id);
+                              return <TileFace
+                                tile={tile}
+                                key={tile.id}
+                                className={selectedForPreview
+                                  ? 'is-preview'
+                                  : recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''}
+                              />;
+                            })}
                             {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
                           </div>
-                          {selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0 && (
-                            <button className="meld-add" type="button" onClick={() => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds))}>Agregar selección a este juego</button>
-                          )}
-                        </div>
+                          </div>;
+                        })()
                       ))}</div>
                     </section>
                   ))}</div>}
@@ -484,7 +522,7 @@ export default function App() {
               onDragEnd={() => setDraggedId(null)}
               onDrop={(event) => { event.preventDefault(); if (draggedId) reorderHand(draggedId, tile.id); setDraggedId(null); }}
               style={{ '--tile-index': index } as React.CSSProperties}
-            ><TileFace tile={tile} selected={selection.includes(tile.id)} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} /></button>
+            ><TileFace tile={tile} selected={selection.includes(tile.id)} className={recentlyChangedTileIdSet.has(tile.id) && !selection.includes(tile.id) ? 'is-recent' : ''} /></button>
           ))}
         </div>
       </section>
