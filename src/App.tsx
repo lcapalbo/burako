@@ -198,6 +198,8 @@ export default function App() {
 
   const human = game.players[0];
   const computer = game.players[1];
+  const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
+  const revealComputerHand = roundClosed && !(computer.indirectDead && !computer.playedAfterDead);
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
   const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const discardSortLabel = discardSortMode === 'original' ? 'Ordenar por color' : discardSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
@@ -254,8 +256,10 @@ export default function App() {
 
       <section className="opponent-bar" aria-label="Atril de la computadora">
         <div className="opponent-avatar" aria-hidden="true">IA</div>
-        <div className="opponent-name"><strong>La computadora</strong><span>{game.phase === 'round-over' || game.phase === 'match-over' ? `${computer.hand.length} fichas en el atril` : game.currentPlayer === 1 ? error || 'Está pensando…' : `${computer.hand.length} fichas en el atril`}</span></div>
-        <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: Math.min(computer.hand.length, 8) }, (_, index) => <span key={index} />)}</div>
+        <div className="opponent-name"><strong>La computadora</strong><span>{roundClosed ? `${computer.hand.length} fichas en el atril` : game.currentPlayer === 1 ? error || 'Está pensando…' : `${computer.hand.length} fichas en el atril`}</span></div>
+        {revealComputerHand
+          ? <div className="opponent-rack" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
+          : !roundClosed && <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: Math.min(computer.hand.length, 8) }, (_, index) => <span key={index} />)}</div>}
       </section>
 
       <section className="felt-table" aria-label="Mesa de juego">
