@@ -129,6 +129,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .stack-back i:nth-child(3) { transform: rotate(0); }
 .discard-stack { position: relative; display: block; height: 59px; flex: 0 0 59px; border-radius: 5px; }
 .discard-stack:not(:disabled):hover { filter: brightness(1.08); }
+.discard-stack.pile-action:disabled { opacity: 1; }
 .discard-stack-card { position: absolute; top: 0; left: calc(var(--discard-depth) * 16px); z-index: var(--discard-depth); display: block; width: 42px; height: 59px; }
 .discard-pile .tile-face { width: 42px; height: 59px; }
 .discard-pile .tile-face strong { font-size: 23px; }
