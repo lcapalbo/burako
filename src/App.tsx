@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rulesMarkdown from '../reglas-burako.md?raw';
 import {
   addToMeld,
   createGame,
@@ -133,6 +136,7 @@ export default function App() {
   const ignoreNextTileClickRef = useRef(false);
   const discardDialogRef = useRef<HTMLDialogElement>(null);
   const pointsDialogRef = useRef<HTMLDialogElement>(null);
+  const rulesDialogRef = useRef<HTMLDialogElement>(null);
   const opponentBarRef = useRef<HTMLElement>(null);
   const playerAreaRef = useRef<HTMLElement>(null);
   const pendingScrollTargetRef = useRef<'player' | 'computer' | null>(null);
@@ -289,6 +293,31 @@ export default function App() {
     setHandSortMode('original');
   };
 
+  const openRules = () => rulesDialogRef.current?.showModal();
+  const rulesDialog = (
+    <dialog
+      ref={rulesDialogRef}
+      className="rules-dialog"
+      aria-labelledby="rules-dialog-title"
+      onClick={(event) => { if (event.target === event.currentTarget) rulesDialogRef.current?.close(); }}
+    >
+      <div className="rules-dialog-content">
+        <header className="rules-dialog-header">
+          <div>
+            <p className="discard-dialog-eyebrow">Guía rápida</p>
+            <h2 id="rules-dialog-title">Reglas del Burako</h2>
+          </div>
+          <button className="discard-dialog-close" type="button" aria-label="Cerrar reglas" autoFocus onClick={() => rulesDialogRef.current?.close()}>×</button>
+        </header>
+        <div className="rules-dialog-scroll">
+          <article className="rules-markdown">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{rulesMarkdown}</ReactMarkdown>
+          </article>
+        </div>
+      </div>
+    </dialog>
+  );
+
   if (!game) {
     return (
       <main className="welcome">
@@ -311,7 +340,8 @@ export default function App() {
         <section className="welcome-copy">
           <p className="eyebrow">La mesa está lista</p>
           <h1>Tu próximo<br /><em>burako</em> empieza acá.</h1>
-          <p className="intro">Jugá una partida tranquila contra la computadora.</p>
+          <p className="intro">Jugá una partida contra la computadora.</p>
+          <p className="rules-invitation">Si sos nuevo, <button className="rules-inline-link" type="button" onClick={openRules}>estas son las reglas</button>.</p>
           <div className="target-picker" role="group" aria-label="Objetivo de la partida">
             {TARGET_OPTIONS.map(({ label, value }) => (
               <button key={label} type="button" className={target === value ? 'target-option active' : 'target-option'} onClick={() => setTarget(value)}>{label}</button>
@@ -326,6 +356,7 @@ export default function App() {
           <TileFace tile={{ id: 'welcome-blue-9', color: 'blue', value: 9, kind: 'number' }} className="tile-three" />
           <TileFace tile={{ id: 'welcome-yellow-2', color: 'yellow', value: 2, kind: 'number' }} className="tile-wild" />
         </aside>
+        {rulesDialog}
       </main>
     );
   }
@@ -384,6 +415,7 @@ export default function App() {
           <span className="brand-mark" aria-hidden="true">B</span><span>Burako</span>
         </a>
         <div className="match-meta"><span>Mano {game.round}</span><span className="meta-divider" />{formatTargetLabel(game.target)}</div>
+        <a className="quiet-button game-rules-link" href="#reglas" onClick={(event) => { event.preventDefault(); openRules(); }}>Reglas</a>
         <button className="quiet-button" type="button" onClick={() => setGame(null)}>Salir</button>
       </header>
 
@@ -691,6 +723,7 @@ export default function App() {
           <button className="secondary-action" type="button" disabled={!canDiscard} onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Descartar</button>
         </> : <span className="action-hint ai-hint">{game.phase === 'match-over' || game.phase === 'round-over' ? 'La mano está cerrada' : 'La computadora está jugando'}</span>}
       </footer>
+      {rulesDialog}
     </main>
   );
 }

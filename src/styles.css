@@ -42,6 +42,9 @@ h1 em { color: var(--coral); font-weight: 500; }
 .start-button span { margin-left: 32px; color: var(--lemon); font-size: 18px; }
 .start-button:hover { background: var(--felt); }
 .offline-note { margin-top: 14px; color: #7b8880; font-size: 11px; }
+.rules-invitation { margin: 10px 0 0; color: #596961; font-size: 13px; }
+.rules-inline-link { padding: 0; border: 0; color: var(--felt); background: transparent; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.rules-inline-link:hover { color: var(--ink); }
 .tile-composition { position: absolute; right: 9%; top: 28%; width: min(410px, 40vw); height: 360px; transform: rotate(-8deg); }
 .tile-composition .tile-face { position: absolute; width: 112px; height: 156px; flex-basis: 112px; border-radius: 8px; box-shadow: 0 20px 36px rgba(32, 54, 43, .14); }
 .tile-composition .tile-face strong { font-size: 58px; }
@@ -87,6 +90,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meta-divider { width: 1px; height: 13px; background: #c8d1c9; }
 .quiet-button, .sort-button { border: 0; color: #56675f; background: transparent; font-size: 12px; font-weight: 700; cursor: pointer; }
 .quiet-button { padding: 8px 0 8px 12px; }
+.game-rules-link { text-decoration: none; }
 .score-strip { display: flex; align-items: center; gap: 26px; max-width: 1180px; margin: 18px auto 16px; }
 .score-team { display: flex; align-items: center; gap: 10px; opacity: .55; }
 .score-team.active { opacity: 1; }
@@ -165,6 +169,24 @@ h1 em { color: var(--coral); font-weight: 500; }
 .points-round-total th, .points-round-total td { border-top: 1px solid #bdc9bc; font-weight: 800; }
 .points-match-total th, .points-match-total td { border-top: 2px solid #66766a; background: #f0f3e8; font-weight: 850; }
 .points-dialog .discard-dialog-footer { justify-content: flex-end; }
+.rules-dialog { position: fixed; inset: 0; width: auto; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; overflow: hidden; border: 0; color: var(--ink); background: var(--paper); }
+.rules-dialog::backdrop { background: rgba(15, 33, 27, .7); }
+.rules-dialog-content { display: flex; width: 100%; height: 100%; flex-direction: column; }
+.rules-dialog-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 16px; padding: max(16px, env(safe-area-inset-top)) clamp(16px, 4vw, 48px) 16px; border-bottom: 1px solid #dce2d9; background: var(--paper); }
+.rules-dialog-header h2 { margin: 0; font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
+.rules-dialog-scroll { width: min(920px, 100%); margin: 0 auto; padding: 24px clamp(16px, 4vw, 48px) max(28px, env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
+.rules-markdown { color: #354940; font-size: 14px; line-height: 1.65; }
+.rules-markdown h1 { margin: 0 0 24px; color: var(--ink); font-family: Georgia, serif; font-size: 30px; font-weight: 500; line-height: 1.15; }
+.rules-markdown h2 { margin: 28px 0 10px; color: var(--ink); font-family: Georgia, serif; font-size: 21px; font-weight: 500; line-height: 1.25; }
+.rules-markdown p { margin: 10px 0; }
+.rules-markdown ul, .rules-markdown ol { padding-left: 22px; margin: 10px 0 16px; }
+.rules-markdown li { margin: 5px 0; padding-left: 3px; }
+.rules-markdown table { width: 100%; margin: 16px 0 22px; border-collapse: collapse; font-size: 12px; }
+.rules-markdown th, .rules-markdown td { padding: 8px 10px; border-bottom: 1px solid #dce2d9; text-align: left; }
+.rules-markdown th { color: #31483d; background: #e8eee1; font-weight: 750; }
+.rules-markdown tbody tr:nth-child(even) { background: rgba(232, 238, 225, .45); }
+.rules-markdown td:last-child, .rules-markdown th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.rules-markdown strong { color: #203d31; }
 .meld-area { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; min-height: 92px; padding: 8px 4px 4px; }
 .empty-table { align-self: center; margin: 10px 0; color: rgba(230, 239, 226, .64); font-family: Georgia, serif; font-size: 14px; font-style: italic; }
 .meld-team { min-width: 0; padding: 8px 9px; border: 1px solid rgba(232, 241, 220, .2); border-radius: 4px; background: rgba(9, 48, 36, .12); }
@@ -258,6 +280,7 @@ h1 em { color: var(--coral); font-weight: 500; }
   .game-brand .brand-mark { width: 27px; height: 27px; }
   .match-meta { gap: 7px; font-size: 10px; }
   .quiet-button { font-size: 11px; }
+  .rules-invitation { font-size: 12px; }
   .score-strip { gap: 11px; margin-top: 14px; }
   .score-team { gap: 6px; }
   .score-team small { font-size: 7px; letter-spacing: .6px; }
@@ -290,6 +313,14 @@ h1 em { color: var(--coral); font-weight: 500; }
   .discard-dialog-content { max-height: calc(100dvh - 20px); }
   .discard-dialog-header, .discard-dialog-footer { padding: 13px 14px; }
   .discard-dialog-header h2 { font-size: 20px; }
+  .rules-dialog-header { padding: max(13px, env(safe-area-inset-top)) 14px 13px; }
+  .rules-dialog-header h2 { font-size: 20px; }
+  .rules-dialog-scroll { padding: 18px 16px max(24px, env(safe-area-inset-bottom)); }
+  .rules-markdown { font-size: 13px; line-height: 1.6; }
+  .rules-markdown h1 { font-size: 26px; }
+  .rules-markdown h2 { margin-top: 24px; font-size: 19px; }
+  .rules-markdown table { font-size: 11px; }
+  .rules-markdown th, .rules-markdown td { padding: 7px 6px; }
   .points-table-scroll { max-height: 60dvh; padding: 8px 14px; overflow-x: hidden; }
   .points-table { min-width: 0; table-layout: fixed; font-size: 10px; }
   .points-table th:first-child { width: 44%; overflow-wrap: anywhere; }
