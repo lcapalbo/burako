@@ -194,12 +194,12 @@ h1 em { color: var(--coral); font-weight: 500; }
 .tile-face strong { font-family: Georgia, serif; font-size: 34px; font-weight: 500; line-height: 1; }
 .tile-mark { position: absolute; top: 5px; left: 6px; font-size: 8px; }
 .tile-red { color: #dc704e; }
-.tile-blue { color: #5783a2; }
-.tile-green { color: #17684f; }
+.tile-blue { color: #2467b2; }
+.tile-green { color: #23803a; }
 .tile-yellow { color: #a78024; }
 .tile-two-wild.tile-red { background-color: #fff0ec; }
-.tile-two-wild.tile-blue { background-color: #edf5f8; }
-.tile-two-wild.tile-green { background-color: #eaf4ef; }
+.tile-two-wild.tile-blue { background-color: #e8f0ff; }
+.tile-two-wild.tile-green { background-color: #eaf5e8; }
 .tile-two-wild.tile-yellow { background-color: #faf4df; }
 .tile-joker { color: #915e40; background: #fff8df; }
 .tile-joker small { margin-top: 3px; font-size: 6px; font-weight: 800; letter-spacing: .5px; }
