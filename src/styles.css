@@ -42,14 +42,14 @@ h1 em { color: var(--coral); font-weight: 500; }
 .start-button:hover { background: var(--felt); }
 .offline-note { margin-top: 14px; color: #7b8880; font-size: 11px; }
 .tile-composition { position: absolute; right: 9%; top: 28%; width: min(410px, 40vw); height: 360px; transform: rotate(-8deg); }
-.tile { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 112px; height: 156px; border: 1px solid rgba(23, 42, 38, .11); border-radius: 8px; background: #fffefa; box-shadow: 0 20px 36px rgba(32, 54, 43, .14); }
-.tile small { font-size: 12px; font-weight: 800; }
-.tile strong { font-family: Georgia, serif; font-size: 58px; font-weight: 500; }
+.tile-composition .tile-face { position: absolute; width: 112px; height: 156px; flex-basis: 112px; border-radius: 8px; box-shadow: 0 20px 36px rgba(32, 54, 43, .14); }
+.tile-composition .tile-face strong { font-size: 58px; }
+.tile-composition .tile-mark { top: 10px; left: 12px; font-size: 14px; }
+.tile-composition .tile-face.tile-joker small { font-size: 9px; letter-spacing: 1px; }
 .tile-one { left: 10px; top: 70px; color: #dc704e; transform: rotate(-13deg); }
 .tile-two { left: 112px; top: 22px; color: #17684f; transform: rotate(4deg); }
 .tile-three { left: 211px; top: 74px; color: #5783a2; transform: rotate(15deg); }
 .tile-wild { left: 103px; top: 180px; color: #8d5d42; transform: rotate(-3deg); }
-.tile-wild small { font-size: 9px; letter-spacing: 1px; }
 .composition-caption { position: absolute; left: 244px; top: 252px; color: #718078; font-family: Georgia, serif; font-size: 14px; font-style: italic; transform: rotate(8deg); }
 
 @media (max-width: 760px) {
@@ -57,8 +57,9 @@ h1 em { color: var(--coral); font-weight: 500; }
   .welcome-copy { padding-top: 70px; }
   h1 { font-size: clamp(48px, 14vw, 68px); }
   .tile-composition { top: auto; bottom: -34px; right: 4%; width: 320px; height: 240px; transform: scale(.76) rotate(-8deg); transform-origin: bottom right; }
-  .tile { width: 86px; height: 120px; }
-  .tile strong { font-size: 46px; }
+  .tile-composition .tile-face { width: 86px; height: 120px; flex-basis: 86px; }
+  .tile-composition .tile-face strong { font-size: 46px; }
+  .tile-composition .tile-mark { top: 8px; left: 9px; font-size: 11px; }
   .tile-one { left: 10px; top: 64px; }
   .tile-two { left: 88px; top: 22px; }
   .tile-three { left: 166px; top: 66px; }
@@ -67,7 +68,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .tile { animation: deal-in .7s cubic-bezier(.2, .8, .2, 1) both; }
+  .tile-composition .tile-face { animation: deal-in .7s cubic-bezier(.2, .8, .2, 1) both; }
   .tile-two { animation-delay: .08s; }
   .tile-three { animation-delay: .16s; }
   .tile-wild { animation-delay: .24s; }

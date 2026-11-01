@@ -47,13 +47,13 @@ function loadSavedGame(): GameState | null {
   }
 }
 
-function TileFace({ tile, selected = false }: { tile: Tile; selected?: boolean }) {
+function TileFace({ tile, selected = false, className = '' }: { tile: Tile; selected?: boolean; className?: string }) {
   const isWildTwo = tile.kind === 'number' && tile.value === 2;
   const label = tile.kind === 'joker'
     ? 'comodín especial'
     : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}${isWildTwo ? ', comodín' : ''}`;
   return (
-    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${isWildTwo ? 'tile-two-wild' : ''} ${selected ? 'is-selected' : ''}`} role="img" aria-label={label}>
+    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${isWildTwo ? 'tile-two-wild' : ''} ${selected ? 'is-selected' : ''} ${className}`} role="img" aria-label={label}>
       {tile.kind !== 'joker' && <span className="tile-mark" aria-hidden="true">●</span>}
       <strong>{tile.kind === 'joker' ? '★' : tile.value}</strong>
       {tile.kind === 'joker' && <small>COMODÍN</small>}
@@ -176,10 +176,10 @@ export default function App() {
           <p className="offline-note">Sin cuenta · La partida se juega en este dispositivo</p>
         </section>
         <aside className="tile-composition" aria-label="Fichas de ejemplo">
-          <div className="tile tile-one"><small>●</small><strong>7</strong></div>
-          <div className="tile tile-two"><small>●</small><strong>8</strong></div>
-          <div className="tile tile-three"><small>●</small><strong>9</strong></div>
-          <div className="tile tile-wild"><small>COMODÍN</small><strong>2</strong></div>
+          <TileFace tile={{ id: 'welcome-red-7', color: 'red', value: 7, kind: 'number' }} className="tile-one" />
+          <TileFace tile={{ id: 'welcome-green-8', color: 'green', value: 8, kind: 'number' }} className="tile-two" />
+          <TileFace tile={{ id: 'welcome-blue-9', color: 'blue', value: 9, kind: 'number' }} className="tile-three" />
+          <TileFace tile={{ id: 'welcome-yellow-2', color: 'yellow', value: 2, kind: 'number' }} className="tile-wild" />
           <span className="composition-caption">La mesa está lista</span>
         </aside>
       </main>
