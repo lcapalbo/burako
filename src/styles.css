@@ -165,9 +165,9 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meld-category-heading { margin: 0 0 6px; color: #d3e2d5; font-size: 9px; font-weight: 750; }
 .meld-category-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: start; gap: 8px; }
 .meld-group { max-width: 100%; min-width: 0; }
-.meld-heading { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; color: #e3ebe0; font-size: 9px; }
 .canasta-badge { padding: 3px 5px; border-radius: 2px; color: #27392e; background: var(--lemon); font-size: 8px; font-weight: 800; }
-.meld-tiles { display: flex; overflow-x: auto; max-width: min(100%, 720px); padding: 0 2px 6px; }
+.meld-tiles { position: relative; display: flex; overflow-x: auto; max-width: min(100%, 720px); padding: 0 2px 6px; }
+.meld-tiles .canasta-overlay { position: absolute; z-index: 2; bottom: 6px; left: 2px; white-space: nowrap; }
 .meld-tiles .tile-face { width: 42px; height: 59px; flex: 0 0 42px; margin-right: -10px; }
 .meld-tiles .tile-face strong { font-size: 23px; }
 .meld-tiles .tile-mark { font-size: 6px; }

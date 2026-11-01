@@ -286,8 +286,10 @@ export default function App() {
                       <h4 className="meld-category-heading">{category.label}</h4>
                       <div className="meld-category-games">{category.melds.map((meld) => (
                         <div className="meld-group" key={meld.id}>
-                          {isCanasta(meld) && <div className="meld-heading"><strong className="canasta-badge">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong></div>}
-                          <div className="meld-tiles">{(meld.kind === 'leg' ? sortTiles(meld.tiles) : meld.tiles).map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
+                          <div className="meld-tiles">
+                            {(meld.kind === 'leg' ? sortTiles(meld.tiles) : meld.tiles).map((tile) => <TileFace tile={tile} key={tile.id} />)}
+                            {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
+                          </div>
                           {selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0 && (
                             <button className="meld-add" type="button" onClick={() => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds))}>Agregar selección a este juego</button>
                           )}
