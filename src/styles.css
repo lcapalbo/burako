@@ -160,13 +160,15 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meld-team { min-width: 0; padding: 8px 9px; border: 1px solid rgba(232, 241, 220, .2); border-radius: 4px; background: rgba(9, 48, 36, .12); }
 .meld-team-heading { margin: 0 0 8px; color: #e3eea2; font-size: 10px; font-weight: 800; }
 .empty-team-melds { margin: 0; color: rgba(230, 239, 226, .64); font-size: 9px; font-style: italic; }
-.meld-list { display: grid; gap: 10px; }
-.meld-group { max-width: 100%; min-width: 0; padding-bottom: 8px; border-bottom: 1px solid rgba(232, 241, 220, .14); }
-.meld-group:last-child { padding-bottom: 0; border-bottom: 0; }
+.meld-categories { display: grid; gap: 10px; }
+.meld-category { min-width: 0; }
+.meld-category-heading { margin: 0 0 6px; color: #d3e2d5; font-size: 9px; font-weight: 750; }
+.meld-category-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: start; gap: 8px; }
+.meld-group { max-width: 100%; min-width: 0; }
 .meld-heading { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; color: #e3ebe0; font-size: 9px; }
 .canasta-badge { padding: 3px 5px; border-radius: 2px; color: #27392e; background: var(--lemon); font-size: 8px; font-weight: 800; }
 .meld-tiles { display: flex; overflow-x: auto; max-width: min(100%, 720px); padding: 0 2px 6px; }
-.meld-tiles .tile-face { width: 42px; height: 59px; flex: 0 0 42px; margin-right: -4px; }
+.meld-tiles .tile-face { width: 42px; height: 59px; flex: 0 0 42px; margin-right: -10px; }
 .meld-tiles .tile-face strong { font-size: 23px; }
 .meld-tiles .tile-mark { font-size: 6px; }
 .meld-add { margin-top: 3px; padding: 4px 0; border: 0; color: #e3eea2; background: none; font-size: 9px; font-weight: 700; cursor: pointer; }
@@ -231,7 +233,7 @@ h1 em { color: var(--coral); font-weight: 500; }
   .piles-row { min-height: 114px; }
   .meld-area { grid-template-columns: minmax(0, 1fr); min-height: 95px; gap: 9px; }
   .empty-table { font-size: 12px; text-align: center; }
-  .meld-tiles .tile-face { width: 37px; height: 52px; flex-basis: 37px; }
+  .meld-tiles .tile-face { width: 37px; height: 52px; flex-basis: 37px; margin-right: -9px; }
   .meld-tiles .tile-face strong { font-size: 21px; }
   .player-area { margin-top: 17px; }
   .hand-tiles { gap: 4px; }

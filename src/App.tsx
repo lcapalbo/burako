@@ -271,20 +271,29 @@ export default function App() {
         <div className="meld-area">
           {([1, 0] as const).map((team) => {
             const teamMelds = meldsForTeam(team);
+            const categories = [
+              { key: 'run', label: 'Escaleras', melds: teamMelds.filter((meld) => meld.kind === 'run') },
+              { key: 'leg', label: 'Piernas', melds: teamMelds.filter((meld) => meld.kind === 'leg') },
+            ].filter((category) => category.melds.length > 0);
             const teamName = team === 1 ? 'Computadora' : 'Vos';
             return (
               <section className="meld-team" key={team} aria-label={`Juegos de ${teamName}`}>
                 <h3 className="meld-team-heading">{teamName}</h3>
                 {teamMelds.length === 0
                   ? <p className="empty-team-melds">Sin juegos bajados</p>
-                  : <div className="meld-list">{teamMelds.map((meld) => (
-                    <div className="meld-group" key={meld.id}>
-                      {isCanasta(meld) && <div className="meld-heading"><strong className="canasta-badge">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong></div>}
-                      <div className="meld-tiles">{meld.tiles.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
-                      {selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0 && (
-                        <button className="meld-add" type="button" onClick={() => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds))}>Agregar selección a este juego</button>
-                      )}
-                    </div>
+                  : <div className="meld-categories">{categories.map((category) => (
+                    <section className="meld-category" key={category.key} aria-label={category.label}>
+                      <h4 className="meld-category-heading">{category.label}</h4>
+                      <div className="meld-category-games">{category.melds.map((meld) => (
+                        <div className="meld-group" key={meld.id}>
+                          {isCanasta(meld) && <div className="meld-heading"><strong className="canasta-badge">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong></div>}
+                          <div className="meld-tiles">{(meld.kind === 'leg' ? sortTiles(meld.tiles) : meld.tiles).map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
+                          {selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0 && (
+                            <button className="meld-add" type="button" onClick={() => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds))}>Agregar selección a este juego</button>
+                          )}
+                        </div>
+                      ))}</div>
+                    </section>
                   ))}</div>}
               </section>
             );
