@@ -457,6 +457,24 @@ describe('puntaje de la mano', () => {
     assert.equal(state.players[0].hand.length, 11);
     const ended = finishEmptyStock(state, 0);
     assert.equal(ended.scores[0], 145);
+    assert.deepEqual(ended.roundHistory[0].scores[0], {
+      cleanCanastas: 200,
+      dirtyCanastas: 0,
+      dead: -100,
+      closure: 0,
+      meldTiles: 45,
+      rackTiles: 0,
+      total: 145,
+    });
+    assert.deepEqual(ended.roundHistory[0].scores[1], {
+      cleanCanastas: 0,
+      dirtyCanastas: 0,
+      dead: -100,
+      closure: 0,
+      meldTiles: 0,
+      rackTiles: 0,
+      total: -100,
+    });
   });
 
   it('suma el bono del muerto indirecto si el jugador vuelve a jugar y resta su atril', () => {
@@ -476,6 +494,15 @@ describe('puntaje de la mano', () => {
 
     const ended = finishEmptyStock(state, 0);
     assert.equal(ended.scores[0], 330);
+    assert.deepEqual(ended.roundHistory[0].scores[0], {
+      cleanCanastas: 200,
+      dirtyCanastas: 0,
+      dead: 100,
+      closure: 0,
+      meldTiles: 45,
+      rackTiles: -15,
+      total: 330,
+    });
   });
 
   it('puntúa la canasta sucia con bono de 100 y aplica el bono del muerto levantado', () => {
@@ -502,6 +529,7 @@ describe('puntaje de la mano', () => {
     const ended = finishEmptyStock(state, 0);
     assert.equal(ended.scores[0], 290);
     assert.equal(ended.scores[1], -100);
+    assert.deepEqual(ended.roundHistory[0].scores.map((score) => score.total), [290, -100]);
   });
 
   it('resuelve correctamente cuando ambos equipos superan el objetivo en la misma mano', () => {
@@ -537,11 +565,15 @@ describe('puntaje de la mano', () => {
 
     const higherScoreWins = finishEmptyStock(exhaustedState([makeCleanCanasta(0, 'higher'), makeDirtyCanasta()]), 0);
     assert.deepEqual(higherScoreWins.scores, [2335, 2280]);
+    assert.deepEqual(higherScoreWins.roundHistory[0].scores.map((score) => score.total), [345, 290]);
+    assert.deepEqual(higherScoreWins.scores, initial.scores.map((score, team) => score + higherScoreWins.roundHistory[0].scores[team].total));
     assert.equal(higherScoreWins.phase, 'match-over');
     assert.equal(higherScoreWins.winner, 0);
 
     const tiedScore = finishEmptyStock(exhaustedState([makeCleanCanasta(0, 'tie-a'), makeCleanCanasta(1, 'tie-b')]), 0);
     assert.deepEqual(tiedScore.scores, [2335, 2335]);
+    assert.deepEqual(tiedScore.roundHistory[0].scores.map((score) => score.total), [345, 345]);
+    assert.deepEqual(tiedScore.scores, initial.scores.map((score, team) => score + tiedScore.roundHistory[0].scores[team].total));
     assert.equal(tiedScore.phase, 'match-over');
     assert.equal(tiedScore.winner, null);
     assert.match(tiedScore.result, /empate/i);
@@ -567,6 +599,15 @@ describe('puntaje de la mano', () => {
       meldTiles: 45,
       rackTiles: 0,
       total: 445,
+    });
+    assert.deepEqual(ended.roundHistory[0].scores[1], {
+      cleanCanastas: 0,
+      dirtyCanastas: 0,
+      dead: -100,
+      closure: 0,
+      meldTiles: 0,
+      rackTiles: 0,
+      total: -100,
     });
   });
 });
@@ -682,6 +723,7 @@ describe('fin por agotamiento del montón', () => {
     const ended = finishEmptyStock(state, 0);
     assert.equal(ended.phase, 'round-over');
     assert.deepEqual(ended.scores, [90, -100]);
+    assert.deepEqual(ended.roundHistory[0].scores.map((score) => score.total), [90, -100]);
   });
 
   it('puede seguir jugando el turno si levanta el pozo con el montón vacío', () => {
@@ -724,6 +766,7 @@ describe('fin por agotamiento del montón', () => {
     const ended = finishEmptyStock(state, 0);
     assert.equal(ended.phase, 'round-over');
     assert.deepEqual(ended.scores, [315, -100]);
+    assert.deepEqual(ended.roundHistory[0].scores.map((score) => score.total), [315, -100]);
     assert.equal(ended.result, 'Terminó la mano.');
   });
 });
