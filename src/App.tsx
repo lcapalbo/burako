@@ -413,7 +413,7 @@ export default function App() {
                 disabled={!canUseDiscardPile}
                 aria-label={canDiscard ? 'Descartar ficha seleccionada en el pozo' : `Levantar todo el pozo (${game.discard.length} fichas)`}
                 title={canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
-                style={{ width: `${48 + (visibleDiscard.length - 1) * 16}px` }}
+                style={{ width: `${42 + (visibleDiscard.length - 1) * 16}px` }}
                 onClick={() => canDiscard
                   ? perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')
                   : perform((current) => takeDiscardPile(current, 0), 'player')}
