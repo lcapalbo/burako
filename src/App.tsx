@@ -122,6 +122,9 @@ export default function App() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [discardSortMode, setDiscardSortMode] = useState<HandSortMode>('original');
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
+  const [touchDragPosition, setTouchDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const touchReorderRef = useRef<{ pointerId: number; tileId: string; startX: number; startY: number; dragging: boolean } | null>(null);
+  const ignoreNextTileClickRef = useRef(false);
   const discardDialogRef = useRef<HTMLDialogElement>(null);
   const pointsDialogRef = useRef<HTMLDialogElement>(null);
 
@@ -197,6 +200,57 @@ export default function App() {
     setHandSortMode('original');
   };
 
+  const handleTouchReorderStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!humanTurn || event.pointerType === 'mouse' || event.button !== 0) return;
+    const tileButton = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-hand-tile-id]');
+    const tileId = tileButton?.dataset.handTileId;
+    if (!tileId) return;
+    ignoreNextTileClickRef.current = false;
+    setTouchDragPosition(null);
+    touchReorderRef.current = {
+      pointerId: event.pointerId,
+      tileId,
+      startX: event.clientX,
+      startY: event.clientY,
+      dragging: false,
+    };
+    tileButton.setPointerCapture(event.pointerId);
+  };
+
+  const handleTouchReorderMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = touchReorderRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.dragging && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= 8) {
+      drag.dragging = true;
+      setDraggedId(drag.tileId);
+    }
+    if (drag.dragging) {
+      setTouchDragPosition({ x: event.clientX, y: event.clientY });
+      event.preventDefault();
+    }
+  };
+
+  const finishTouchReorder = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = touchReorderRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.dragging) {
+      const dropTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-hand-tile-id]');
+      const dropId = dropTarget?.dataset.handTileId;
+      if (dropId) reorderHand(drag.tileId, dropId);
+      ignoreNextTileClickRef.current = true;
+    }
+    touchReorderRef.current = null;
+    setDraggedId(null);
+    setTouchDragPosition(null);
+  };
+
+  const cancelTouchReorder = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (touchReorderRef.current?.pointerId !== event.pointerId) return;
+    touchReorderRef.current = null;
+    setDraggedId(null);
+    setTouchDragPosition(null);
+  };
+
   const moveSelected = (direction: -1 | 1) => {
     if (!game || selection.length !== 1) return;
     const hand = [...sortHandForDisplay(game.players[0].hand, handSortMode)];
@@ -252,6 +306,7 @@ export default function App() {
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
   const visibleDiscard = game.discard.slice(-3);
+  const draggedTile = draggedId ? human.hand.find((tile) => tile.id === draggedId) : undefined;
   const recentlyChangedTileIdSet = new Set(recentlyChangedTileIds);
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
@@ -507,17 +562,31 @@ export default function App() {
             <button className="sort-button" type="button" disabled={!humanTurn} onClick={cycleHandSort}>{handSortLabel}</button>
           </div>
         </div>
-        <div className="hand-tiles" onDragOver={(event) => event.preventDefault()}>
+        <div
+          className="hand-tiles"
+          onDragOver={(event) => event.preventDefault()}
+          onPointerDown={handleTouchReorderStart}
+          onPointerMove={handleTouchReorderMove}
+          onPointerUp={finishTouchReorder}
+          onPointerCancel={cancelTouchReorder}
+        >
           {displayedHand.map((tile, index) => (
             <button
-              className={`hand-tile ${selection.includes(tile.id) ? 'selected' : ''}`}
+              className={`hand-tile ${selection.includes(tile.id) ? 'selected' : ''} ${draggedId === tile.id ? 'is-touch-dragging' : ''}`}
               type="button"
               key={tile.id}
+              data-hand-tile-id={tile.id}
               draggable={humanTurn}
               disabled={!humanTurn}
               aria-pressed={selection.includes(tile.id)}
               aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
-              onClick={() => toggleTile(tile.id)}
+              onClick={() => {
+                if (ignoreNextTileClickRef.current) {
+                  ignoreNextTileClickRef.current = false;
+                  return;
+                }
+                toggleTile(tile.id);
+              }}
               onDragStart={() => setDraggedId(tile.id)}
               onDragEnd={() => setDraggedId(null)}
               onDrop={(event) => { event.preventDefault(); if (draggedId) reorderHand(draggedId, tile.id); setDraggedId(null); }}
@@ -525,6 +594,11 @@ export default function App() {
             ><TileFace tile={tile} selected={selection.includes(tile.id)} className={recentlyChangedTileIdSet.has(tile.id) && !selection.includes(tile.id) ? 'is-recent' : ''} /></button>
           ))}
         </div>
+        {draggedTile && touchDragPosition && <div
+          className="touch-drag-ghost"
+          aria-hidden="true"
+          style={{ left: touchDragPosition.x, top: touchDragPosition.y }}
+        ><TileFace tile={draggedTile} /></div>}
       </section>
 
       {error && <p className="error-message" role="alert">{error}</p>}

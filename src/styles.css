@@ -221,7 +221,12 @@ h1 em { color: var(--coral); font-weight: 500; }
 .move-button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #d5ddd4; border-radius: 3px; color: #4e675b; background: #f8faf5; font-size: 17px; cursor: pointer; }
 .move-button:disabled { opacity: .35; cursor: not-allowed; }
 .hand-tiles { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 7px; min-height: 90px; }
-.hand-tile { padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: grab; touch-action: manipulation; }
+.hand-tile { padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.hand-tile.is-touch-dragging { opacity: .68; cursor: grabbing; }
+.touch-drag-ghost { position: fixed; z-index: 20; pointer-events: none; transform: translate(-50%, -20%); filter: drop-shadow(0 8px 12px rgba(19, 42, 30, .3)); opacity: .95; }
+.touch-drag-ghost .tile-face { width: 46px; height: 66px; flex-basis: 46px; }
+.touch-drag-ghost .tile-face strong { font-size: 28px; }
+.touch-drag-ghost .tile-mark { top: 4px; left: 5px; font-size: 6px; }
 .hand-tile:disabled { cursor: default; }
 .hand-tile.selected .tile-face { transform: translateY(-8px); outline: 2px solid var(--coral); outline-offset: 1px; }
 .hand-tile:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #dc704e; outline-offset: 3px; }
