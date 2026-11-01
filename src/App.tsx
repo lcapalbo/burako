@@ -259,10 +259,6 @@ export default function App() {
       </section>
 
       <section className="felt-table" aria-label="Mesa de juego">
-        <div className="table-status">
-          <span>{game.melds.length ? `${game.melds.length} ${game.melds.length === 1 ? 'juego bajado' : 'juegos bajados'}` : 'La mesa todavía está limpia'}</span>
-          {game.players.some((player) => player.deadTaken) && <span className="dead-status">Muerto levantado</span>}
-        </div>
         <div className="piles-row">
           <div className="stock-pile" aria-label={`${game.stock.length} fichas en el montón`}>
             <span className="stack-back"><i /><i /><i /></span>
@@ -284,6 +280,7 @@ export default function App() {
         <div className="meld-area">
           {([1, 0] as const).map((team) => {
             const teamMelds = meldsForTeam(team);
+            const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
             const categories = [
               { key: 'run', label: 'Escaleras', melds: teamMelds.filter((meld) => meld.kind === 'run') },
               { key: 'leg', label: 'Piernas', melds: teamMelds.filter((meld) => meld.kind === 'leg') },
@@ -291,7 +288,10 @@ export default function App() {
             const teamName = team === 1 ? 'Computadora' : 'Vos';
             return (
               <section className="meld-team" key={team} aria-label={`Juegos de ${teamName}`}>
-                <h3 className="meld-team-heading">{teamName}</h3>
+                <header className="meld-team-header">
+                  <h3 className="meld-team-heading">{teamName}</h3>
+                  <span className={`meld-dead-status ${deadTaken ? 'is-taken' : ''}`}>Muerto {deadTaken ? 'levantado' : 'pendiente'}</span>
+                </header>
                 {teamMelds.length === 0
                   ? <p className="empty-team-melds">Sin juegos bajados</p>
                   : <div className="meld-categories">{categories.map((category) => (
