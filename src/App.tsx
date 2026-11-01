@@ -58,6 +58,15 @@ function TileFace({ tile, selected = false }: { tile: Tile; selected?: boolean }
   );
 }
 
+function ScorePairSummary({ label, scores }: { label: string; scores: [number, number] }) {
+  return (
+    <span className="result-score-pair">
+      {label}: vos <span className={scores[0] >= scores[1] ? 'is-leading-score' : ''}>{scores[0].toLocaleString('es-AR')}</span>
+      {' · '}computadora <span className={scores[1] >= scores[0] ? 'is-leading-score' : ''}>{scores[1].toLocaleString('es-AR')}</span>
+    </span>
+  );
+}
+
 export default function App() {
   const [game, setGame] = useState<GameState | null>(loadSavedGame);
   const [target, setTarget] = useState<Target>(2000);
@@ -188,6 +197,10 @@ export default function App() {
   const pointsHistory = game.roundHistory ?? [];
   const currentRoundScore = pointsHistory.length ? pointsHistory[pointsHistory.length - 1] : null;
   const previousRoundScores = currentRoundScore ? pointsHistory.slice(0, -1) : pointsHistory;
+  const hasPreviousRounds = game.round > 1;
+  const currentHandScores: [number, number] | null = currentRoundScore
+    ? [currentRoundScore.scores[0].total, currentRoundScore.scores[1].total]
+    : game.round === 1 ? [game.scores[0], game.scores[1]] : null;
   const pointsRows = currentRoundScore ? [
     { label: 'Canastas limpias', scores: currentRoundScore.scores.map((score) => score.cleanCanastas) },
     { label: 'Canastas sucias', scores: currentRoundScore.scores.map((score) => score.dirtyCanastas) },
@@ -356,10 +369,20 @@ export default function App() {
 
       {game.result && <section className={`result-banner ${game.phase === 'match-over' ? 'is-final' : ''}`} role="status">
         <strong>{game.result}</strong>
-        <span>{game.phase === 'round-over' ? `Puntaje: vos ${game.scores[0].toLocaleString('es-AR')} · computadora ${game.scores[1].toLocaleString('es-AR')}` : ''}</span>
-        {game.target !== 'cut' && <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>}
-        {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound)}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
-        {game.phase === 'match-over' && <button type="button" onClick={() => setGame(null)}>Volver al inicio</button>}
+        {game.target !== 'cut' && game.phase === 'round-over' && <span className="result-score-summary">
+          {currentHandScores
+            ? <ScorePairSummary label="Puntaje de la mano" scores={currentHandScores} />
+            : <>Puntaje de la mano no disponible para esta partida guardada.</>}
+          {hasPreviousRounds && <>
+            {' · '}
+            <ScorePairSummary label="Acumulado de partida" scores={[game.scores[0], game.scores[1]]} />
+          </>}
+        </span>}
+        <div className="result-actions">
+          {game.target !== 'cut' && <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>}
+          {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound)}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
+          {game.phase === 'match-over' && <button type="button" onClick={() => setGame(null)}>Volver al inicio</button>}
+        </div>
       </section>}
 
       <section className="player-area" aria-label="Tu atril">
