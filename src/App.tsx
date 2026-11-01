@@ -341,7 +341,7 @@ export default function App() {
           <p className="eyebrow">La mesa está lista</p>
           <h1>Tu próximo<br /><em>burako</em> empieza acá.</h1>
           <p className="intro">Jugá una partida contra la computadora.</p>
-          <p className="rules-invitation">Si sos nuevo, <button className="rules-inline-link" type="button" onClick={openRules}>estas son las reglas</button>.</p>
+          <p className="intro rules-invitation">Si sos nuevo, <button className="rules-inline-link" type="button" onClick={openRules}>estas son las reglas</button>.</p>
           <div className="target-picker" role="group" aria-label="Objetivo de la partida">
             {TARGET_OPTIONS.map(({ label, value }) => (
               <button key={label} type="button" className={target === value ? 'target-option active' : 'target-option'} onClick={() => setTarget(value)}>{label}</button>

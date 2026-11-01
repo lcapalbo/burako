@@ -1,5 +1,3 @@
-# Burako: guía rápida
-
 ## Preparación
 
 - Pueden jugar 2 o 4 personas. Con 4, se forman dos parejas y sus integrantes se sientan enfrentados.
@@ -27,9 +25,9 @@ Una combinación de 7 fichas o más es una **canasta**: **limpia** si no usa com
 
 ## Cómo es un turno
 
-1. Robá una ficha del montón o levantá todo el pozo de descartes (para esto, entre las fichas del pozo y las de tu atril debés tener al menos 5). Solo al inicio de la mano, el jugador que la abre levantando una ficha del montón, tiene opción de descartarla al pozo y levantar una segunda ficha del montón para jugar.
-2. Bajá combinaciones válidas o agregá fichas a combinaciones tuyas o de tu pareja.
-3. Descartá una ficha boca arriba en el pozo. Si habías comenzado tu turno levantando un pozo de una sola ficha, no puedes descartar la misma.
+1. **Robá** una ficha del montón o **levantá** todo el pozo de descartes (para esto, entre las fichas del pozo y las de tu atril debés tener al menos 5). Solo al inicio de la mano, el jugador que la abre levantando una ficha del montón, tiene opción de descartarla al pozo y levantar una segunda ficha del montón para jugar.
+2. **Bajá** combinaciones válidas o agregá fichas a combinaciones tuyas o de tu pareja.
+3. **Descartá** una ficha boca arriba en el pozo. Si habías comenzado tu turno levantando un pozo de una sola ficha, no puedes descartar la misma.
 
 ## Muerto y cierre de mano
 
