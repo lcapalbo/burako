@@ -179,6 +179,10 @@ h1 em { color: var(--coral); font-weight: 500; }
 .tile-blue { color: #5783a2; }
 .tile-green { color: #17684f; }
 .tile-yellow { color: #a78024; }
+.tile-two-wild.tile-red { background-color: #fff0ec; }
+.tile-two-wild.tile-blue { background-color: #edf5f8; }
+.tile-two-wild.tile-green { background-color: #eaf4ef; }
+.tile-two-wild.tile-yellow { background-color: #faf4df; }
 .tile-joker { color: #915e40; background: #fff8df; }
 .tile-joker small { margin-top: 3px; font-size: 6px; font-weight: 800; letter-spacing: .5px; }
 .result-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 9px 16px; max-width: 1180px; margin: 12px auto; padding: 12px 14px; border-left: 3px solid #d9b752; background: #e9eddc; font-size: 12px; }

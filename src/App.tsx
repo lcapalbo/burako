@@ -48,10 +48,13 @@ function loadSavedGame(): GameState | null {
 }
 
 function TileFace({ tile, selected = false }: { tile: Tile; selected?: boolean }) {
-  const label = tile.kind === 'joker' ? 'comodín especial' : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}`;
+  const isWildTwo = tile.kind === 'number' && tile.value === 2;
+  const label = tile.kind === 'joker'
+    ? 'comodín especial'
+    : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}${isWildTwo ? ', comodín' : ''}`;
   return (
-    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${selected ? 'is-selected' : ''}`} role="img" aria-label={label}>
-      <span className="tile-mark" aria-hidden="true">{tile.kind === 'joker' ? '★' : '●'}</span>
+    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${isWildTwo ? 'tile-two-wild' : ''} ${selected ? 'is-selected' : ''}`} role="img" aria-label={label}>
+      {tile.kind !== 'joker' && <span className="tile-mark" aria-hidden="true">●</span>}
       <strong>{tile.kind === 'joker' ? '★' : tile.value}</strong>
       {tile.kind === 'joker' && <small>COMODÍN</small>}
     </span>
