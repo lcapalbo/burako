@@ -287,7 +287,7 @@ h1 em { color: var(--coral); font-weight: 500; }
   .points-table-scroll { max-height: 60dvh; padding: 8px 14px; }
   .discard-tile-list { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); max-height: 60dvh; gap: 7px 3px; padding: 12px 14px; }
   .discard-stack { height: 52px; flex-basis: 52px; transform: scale(.88); transform-origin: top center; }
-  .empty-discard { width: 37px; height: 52px; }
+  .empty-discard { width: 37px; height: 52px; text-align: center; line-height: 1.1; }
   .discard-tile .tile-face { width: 37px; height: 52px; flex-basis: 37px; }
   .discard-tile .tile-face strong { font-size: 21px; }
 }
