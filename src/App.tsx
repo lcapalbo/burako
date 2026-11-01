@@ -333,6 +333,13 @@ export default function App() {
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
     .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg'));
+  const admissibleMeldCount = selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0
+    ? meldsForTeam(0).filter((meld) => previewMeldAddition(game, meld.id, selectedTileIds) !== null).length
+    : 0;
+  const selectionLabel = `${selection.length} seleccionada${selection.length === 1 ? '' : 's'}`;
+  const admissibleMeldHint = admissibleMeldCount > 0
+    ? ` - admisible${selection.length === 1 ? '' : 's'} en ${admissibleMeldCount} juego${admissibleMeldCount === 1 ? '' : 's'} bajado${admissibleMeldCount === 1 ? '' : 's'}. Tocá ${admissibleMeldCount === 1 ? 'el juego' : 'uno de esos juegos'} para agregar${selection.length === 1 ? 'la' : 'las'}.`
+    : '';
   const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const cycleDiscardSort = () => setDiscardSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const pointsHistory = game.roundHistory ?? [];
@@ -661,8 +668,10 @@ export default function App() {
           <button className="secondary-action" type="button" disabled={!game.discard.length || human.hand.length + game.discard.length < 5} onClick={() => perform((current) => takeDiscardPile(current, 0), 'player')}>Levantar todo el pozo</button>
           {game.stock.length === 0 && <button className="text-action" type="button" onClick={() => perform((current) => finishEmptyStock(current, 0))}>Terminar la mano</button>}
         </> : game.phase === 'play' && game.currentPlayer === 0 ? <>
-          <span className="action-hint">{selection.length ? `${selection.length} seleccionada${selection.length === 1 ? '' : 's'}` : 'Seleccioná fichas del atril'}</span>
-          <button className="primary-action" type="button" disabled={selection.length < 3} onClick={() => perform((current) => layMeld(current, 0, selectedTileIds))}>Bajar juego</button>
+          <span className="action-hint">{selection.length
+            ? `${selectionLabel}${admissibleMeldHint}`
+            : 'Seleccioná fichas del atril'}</span>
+          <button className="primary-action" type="button" disabled={selection.length < 3} onClick={() => perform((current) => layMeld(current, 0, selectedTileIds))}>Bajar nuevo juego</button>
           <button className="secondary-action" type="button" disabled={!canDiscard} onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Descartar</button>
         </> : <span className="action-hint ai-hint">{game.phase === 'match-over' || game.phase === 'round-over' ? 'La mano está cerrada' : 'La computadora está jugando'}</span>}
       </footer>
