@@ -84,7 +84,9 @@ export default function App() {
         setGame(runComputerTurn(game));
         setError('');
       } catch (issue) {
-        setError(issue instanceof Error ? `La computadora no pudo completar su turno: ${issue.message}` : 'La computadora no pudo completar su turno.');
+        console.error('Error al completar el turno de la computadora:', issue, issue instanceof Error ? issue.stack : undefined);
+        console.error('Estado de la partida al producirse el error:\n', JSON.stringify(game, null, 2));
+        setError('La computadora no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.');
       }
     }, 650);
     return () => window.clearTimeout(timer);
