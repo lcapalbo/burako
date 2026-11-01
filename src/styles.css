@@ -150,6 +150,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .points-table th { text-align: left; font-weight: 550; }
 .points-table td { text-align: right; font-variant-numeric: tabular-nums; }
 .points-table thead th { position: sticky; z-index: 1; top: 0; color: #617369; background: var(--paper); font-size: 9px; font-weight: 800; }
+.points-table thead th:not(:first-child) { text-align: right; }
 .points-section-row th { padding-top: 14px; color: #374c3f; background: #e9eddc; font-weight: 800; }
 .points-round-total th, .points-round-total td { border-top: 1px solid #bdc9bc; font-weight: 800; }
 .points-match-total th, .points-match-total td { border-top: 2px solid #66766a; background: #f0f3e8; font-weight: 850; }
