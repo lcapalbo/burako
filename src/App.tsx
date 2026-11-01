@@ -27,6 +27,7 @@ const COLOR_NAMES: Record<string, string> = {
   yellow: 'amarillo',
 };
 const SAVE_KEY = 'burako-local-game-v1';
+const AI_THINKING_DELAY_MS = 1500;
 type HandSortMode = 'original' | 'color' | 'number';
 const TARGET_OPTIONS = [
   { label: 'A 2000 pts', value: 2000 },
@@ -141,7 +142,7 @@ export default function App() {
         console.error('Estado de la partida al producirse el error:\n', JSON.stringify(game, null, 2));
         setError('La computadora no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.');
       }
-    }, 650);
+    }, AI_THINKING_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [game]);
 
