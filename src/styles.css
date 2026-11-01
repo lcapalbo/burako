@@ -30,8 +30,9 @@ button { font: inherit; }
 .topbar { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
 .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; background: var(--felt); color: white; border-radius: 50%; font-family: Georgia, serif; font-size: 19px; }
 .brand-name { font-size: 14px; font-weight: 700; }
-.local-label { margin-left: auto; display: flex; align-items: center; gap: 8px; color: #64736a; font-size: 12px; }
-.local-label span { width: 7px; height: 7px; border-radius: 50%; background: #71965e; }
+.github-link { display: grid; place-items: center; width: 36px; height: 36px; margin-left: auto; border-radius: 50%; color: var(--ink); text-decoration: none; }
+.github-link:hover { color: var(--felt); background: #e8eee1; }
+.github-link svg { display: block; width: 21px; height: 21px; fill: currentColor; }
 .welcome-copy { position: relative; z-index: 1; max-width: 590px; padding-top: clamp(72px, 15vh, 150px); }
 .eyebrow { color: var(--felt); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; }
 h1 { margin: 16px 0 18px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(48px, 7vw, 86px); font-weight: 500; line-height: .99; letter-spacing: 0; }
