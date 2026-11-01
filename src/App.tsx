@@ -459,7 +459,6 @@ export default function App() {
                   ? <p className="empty-team-melds">Sin juegos bajados</p>
                   : <div className="meld-categories">{categories.map((category) => (
                     <section className="meld-category" key={category.key} aria-label={category.label}>
-                      <h4 className="meld-category-heading">{category.label}</h4>
                       <div className="meld-category-games">{category.melds.map((meld) => (
                         (() => {
                           const previewTiles = selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0

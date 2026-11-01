@@ -173,10 +173,9 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meld-dead-status { color: rgba(230, 239, 226, .7); font-size: 8px; }
 .meld-dead-status.is-taken { color: #e7eea5; font-weight: 700; }
 .empty-team-melds { margin: 0; color: rgba(230, 239, 226, .64); font-size: 9px; font-style: italic; }
-.meld-categories { display: grid; gap: 10px; }
+.meld-categories { display: grid; gap: 4px; }
 .meld-category { min-width: 0; }
-.meld-category-heading { margin: 0 0 6px; color: #d3e2d5; font-size: 9px; font-weight: 750; }
-.meld-category-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: start; gap: 8px; }
+.meld-category-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: start; gap: 4px 8px; }
 .meld-group { max-width: 100%; min-width: 0; }
 .meld-target { cursor: pointer; }
 .meld-target:focus-visible { outline: 2px solid var(--lemon); outline-offset: 3px; }
