@@ -106,7 +106,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .opponent-name span { color: #77857d; font-size: 10px; }
 .hidden-tiles { display: flex; margin-left: 8px; }
 .hidden-tiles span { display: block; width: 16px; height: 22px; margin-left: -5px; border: 1px solid #c1d0c6; border-radius: 3px; background: repeating-linear-gradient(45deg, #dae7dc 0 3px, #eaf0e8 3px 6px); }
-.opponent-rack { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 3px; max-width: 58%; margin-left: auto; }
+.opponent-rack { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 3px; max-width: 58%; margin-left: 8px; }
 .opponent-rack .tile-face { width: 34px; height: 48px; flex-basis: 34px; border-radius: 4px; }
 .opponent-rack .tile-face strong { font-size: 22px; }
 .opponent-rack .tile-mark { top: 3px; left: 4px; font-size: 5px; }
