@@ -458,8 +458,8 @@ export default function App() {
           <button className="secondary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => discardOpeningDrawAndRedraw(current, 0))}>Descartar y robar otra</button>
         </> : game.phase === 'draw' && game.currentPlayer === 0 ? <>
           <span className="action-hint">Elegí cómo robar para empezar tu turno</span>
-          <button className="primary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => drawFromStock(current, 0))}>Robar del montón <span>{game.stock.length}</span></button>
-          <button className="secondary-action" type="button" disabled={!game.discard.length || human.hand.length + game.discard.length < 5} onClick={() => perform((current) => takeDiscardPile(current, 0))}>Levantar el pozo <span>{game.discard.length}</span></button>
+          <button className="primary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => drawFromStock(current, 0))}>Robar ficha del montón</button>
+          <button className="secondary-action" type="button" disabled={!game.discard.length || human.hand.length + game.discard.length < 5} onClick={() => perform((current) => takeDiscardPile(current, 0))}>Levantar todo el pozo</button>
           {game.stock.length === 0 && <button className="text-action" type="button" onClick={() => perform((current) => finishEmptyStock(current, 0))}>Terminar la mano</button>}
         </> : game.phase === 'play' && game.currentPlayer === 0 ? <>
           <span className="action-hint">{selection.length ? `${selection.length} seleccionada${selection.length === 1 ? '' : 's'}` : 'Seleccioná fichas del atril'}</span>
