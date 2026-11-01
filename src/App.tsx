@@ -381,7 +381,7 @@ export default function App() {
           <span className="team-dot computer-dot" />
           <div><small>COMPUTADORA</small><strong>{game.scores[1].toLocaleString('es-AR')}</strong></div>
         </div>
-        <span className="round-indicator">{game.phase === 'play' && game.currentPlayer === 0 ? 'Tu turno' : game.currentPlayer === 1 ? 'Juega la computadora' : game.phase === 'draw' ? 'Robá para empezar' : 'Mano en curso'}</span>
+        <span className="round-indicator">{game.phase === 'round-over' || game.phase === 'match-over' ? 'Mano terminada' : game.phase === 'play' && game.currentPlayer === 0 ? 'Tu turno' : game.currentPlayer === 1 ? 'Juega la computadora' : game.phase === 'draw' ? 'Robá para empezar' : 'Mano en curso'}</span>
       </section>
 
       <section ref={opponentBarRef} className="opponent-bar" aria-label="Atril de la computadora">
