@@ -627,7 +627,7 @@ export default function App() {
           </div>
         </div>
         <div
-          className="hand-tiles"
+          className={`hand-tiles ${human.hand.length >= 20 ? 'is-compact' : ''}`}
           onDragOver={(event) => event.preventDefault()}
           onPointerDown={handleTouchReorderStart}
           onPointerMove={handleTouchReorderMove}

@@ -226,6 +226,9 @@ h1 em { color: var(--coral); font-weight: 500; }
 .move-button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #d5ddd4; border-radius: 3px; color: #4e675b; background: #f8faf5; font-size: 17px; cursor: pointer; }
 .move-button:disabled { opacity: .35; cursor: not-allowed; }
 .hand-tiles { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 7px; min-height: 90px; }
+.hand-tiles.is-compact .hand-tile .tile-face { width: 42px; height: 59px; flex-basis: 42px; }
+.hand-tiles.is-compact .hand-tile .tile-face strong { font-size: 23px; }
+.hand-tiles.is-compact .hand-tile .tile-mark { font-size: 6px; }
 .hand-tile { padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
 .hand-tile.is-touch-dragging { opacity: .68; cursor: grabbing; }
 .touch-drag-ghost { position: fixed; z-index: 20; pointer-events: none; transform: translate(-50%, -20%); filter: drop-shadow(0 8px 12px rgba(19, 42, 30, .3)); opacity: .95; }
@@ -274,6 +277,8 @@ h1 em { color: var(--coral); font-weight: 500; }
   .hand-tile { padding: 1px; }
   .hand-tile .tile-face { width: 46px; height: 66px; flex-basis: 46px; }
   .hand-tile .tile-face strong { font-size: 28px; }
+  .hand-tiles.is-compact .hand-tile .tile-face { width: 37px; height: 52px; flex-basis: 37px; }
+  .hand-tiles.is-compact .hand-tile .tile-face strong { font-size: 21px; }
   .action-bar { position: fixed; z-index: 10; right: 0; bottom: 0; left: 0; width: 100%; max-width: none; gap: 6px; margin: 0; padding: 9px max(14px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(14px, env(safe-area-inset-left)); border-top: 1px solid #dce2d9; background: #f2f4ed; backdrop-filter: none; }
   .action-hint { width: 100%; margin: 0 0 2px; }
   .primary-action, .secondary-action, .text-action { min-height: 40px; flex: 1; padding: 0 8px; font-size: 10px; }
