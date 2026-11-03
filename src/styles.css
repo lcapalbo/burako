@@ -191,22 +191,22 @@ h1 em { color: var(--coral); font-weight: 500; }
 .rules-markdown strong { color: #203d31; }
 .meld-area { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; min-height: 92px; padding: 8px 4px 4px; }
 .empty-table { align-self: center; margin: 10px 0; color: rgba(230, 239, 226, .64); font-family: Georgia, serif; font-size: 14px; font-style: italic; }
-.meld-team { min-width: 0; padding: 8px 9px; border: 1px solid rgba(232, 241, 220, .2); border-radius: 4px; background: rgba(9, 48, 36, .12); }
+.meld-team { min-width: 0; padding: 8px 9px 12px; border: 1px solid rgba(232, 241, 220, .2); border-radius: 4px; background: rgba(9, 48, 36, .12); }
 .meld-team.is-turn { border-color: rgba(220, 232, 138, .48); box-shadow: 0 0 12px rgba(220, 232, 138, .16), inset 0 0 12px rgba(220, 232, 138, .05); }
 .meld-team-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 8px; }
 .meld-team-heading { margin: 0; color: #e3eea2; font-size: 10px; font-weight: 800; }
 .meld-dead-status { color: rgba(230, 239, 226, .7); font-size: 8px; }
 .meld-dead-status.is-taken { color: #e7eea5; font-weight: 700; }
 .empty-team-melds { margin: 0; color: rgba(230, 239, 226, .64); font-size: 9px; font-style: italic; }
-.meld-categories { display: grid; gap: 4px; }
+.meld-categories { display: grid; gap: 3px; }
 .meld-category { min-width: 0; }
-.meld-category-games { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 8px; }
+.meld-category-games { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 3px 8px; }
 .meld-group { width: fit-content; max-width: 100%; min-width: 0; }
 .meld-target { cursor: pointer; }
 .meld-target:focus-visible { outline: 2px solid var(--lemon); outline-offset: 3px; }
 .canasta-badge { padding: 3px 5px; border-radius: 2px; color: #27392e; background: var(--lemon); font-size: 8px; font-weight: 800; }
-.meld-tiles { position: relative; display: flex; flex-wrap: wrap; overflow: visible; width: max-content; max-width: 100%; padding: 6px 2px 22px; }
-.meld-tiles .canasta-overlay { position: absolute; z-index: 2; bottom: 6px; left: 2px; white-space: nowrap; }
+.meld-tiles { position: relative; display: flex; flex-wrap: wrap; overflow: visible; width: max-content; max-width: 100%; padding: 6px 2px 10px; }
+.meld-tiles .canasta-overlay { position: absolute; z-index: 2; bottom: -6px; left: 2px; white-space: nowrap; }
 .meld-tiles .tile-face { width: 42px; height: 59px; flex: 0 0 42px; margin: 0 -10px -16px 0; }
 .meld-tiles .tile-face strong { font-size: 23px; }
 .meld-tiles .tile-mark { font-size: 6px; }
@@ -217,7 +217,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .tile-face.is-recent::after, .tile-face.is-preview::after { position: absolute; z-index: 2; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .82) 50%, transparent 70%); content: ""; transform: translateX(-120%); animation: recent-tile-shine .8s ease-out both; pointer-events: none; }
 .tile-face.is-preview::after { animation-duration: 1.2s; animation-iteration-count: infinite; }
 @keyframes recent-tile-glow {
-  0%, 45% { filter: brightness(1.16); box-shadow: 0 0 0 3px var(--lemon), 0 0 18px rgba(220, 232, 138, .8); }
+  0%, 45% { filter: brightness(1.16); box-shadow: 0 0 0 2px var(--lemon), 0 0 10px rgba(220, 232, 138, .65); }
   100% { filter: none; box-shadow: 0 2px 5px rgba(19, 42, 30, .1); }
 }
 @keyframes recent-tile-shine { to { transform: translateX(120%); } }
@@ -294,8 +294,10 @@ h1 em { color: var(--coral); font-weight: 500; }
   .felt-table { min-height: 270px; padding: 6.5px 6px 8px; }
   .piles-row { min-height: 114px; }
   .meld-area { grid-template-columns: minmax(0, 1fr); min-height: 95px; gap: 9px; }
+  .meld-categories { gap: 2px; }
+  .meld-category-games { row-gap: 2px; }
   .empty-table { font-size: 12px; text-align: center; }
-  .meld-tiles { padding-bottom: 20px; }
+  .meld-tiles .canasta-overlay { bottom: -4px; }
   .meld-tiles .tile-face { width: 37px; height: 52px; flex-basis: 37px; margin: 0 -9px -14px 0; }
   .meld-tiles .tile-face strong { font-size: 21px; }
   .player-area { margin-top: 17px; }
@@ -338,6 +340,6 @@ h1 em { color: var(--coral); font-weight: 500; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tile-face.is-recent, .tile-face.is-preview { animation: none; outline: 3px solid var(--lemon); }
+  .tile-face.is-recent, .tile-face.is-preview { animation: none; outline: 2px solid var(--lemon); }
   .tile-face.is-recent::after, .tile-face.is-preview::after { display: none; }
 }
