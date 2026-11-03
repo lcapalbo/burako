@@ -676,7 +676,7 @@ describe('nueva mano y rotación', () => {
 });
 
 describe('cierre por corte', () => {
-  it('anuncia correctamente cuando vos cortás la mano', () => {
+  it('felicita cuando vos ganás la mano', () => {
     const initial = createGame('cut', () => 0.5);
     const canasta = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`cut-human-${value}`, 'red', value));
     const players = [...initial.players];
@@ -687,13 +687,13 @@ describe('cierre por corte', () => {
 
     assert.equal(ended.phase, 'match-over');
     assert.equal(ended.winner, 0);
-    assert.equal(ended.result, '¡Vos cortaste la mano!');
+    assert.equal(ended.result, '¡Felicitaciones, ganaste la mano!');
     assert.equal(ended.roundHistory.length, 1);
     assert.equal(ended.roundHistory[0].scores[0].total, 445);
     assert.deepEqual(ended.scores, ended.roundHistory[0].scores.map((score) => score.total));
   });
 
-  it('anuncia correctamente cuando la computadora corta la mano', () => {
+  it('avisa cuando la computadora gana la mano', () => {
     const initial = createGame('cut', () => 0.5);
     const canasta = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`cut-computer-${value}`, 'blue', value));
     const players = [...initial.players];
@@ -704,7 +704,7 @@ describe('cierre por corte', () => {
 
     assert.equal(ended.phase, 'match-over');
     assert.equal(ended.winner, 1);
-    assert.equal(ended.result, '¡La computadora cortó la mano!');
+    assert.equal(ended.result, 'Otra vez será: la computadora ganó la mano.');
   });
 });
 

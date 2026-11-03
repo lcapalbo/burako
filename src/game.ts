@@ -379,7 +379,9 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
           roundHistory,
           phase: 'match-over',
           winner: closureWinner,
-          result: closureWinner === 0 ? '¡Vos cortaste la mano!' : '¡La computadora cortó la mano!',
+          result: closureWinner === 0
+            ? '¡Felicitaciones, ganaste la mano!'
+            : 'Otra vez será: la computadora ganó la mano.',
         };
   }
   const targetScore = typeof state.target === 'number' ? state.target : Number.POSITIVE_INFINITY;
