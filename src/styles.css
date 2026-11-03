@@ -94,8 +94,8 @@ h1 em { color: var(--coral); font-weight: 500; }
 .score-strip { display: flex; align-items: center; gap: 26px; max-width: 1180px; margin: 18px auto 16px; }
 .score-team { display: flex; align-items: center; gap: 10px; opacity: .55; }
 .score-team.active { opacity: 1; }
-.team-dot, .player-dot { display: block; width: 9px; height: 9px; border-radius: 50%; }
-.human-dot, .player-dot { background: var(--coral); }
+.team-dot { display: block; width: 9px; height: 9px; border-radius: 50%; }
+.human-dot { background: var(--coral); }
 .computer-dot { background: #568aa1; }
 .score-team div { display: grid; gap: 1px; }
 .score-team small { color: #6b7971; font-size: 9px; font-weight: 800; letter-spacing: 1px; }
@@ -103,7 +103,9 @@ h1 em { color: var(--coral); font-weight: 500; }
 .score-divider { color: #9aa79e; font-family: Georgia, serif; font-size: 13px; }
 .round-indicator { margin-left: auto; color: #557164; font-size: 12px; font-weight: 700; }
 .opponent-bar { display: flex; align-items: center; gap: 10px; max-width: 1180px; min-height: 56px; margin: 0 auto; }
-.opponent-avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #fff; background: #568aa1; font-size: 9px; font-weight: 800; }
+.opponent-avatar, .player-avatar { display: block; width: 30px; height: 30px; flex: 0 0 30px; aspect-ratio: 1; }
+.opponent-avatar { color: #568aa1; }
+.player-avatar { color: var(--coral); }
 .opponent-name { display: grid; gap: 2px; }
 .opponent-name strong { font-size: 12px; }
 .opponent-name span { color: #77857d; font-size: 10px; }

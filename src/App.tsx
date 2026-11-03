@@ -441,7 +441,14 @@ export default function App() {
       </section>
 
       <section ref={opponentBarRef} className="opponent-bar" aria-label="Atril de la computadora">
-        <div className="opponent-avatar" aria-hidden="true">IA</div>
+        <svg className="opponent-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <circle cx="16" cy="16" r="16" fill="currentColor" />
+          <path d="M16 5.5v3M13 5.5h6" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.6" />
+          <rect x="8" y="10" width="16" height="13" rx="4" fill="none" stroke="white" strokeWidth="1.8" />
+          <circle cx="12.5" cy="15.5" r="1.2" fill="white" />
+          <circle cx="19.5" cy="15.5" r="1.2" fill="white" />
+          <path d="M12.5 19h7" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.5" />
+        </svg>
         <div className="opponent-name"><strong>La computadora</strong><span>{roundClosed ? `${computer.hand.length} fichas en el atril` : game.currentPlayer === 1 ? error || 'Está pensando…' : `${computer.hand.length} fichas en el atril`}</span></div>
         {revealComputerHand
           ? <div className="opponent-rack" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
@@ -665,7 +672,14 @@ export default function App() {
 
       <section ref={playerAreaRef} className="player-area" aria-label="Tu atril">
         <div className="player-heading">
-          <div><span className="player-dot" /><strong>Tu atril</strong><span className="hand-count">{human.hand.length} fichas</span></div>
+          <div>
+            <svg className="player-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+              <circle cx="16" cy="16" r="16" fill="currentColor" />
+              <circle cx="16" cy="11.5" r="4" fill="white" />
+              <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />
+            </svg>
+            <strong>Tu atril</strong><span className="hand-count">{human.hand.length} fichas</span>
+          </div>
           <div className="hand-tools">
             <button className="move-button" type="button" disabled={!humanTurn || selection.length !== 1} aria-label="Mover ficha a la izquierda" title="Mover a la izquierda" onClick={() => moveSelected(-1)}>←</button>
             <button className="move-button" type="button" disabled={!humanTurn || selection.length !== 1} aria-label="Mover ficha a la derecha" title="Mover a la derecha" onClick={() => moveSelected(1)}>→</button>
