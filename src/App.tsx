@@ -191,13 +191,15 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [game]);
 
-  const begin = () => {
-    setGame(createGame(target));
+  const startGame = (gameTarget: Target) => {
+    setGame(createGame(gameTarget));
     setRecentlyChangedTileIds([]);
     setHandSortMode('original');
     setSelection([]);
     setError('');
   };
+
+  const begin = () => startGame(target);
 
   const perform = (action: (current: GameState) => GameState, scrollTarget?: 'player' | 'computer') => {
     if (!game) return;
@@ -647,7 +649,7 @@ export default function App() {
         <div className="result-actions">
           <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>
           {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound)}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
-          {game.phase === 'match-over' && <button type="button" onClick={() => setGame(null)}>Volver al inicio</button>}
+          {game.phase === 'match-over' && <button type="button" onClick={() => startGame(game.target)}>Jugar de nuevo</button>}
         </div>
       </section>}
 
