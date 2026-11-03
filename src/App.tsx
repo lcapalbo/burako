@@ -408,24 +408,15 @@ export default function App() {
         <a className="game-brand" href="#" onClick={(event) => { event.preventDefault(); setGame(null); }}>
           <span className="brand-mark" aria-hidden="true">B</span><span>Burako</span>
         </a>
-        <div className="match-meta">{game.target !== 'cut' && <><span>Mano {game.round}</span><span className="meta-divider" /></>}{formatTargetLabel(game.target)}</div>
+        <div className="match-meta">
+          <div className="match-meta-details">{game.target !== 'cut' && <><span>Mano {game.round}</span><span className="meta-divider" /></>}{formatTargetLabel(game.target)}</div>
+          {game.target !== 'cut' && (game.scores[0] !== 0 || game.scores[1] !== 0) && <span className="match-score" aria-label={`Puntaje: ${game.scores[0].toLocaleString('es-AR')} (vos) a ${game.scores[1].toLocaleString('es-AR')}`}>
+            Puntaje: {game.scores[0].toLocaleString('es-AR')} (vos) a {game.scores[1].toLocaleString('es-AR')}
+          </span>}
+        </div>
         <a className="quiet-button game-rules-link" href="#reglas" onClick={(event) => { event.preventDefault(); openRules(); }}>Reglas</a>
         <button className="quiet-button" type="button" onClick={() => setGame(null)}>Salir</button>
       </header>
-
-      <section className="score-strip" aria-label="Puntaje de la partida">
-        {game.target !== 'cut' && <>
-          <div className={game.currentPlayer === 0 ? 'score-team active' : 'score-team'}>
-            <span className="team-dot human-dot" />
-            <div><small>VOS</small><strong>{game.scores[0].toLocaleString('es-AR')}</strong></div>
-          </div>
-          <span className="score-divider">a </span>
-          <div className={game.currentPlayer === 1 ? 'score-team active' : 'score-team'}>
-            <span className="team-dot computer-dot" />
-            <div><small>COMPUTADORA</small><strong>{game.scores[1].toLocaleString('es-AR')}</strong></div>
-          </div>
-        </>}
-      </section>
 
       <section ref={opponentBarRef} className="opponent-bar" aria-label="Atril de la computadora">
         <svg className={`opponent-avatar ${!roundClosed && game.currentPlayer === 1 ? 'is-turn' : ''}`} viewBox="0 0 32 32" aria-hidden="true" focusable="false">

@@ -86,21 +86,13 @@ h1 em { color: var(--coral); font-weight: 500; }
 .game-header { display: flex; align-items: center; gap: 20px; max-width: 1180px; height: 68px; margin: 0 auto; border-bottom: 1px solid #dbe1d8; }
 .game-brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 13px; font-weight: 750; text-decoration: none; }
 .game-brand .brand-mark { width: 30px; height: 30px; font-size: 17px; }
-.match-meta { display: flex; align-items: center; gap: 10px; margin-left: auto; color: #65756c; font-size: 12px; }
+.match-meta { display: grid; justify-items: end; gap: 1px; margin-left: auto; color: #65756c; font-size: 12px; }
+.match-meta-details { display: flex; align-items: center; gap: 10px; }
+.match-score { font-variant-numeric: tabular-nums; }
 .meta-divider { width: 1px; height: 13px; background: #c8d1c9; }
 .quiet-button, .sort-button { border: 0; color: #56675f; background: transparent; font-size: 12px; font-weight: 700; cursor: pointer; }
 .quiet-button { padding: 8px 0 8px 12px; }
 .game-rules-link { text-decoration: none; }
-.score-strip { display: flex; align-items: center; gap: 26px; max-width: 1180px; margin: 18px auto 16px; }
-.score-team { display: flex; align-items: center; gap: 10px; opacity: .55; }
-.score-team.active { opacity: 1; }
-.team-dot { display: block; width: 9px; height: 9px; border-radius: 50%; }
-.human-dot { background: var(--coral); }
-.computer-dot { background: #568aa1; }
-.score-team div { display: grid; gap: 1px; }
-.score-team small { color: #6b7971; font-size: 9px; font-weight: 800; letter-spacing: 1px; }
-.score-team strong { font-family: Georgia, serif; font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.score-divider { color: #9aa79e; font-family: Georgia, serif; font-size: 13px; }
 .opponent-bar { display: flex; align-items: center; gap: 10px; max-width: 1180px; min-height: 56px; margin: 0 auto; }
 .opponent-avatar, .player-avatar { display: block; width: 30px; height: 30px; flex: 0 0 30px; aspect-ratio: 1; }
 .opponent-avatar { color: #568aa1; }
@@ -286,13 +278,8 @@ h1 em { color: var(--coral); font-weight: 500; }
   .game-header { height: 58px; gap: 8px; }
   .game-brand { gap: 7px; font-size: 11px; }
   .game-brand .brand-mark { width: 27px; height: 27px; }
-  .match-meta { gap: 7px; font-size: 10px; }
+  .match-meta { gap: 2px; font-size: 10px; }
   .quiet-button { font-size: 11px; }
-  .score-strip { gap: 11px; margin-top: 14px; }
-  .score-team { gap: 6px; }
-  .score-team small { font-size: 7px; letter-spacing: .6px; }
-  .score-team strong { font-size: 19px; }
-  .team-dot { width: 7px; height: 7px; }
   .round-indicator { max-width: 92px; text-align: right; font-size: 10px; }
   .opponent-bar { min-height: 48px; }
   .opponent-rack { flex: 1 1 calc(100% - 40px); justify-content: flex-start; max-width: none; margin-left: 40px; }
