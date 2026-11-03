@@ -666,7 +666,7 @@ export default function App() {
               <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />
             </svg>
             <div className="player-name">
-              <strong>Tu atril</strong>
+              <strong>Vos</strong>
               <span className="hand-count">{playerHeaderText}</span>
             </div>
           </div>
