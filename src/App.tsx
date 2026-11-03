@@ -441,7 +441,7 @@ export default function App() {
       </section>
 
       <section ref={opponentBarRef} className="opponent-bar" aria-label="Atril de la computadora">
-        <svg className="opponent-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <svg className={`opponent-avatar ${!roundClosed && game.currentPlayer === 1 ? 'is-turn' : ''}`} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
           <circle cx="16" cy="16" r="16" fill="currentColor" />
           <path d="M16 5.5v3M13 5.5h6" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.6" />
           <rect x="8" y="10" width="16" height="13" rx="4" fill="none" stroke="white" strokeWidth="1.8" />
@@ -673,7 +673,7 @@ export default function App() {
       <section ref={playerAreaRef} className="player-area" aria-label="Tu atril">
         <div className="player-heading">
           <div>
-            <svg className="player-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <svg className={`player-avatar ${humanTurn ? 'is-turn' : ''}`} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
               <circle cx="16" cy="16" r="16" fill="currentColor" />
               <circle cx="16" cy="11.5" r="4" fill="white" />
               <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />

@@ -106,6 +106,8 @@ h1 em { color: var(--coral); font-weight: 500; }
 .opponent-avatar, .player-avatar { display: block; width: 30px; height: 30px; flex: 0 0 30px; aspect-ratio: 1; }
 .opponent-avatar { color: #568aa1; }
 .player-avatar { color: var(--coral); }
+.opponent-avatar.is-turn { filter: drop-shadow(0 0 4px rgba(86, 138, 161, .8)); }
+.player-avatar.is-turn { filter: drop-shadow(0 0 4px rgba(220, 112, 78, .8)); }
 .opponent-name { display: grid; gap: 2px; }
 .opponent-name strong { font-size: 12px; }
 .opponent-name span { color: #77857d; font-size: 10px; }
