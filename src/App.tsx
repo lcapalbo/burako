@@ -10,6 +10,7 @@ import {
   drawFromStock,
   finishEmptyStock,
   GameRuleError,
+  getMeldKind,
   isCanasta,
   isCleanMeld,
   keepOpeningDraw,
@@ -356,6 +357,8 @@ export default function App() {
 
   const human = game.players[0];
   const computer = game.players[1];
+  const selectedTiles = human.hand.filter((tile) => selection.includes(tile.id));
+  const canLaySelectedMeld = getMeldKind(selectedTiles) !== null;
   const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
   const revealComputerHand = roundClosed && !(computer.indirectDead && !computer.playedAfterDead);
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
@@ -726,7 +729,7 @@ export default function App() {
           <span className="action-hint">{selection.length
             ? `${selectionLabel}${admissibleMeldHint}`
             : 'Seleccioná fichas del atril'}</span>
-          <button className="primary-action" type="button" disabled={selection.length < 3} onClick={() => perform((current) => layMeld(current, 0, selectedTileIds))}>Bajar nuevo juego</button>
+          <button className="primary-action" type="button" disabled={!canLaySelectedMeld} onClick={() => perform((current) => layMeld(current, 0, selectedTileIds))}>Bajar nuevo juego</button>
           <button className="secondary-action" type="button" disabled={!canDiscard} onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Descartar</button>
         </> : <span className="action-hint ai-hint">{game.phase === 'match-over' || game.phase === 'round-over' ? 'La mano está cerrada' : 'La computadora está jugando'}</span>}
       </footer>
