@@ -286,19 +286,6 @@ export default function App() {
     setTouchDragPosition(null);
   };
 
-  const moveSelected = (direction: -1 | 1) => {
-    if (!game || selection.length !== 1) return;
-    const hand = [...sortHandForDisplay(game.players[0].hand, handSortMode)];
-    const from = hand.findIndex((tile) => tile.id === selection[0]);
-    const to = from + direction;
-    if (from < 0 || to < 0 || to >= hand.length) return;
-    [hand[from], hand[to]] = [hand[to], hand[from]];
-    const players = [...game.players];
-    players[0] = { ...human, hand };
-    setGame({ ...game, players });
-    setHandSortMode('original');
-  };
-
   const openRules = () => rulesDialogRef.current?.showModal();
   const rulesDialog = (
     <dialog
@@ -449,7 +436,7 @@ export default function App() {
           <circle cx="19.5" cy="15.5" r="1.2" fill="white" />
           <path d="M12.5 19h7" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.5" />
         </svg>
-        <div className="opponent-name"><strong>La computadora</strong><span>{roundClosed ? `${computer.hand.length} fichas en el atril` : game.currentPlayer === 1 ? error || 'Está pensando…' : `${computer.hand.length} fichas en el atril`}</span></div>
+        <div className="opponent-name"><strong>La computadora</strong><span>{roundClosed ? `${computer.hand.length} fichas` : game.currentPlayer === 1 ? error || 'Está pensando…' : `${computer.hand.length} fichas`}</span></div>
         {revealComputerHand
           ? <div className="opponent-rack" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
           : !roundClosed && <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: Math.min(computer.hand.length, 8) }, (_, index) => <span key={index} />)}</div>}
@@ -672,17 +659,18 @@ export default function App() {
 
       <section ref={playerAreaRef} className="player-area" aria-label="Tu atril">
         <div className="player-heading">
-          <div>
+          <div className="player-header-meta">
             <svg className={`player-avatar ${humanTurn ? 'is-turn' : ''}`} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
               <circle cx="16" cy="16" r="16" fill="currentColor" />
               <circle cx="16" cy="11.5" r="4" fill="white" />
               <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />
             </svg>
-            <strong>Tu atril</strong><span className="hand-count">{human.hand.length} fichas</span>
+            <div className="player-name">
+              <strong>Tu atril</strong>
+              <span className="hand-count">{human.hand.length} fichas</span>
+            </div>
           </div>
           <div className="hand-tools">
-            <button className="move-button" type="button" disabled={!humanTurn || selection.length !== 1} aria-label="Mover ficha a la izquierda" title="Mover a la izquierda" onClick={() => moveSelected(-1)}>←</button>
-            <button className="move-button" type="button" disabled={!humanTurn || selection.length !== 1} aria-label="Mover ficha a la derecha" title="Mover a la derecha" onClick={() => moveSelected(1)}>→</button>
             <button className="sort-button" type="button" disabled={!humanTurn} onClick={cycleHandSort}>{handSortLabel}</button>
           </div>
         </div>

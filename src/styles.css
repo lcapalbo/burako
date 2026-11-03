@@ -108,9 +108,10 @@ h1 em { color: var(--coral); font-weight: 500; }
 .player-avatar { color: var(--coral); }
 .opponent-avatar.is-turn { filter: drop-shadow(0 0 4px rgba(86, 138, 161, .8)); }
 .player-avatar.is-turn { filter: drop-shadow(0 0 4px rgba(220, 112, 78, .8)); }
-.opponent-name { display: grid; gap: 2px; }
-.opponent-name strong { font-size: 12px; }
-.opponent-name span { color: #77857d; font-size: 10px; }
+.opponent-name, .player-name { display: grid; gap: 2px; }
+.opponent-name strong, .player-name strong { font-size: 12px; }
+.opponent-name span, .player-name span, .hand-count { color: #77857d; font-size: 10px; }
+.player-header-meta { display: flex; align-items: center; gap: 9px; }
 .hidden-tiles { display: flex; margin-left: 8px; }
 .hidden-tiles span { display: block; width: 16px; height: 22px; margin-left: -5px; border: 1px solid #c1d0c6; border-radius: 3px; background: repeating-linear-gradient(45deg, #dae7dc 0 3px, #eaf0e8 3px 6px); }
 .opponent-rack { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 3px; max-width: 58%; margin-left: 8px; }
@@ -248,6 +249,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .player-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .player-heading > div { display: flex; align-items: center; gap: 9px; }
 .player-heading strong { font-size: 13px; }
+.player-name { align-items: flex-start; }
 .hand-count { color: #748179; font-size: 10px; }
 .sort-button { padding: 6px 0 6px 8px; }
 .sort-button:disabled { opacity: .4; cursor: not-allowed; }
