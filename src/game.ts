@@ -368,32 +368,38 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
     breakdown.total = breakdown.cleanCanastas + breakdown.dirtyCanastas + breakdown.dead
       + breakdown.closure + breakdown.meldTiles + breakdown.rackTiles;
   }
+  const scores = state.scores.map((score, team) => score + roundScores[team].total);
+  const roundHistory = [...(state.roundHistory ?? []), { round: state.round, scores: roundScores }];
   if (state.target === 'cut') {
     return closureWinner === null
-      ? { ...state, phase: 'match-over', winner: null, result: 'Se agotaron las fichas sin que nadie pudiera cerrar.' }
+      ? { ...state, scores, roundHistory, phase: 'match-over', winner: null, result: 'Se agotaron las fichas sin que nadie pudiera cerrar.' }
       : {
           ...state,
+          scores,
+          roundHistory,
           phase: 'match-over',
           winner: closureWinner,
           result: closureWinner === 0 ? '¡Vos cortaste la mano!' : '¡La computadora cortó la mano!',
         };
   }
-  const scores = state.scores.map((score, team) => score + roundScores[team].total);
   const targetScore = typeof state.target === 'number' ? state.target : Number.POSITIVE_INFINITY;
   const reached = scores.map((score) => score >= targetScore);
   let matchWinner: number | null = null;
   let result: string | null = null;
+  const matchResult = (winner: number | null) => winner === 0
+    ? '¡Felicitaciones, ganaste la partida!'
+    : winner === 1 ? 'Otra vez será: la computadora ganó la partida.' : 'La partida termina en empate.';
   if (reached[0] && reached[1]) {
     matchWinner = scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1;
-    result = matchWinner === null ? 'La partida termina en empate.' : `¡${state.players[matchWinner].name} gana por puntaje!`;
+    result = matchResult(matchWinner);
   } else if (reached[0] || reached[1]) {
     matchWinner = reached[0] ? 0 : 1;
-    result = `¡${state.players[matchWinner].name} alcanza el objetivo!`;
+    result = matchResult(matchWinner);
   }
   return {
     ...state,
     scores,
-    roundHistory: [...(state.roundHistory ?? []), { round: state.round, scores: roundScores }],
+    roundHistory,
     phase: result ? 'match-over' : 'round-over',
     winner: matchWinner,
     result: result ?? 'Terminó la mano.',

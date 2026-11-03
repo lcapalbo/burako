@@ -569,6 +569,12 @@ describe('puntaje de la mano', () => {
     assert.deepEqual(higherScoreWins.scores, initial.scores.map((score, team) => score + higherScoreWins.roundHistory[0].scores[team].total));
     assert.equal(higherScoreWins.phase, 'match-over');
     assert.equal(higherScoreWins.winner, 0);
+    assert.equal(higherScoreWins.result, '¡Felicitaciones, ganaste la partida!');
+
+    const computerWins = finishEmptyStock(exhaustedState([makeDirtyCanasta(), makeCleanCanasta(1, 'higher-computer')]), 0);
+    assert.deepEqual(computerWins.scores, initial.scores.map((score, team) => score + computerWins.roundHistory[0].scores[team].total));
+    assert.equal(computerWins.winner, 1);
+    assert.equal(computerWins.result, 'Otra vez será: la computadora ganó la partida.');
 
     const tiedScore = finishEmptyStock(exhaustedState([makeCleanCanasta(0, 'tie-a'), makeCleanCanasta(1, 'tie-b')]), 0);
     assert.deepEqual(tiedScore.scores, [2335, 2335]);
@@ -682,6 +688,9 @@ describe('cierre por corte', () => {
     assert.equal(ended.phase, 'match-over');
     assert.equal(ended.winner, 0);
     assert.equal(ended.result, '¡Vos cortaste la mano!');
+    assert.equal(ended.roundHistory.length, 1);
+    assert.equal(ended.roundHistory[0].scores[0].total, 445);
+    assert.deepEqual(ended.scores, ended.roundHistory[0].scores.map((score) => score.total));
   });
 
   it('anuncia correctamente cuando la computadora corta la mano', () => {
@@ -707,6 +716,8 @@ describe('fin por agotamiento del montón', () => {
     assert.equal(ended.phase, 'match-over');
     assert.equal(ended.winner, null);
     assert.match(ended.result, /agotar|agotaron/i);
+    assert.equal(ended.roundHistory.length, 1);
+    assert.deepEqual(ended.scores, ended.roundHistory[0].scores.map((score) => score.total));
   });
 
   it('termina la mano si se agota el montón y no reúne cinco fichas para levantar el pozo', () => {

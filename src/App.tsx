@@ -633,17 +633,17 @@ export default function App() {
 
       {game.result && <section className={`result-banner ${game.phase === 'match-over' ? 'is-final' : ''}`} role="status">
         <strong>{game.result}</strong>
-        {game.target !== 'cut' && game.phase === 'round-over' && <span className="result-score-summary">
+        {(game.phase === 'match-over' || (game.target !== 'cut' && game.phase === 'round-over')) && <span className="result-score-summary">
           {currentHandScores
             ? <ScorePairSummary label="Puntaje de la mano" scores={currentHandScores} />
             : <>Puntaje de la mano no disponible para esta partida guardada.</>}
-          {hasPreviousRounds && <>
+          {(game.phase === 'match-over' || hasPreviousRounds) && <>
             {' · '}
             <ScorePairSummary label="Acumulado de partida" scores={[game.scores[0], game.scores[1]]} />
           </>}
         </span>}
         <div className="result-actions">
-          {game.target !== 'cut' && <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>}
+          <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>
           {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound)}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
           {game.phase === 'match-over' && <button type="button" onClick={() => setGame(null)}>Volver al inicio</button>}
         </div>
