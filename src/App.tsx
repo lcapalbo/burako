@@ -56,6 +56,12 @@ function sortLegTiles(tiles: Tile[]): Tile[] {
   return [...sortTiles(wildcards), ...sortTiles(naturalTiles)];
 }
 
+function getLegNumber(tiles: Tile[]): number {
+  return tiles.find((tile) => tile.kind !== 'joker' && tile.value !== 2)?.value
+    ?? tiles.find((tile) => tile.kind !== 'joker')?.value
+    ?? 14;
+}
+
 function getRecentlyChangedTileIds(previous: GameState, next: GameState): string[] {
   const changed = new Set<string>();
   const previousHumanHand = new Set(previous.players[0].hand.map((tile) => tile.id));
@@ -486,7 +492,7 @@ export default function App() {
             const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
             const categories = [
               { key: 'run', label: 'Escaleras', melds: teamMelds.filter((meld) => meld.kind === 'run') },
-              { key: 'leg', label: 'Piernas', melds: teamMelds.filter((meld) => meld.kind === 'leg') },
+              { key: 'leg', label: 'Piernas', melds: teamMelds.filter((meld) => meld.kind === 'leg').sort((first, second) => getLegNumber(first.tiles) - getLegNumber(second.tiles)) },
             ].filter((category) => category.melds.length > 0);
             const teamName = team === 1 ? 'Computadora' : 'Vos';
             return (
