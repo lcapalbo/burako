@@ -448,7 +448,10 @@ export default function App() {
           : !roundClosed && <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: Math.min(computer.hand.length, 8) }, (_, index) => <span key={index} />)}</div>}
       </section>
 
-      <section className="felt-table" aria-label="Mesa de juego">
+      <section
+        className={`felt-table ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'}`}
+        aria-label="Mesa de juego"
+      >
         <div className="piles-row">
           <button
             className="stock-pile pile-action"
@@ -495,8 +498,11 @@ export default function App() {
               { key: 'leg', label: 'Piernas', melds: teamMelds.filter((meld) => meld.kind === 'leg').sort((first, second) => getLegNumber(first.tiles) - getLegNumber(second.tiles)) },
             ].filter((category) => category.melds.length > 0);
             const teamName = team === 1 ? 'Computadora' : 'Vos';
+            const isTurnTeam = game.phase !== 'round-over'
+              && game.phase !== 'match-over'
+              && game.players.find((player) => player.id === game.currentPlayer)?.team === team;
             return (
-              <section className="meld-team" key={team} aria-label={`Juegos de ${teamName}`}>
+              <section className={`meld-team ${isTurnTeam ? 'is-turn' : ''}`} key={team} aria-label={`Juegos de ${teamName}`}>
                 <header className="meld-team-header">
                   <h3 className="meld-team-heading">{teamName}</h3>
                   <span className={`meld-dead-status ${deadTaken ? 'is-taken' : ''}`}>Muerto {deadTaken ? 'levantado' : 'pendiente'}</span>
