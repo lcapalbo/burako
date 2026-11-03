@@ -251,7 +251,8 @@ h1 em { color: var(--coral); font-weight: 500; }
 .hand-tiles.is-compact .hand-tile .tile-face { width: 42px; height: 59px; flex-basis: 42px; }
 .hand-tiles.is-compact .hand-tile .tile-face strong { font-size: 23px; }
 .hand-tiles.is-compact .hand-tile .tile-mark { font-size: 6px; }
-.hand-tile { padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.hand-tile { padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: default; touch-action: none; user-select: none; -webkit-user-select: none; }
+.hand-tile.is-reorderable { cursor: grab; }
 .hand-tile.is-touch-dragging { opacity: .68; cursor: grabbing; }
 .touch-drag-ghost { position: fixed; z-index: 20; pointer-events: none; transform: translate(-50%, -20%); filter: drop-shadow(0 8px 12px rgba(19, 42, 30, .3)); opacity: .95; }
 .touch-drag-ghost .tile-face { width: 46px; height: 66px; flex-basis: 46px; }

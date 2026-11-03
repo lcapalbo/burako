@@ -225,7 +225,7 @@ export default function App() {
   };
 
   const reorderHand = (fromId: string, toId: string) => {
-    if (!game || fromId === toId) return;
+    if (!game || !canReorderHand || fromId === toId) return;
     const hand = [...sortHandForDisplay(game.players[0].hand, handSortMode)];
     const from = hand.findIndex((tile) => tile.id === fromId);
     const to = hand.findIndex((tile) => tile.id === toId);
@@ -239,7 +239,7 @@ export default function App() {
   };
 
   const handleTouchReorderStart = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!humanTurn || event.pointerType === 'mouse' || event.button !== 0) return;
+    if (!canReorderHand || event.pointerType === 'mouse' || event.button !== 0) return;
     const tileButton = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-hand-tile-id]');
     const tileId = tileButton?.dataset.handTileId;
     if (!tileId) return;
@@ -367,6 +367,7 @@ export default function App() {
   const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const discardSortLabel = discardSortMode === 'original' ? 'Ordenar por color' : discardSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const humanTurn = game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
+  const canReorderHand = humanTurn && selection.length === 0 && game.phase !== 'opening-choice';
   const playerHeaderText = !humanTurn ? `${human.hand.length} fichas` : game.phase === 'draw' ? 'Robá para empezar' : 'Tu turno';
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
@@ -682,11 +683,11 @@ export default function App() {
             const openingChoiceTile = game.phase === 'opening-choice' && game.openingDrawTileId === tile.id;
             return (
               <button
-                className={`hand-tile ${selection.includes(tile.id) ? 'selected' : ''} ${draggedId === tile.id ? 'is-touch-dragging' : ''}`}
+                className={`hand-tile ${canReorderHand ? 'is-reorderable' : ''} ${selection.includes(tile.id) ? 'selected' : ''} ${draggedId === tile.id ? 'is-touch-dragging' : ''}`}
                 type="button"
                 key={tile.id}
                 data-hand-tile-id={tile.id}
-                draggable={humanTurn}
+                draggable={canReorderHand}
                 disabled={!humanTurn}
                 aria-pressed={selection.includes(tile.id)}
                 aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
@@ -697,9 +698,9 @@ export default function App() {
                   }
                   toggleTile(tile.id);
                 }}
-                onDragStart={() => setDraggedId(tile.id)}
+                onDragStart={(event) => { if (!canReorderHand) event.preventDefault(); else setDraggedId(tile.id); }}
                 onDragEnd={() => setDraggedId(null)}
-                onDrop={(event) => { event.preventDefault(); if (draggedId) reorderHand(draggedId, tile.id); setDraggedId(null); }}
+                onDrop={(event) => { event.preventDefault(); if (canReorderHand && draggedId) reorderHand(draggedId, tile.id); setDraggedId(null); }}
                 style={{ '--tile-index': index } as React.CSSProperties}
               ><TileFace
                 tile={tile}
