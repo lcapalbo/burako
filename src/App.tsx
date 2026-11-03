@@ -362,6 +362,7 @@ export default function App() {
   const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const discardSortLabel = discardSortMode === 'original' ? 'Ordenar por color' : discardSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const humanTurn = game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
+  const playerHeaderText = !humanTurn ? `${human.hand.length} fichas` : game.phase === 'draw' ? 'Robá para empezar' : 'Tu turno';
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
   const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
@@ -424,7 +425,6 @@ export default function App() {
             <div><small>COMPUTADORA</small><strong>{game.scores[1].toLocaleString('es-AR')}</strong></div>
           </div>
         </>}
-        <span className="round-indicator">{game.phase === 'round-over' || game.phase === 'match-over' ? 'Mano terminada' : game.phase === 'play' && game.currentPlayer === 0 ? 'Tu turno' : game.currentPlayer === 1 ? 'Juega la computadora' : game.phase === 'draw' ? 'Robá para empezar' : 'Mano en curso'}</span>
       </section>
 
       <section ref={opponentBarRef} className="opponent-bar" aria-label="Atril de la computadora">
@@ -667,7 +667,7 @@ export default function App() {
             </svg>
             <div className="player-name">
               <strong>Tu atril</strong>
-              <span className="hand-count">{human.hand.length} fichas</span>
+              <span className="hand-count">{playerHeaderText}</span>
             </div>
           </div>
           <div className="hand-tools">

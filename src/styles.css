@@ -101,7 +101,6 @@ h1 em { color: var(--coral); font-weight: 500; }
 .score-team small { color: #6b7971; font-size: 9px; font-weight: 800; letter-spacing: 1px; }
 .score-team strong { font-family: Georgia, serif; font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .score-divider { color: #9aa79e; font-family: Georgia, serif; font-size: 13px; }
-.round-indicator { margin-left: auto; color: #557164; font-size: 12px; font-weight: 700; }
 .opponent-bar { display: flex; align-items: center; gap: 10px; max-width: 1180px; min-height: 56px; margin: 0 auto; }
 .opponent-avatar, .player-avatar { display: block; width: 30px; height: 30px; flex: 0 0 30px; aspect-ratio: 1; }
 .opponent-avatar { color: #568aa1; }
