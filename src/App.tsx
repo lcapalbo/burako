@@ -602,7 +602,7 @@ export default function App() {
                   </tr>
                 ))}
                 {currentRoundScore && <>
-                  <tr className="points-section-row"><th colSpan={3}>Detalle de la mano {currentRoundScore.round}</th></tr>
+                  {game.round > 1 && <tr className="points-section-row"><th colSpan={3}>Detalle de la mano {currentRoundScore.round}</th></tr>}
                   {pointsRows.map((row) => (
                     <tr key={row.label}>
                       <th scope="row">{row.label}</th>
@@ -616,11 +616,11 @@ export default function App() {
                     <td>{formatHandPoints(currentRoundScore.scores[1].total)}</td>
                   </tr>
                 </>}
-                <tr className="points-match-total">
+                {game.round > 1 && <tr className="points-match-total">
                   <th scope="row">Total final</th>
                   <td>{game.scores[0].toLocaleString('es-AR')}</td>
                   <td>{game.scores[1].toLocaleString('es-AR')}</td>
-                </tr>
+                </tr>}
               </tbody>
             </table>
           </div>
@@ -636,7 +636,7 @@ export default function App() {
           {currentHandScores
             ? <ScorePairSummary label="Puntaje de la mano" scores={currentHandScores} />
             : <>Puntaje de la mano no disponible para esta partida guardada.</>}
-          {(game.phase === 'match-over' || hasPreviousRounds) && <>
+          {hasPreviousRounds && <>
             {' · '}
             <ScorePairSummary label="Acumulado de partida" scores={[game.scores[0], game.scores[1]]} />
           </>}
