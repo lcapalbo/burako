@@ -506,8 +506,17 @@ export default function App() {
             const isTurnTeam = game.phase !== 'round-over'
               && game.phase !== 'match-over'
               && game.players.find((player) => player.id === game.currentPlayer)?.team === team;
+            const canLayOnTable = team === 0 && game.phase === 'play' && game.currentPlayer === 0 && canLaySelectedMeld;
             return (
-              <section className={`meld-team ${isTurnTeam ? 'is-turn' : ''}`} key={team} aria-label={`Juegos de ${teamName}`}>
+              <section
+                className={`meld-team ${isTurnTeam ? 'is-turn' : ''} ${canLayOnTable ? 'can-lay-selection' : ''}`}
+                key={team}
+                aria-label={`Juegos de ${teamName}`}
+                onClick={(event) => {
+                  if (!canLayOnTable || (event.target instanceof Element && event.target.closest('.meld-group'))) return;
+                  perform((current) => layMeld(current, 0, selectedTileIds));
+                }}
+              >
                 <header className="meld-team-header">
                   <h3 className="meld-team-heading">{teamName}</h3>
                   <span className={`meld-dead-status ${deadTaken ? 'is-taken' : ''}`}>Muerto {deadTaken ? 'levantado' : 'pendiente'}</span>
