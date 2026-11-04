@@ -370,6 +370,7 @@ export default function App() {
   const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const discardSortLabel = discardSortMode === 'original' ? 'Ordenar por color' : discardSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const humanTurn = game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
+  const openingChoice = game.phase === 'opening-choice' && game.currentPlayer === 0;
   const canReorderHand = humanTurn && selection.length === 0 && game.phase !== 'opening-choice';
   const playerHeaderText = !humanTurn ? `${human.hand.length} fichas` : game.phase === 'draw' ? 'Robá para empezar' : 'Tu turno';
   const selectedTileIds = selection;
@@ -454,10 +455,12 @@ export default function App() {
           <button
             className="stock-pile pile-action"
             type="button"
-            disabled={!canDrawFromStock}
-            aria-label={`Robar ficha del montón (${game.stock.length} restantes)`}
-            title="Robar ficha del montón"
-            onClick={() => perform((current) => drawFromStock(current, 0), 'player')}
+            disabled={!canDrawFromStock && !openingChoice}
+            aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
+            title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Robar ficha del montón'}
+            onClick={() => openingChoice
+              ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')
+              : perform((current) => drawFromStock(current, 0), 'player')}
           >
             <span className="stack-back"><i /><i /><i /></span>
             <div className="stock-pile-label"><small>MONTÓN</small><span className="pile-count">{game.stock.length}</span></div>
@@ -467,13 +470,15 @@ export default function App() {
               <button
                 className="discard-stack pile-action"
                 type="button"
-                disabled={!canUseDiscardPile}
-                aria-label={canDiscard ? 'Descartar ficha seleccionada en el pozo' : `Levantar todo el pozo (${game.discard.length} fichas)`}
-                title={canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
+                disabled={!canUseDiscardPile && !openingChoice}
+                aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canDiscard ? 'Descartar ficha seleccionada en el pozo' : `Levantar todo el pozo (${game.discard.length} fichas)`}
+                title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
                 style={{ width: `${42 + (visibleDiscard.length - 1) * 16}px` }}
-                onClick={() => canDiscard
-                  ? perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')
-                  : perform((current) => takeDiscardPile(current, 0), 'player')}
+                onClick={() => openingChoice
+                  ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')
+                  : canDiscard
+                    ? perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')
+                    : perform((current) => takeDiscardPile(current, 0), 'player')}
               >
                 {visibleDiscard.map((tile, index) => (
                   <span className="discard-stack-card" key={tile.id} style={{ '--discard-depth': index } as React.CSSProperties}>
@@ -481,8 +486,10 @@ export default function App() {
                   </span>
                 ))}
               </button>
-            ) : canDiscard
-              ? <button className="empty-discard pile-action" type="button" aria-label="Descartar ficha seleccionada en el pozo vacío" title="Descartar ficha seleccionada" onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Pozo vacío</button>
+            ) : canDiscard || openingChoice
+              ? <button className="empty-discard pile-action" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
+                ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')
+                : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Pozo vacío</button>
               : <span className="empty-discard">Pozo vacío</span>}
             <button className="pile-view-button" type="button" disabled={!game.discard.length} onClick={() => { setDiscardSortMode('original'); discardDialogRef.current?.showModal(); }}>VER POZO <span className="pile-count">{game.discard.length}</span></button>
           </div>
@@ -701,6 +708,10 @@ export default function App() {
                 onClick={() => {
                   if (ignoreNextTileClickRef.current) {
                     ignoreNextTileClickRef.current = false;
+                    return;
+                  }
+                  if (openingChoiceTile) {
+                    perform((current) => keepOpeningDraw(current, 0));
                     return;
                   }
                   toggleTile(tile.id);
