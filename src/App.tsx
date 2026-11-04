@@ -318,7 +318,10 @@ export default function App() {
     return (
       <main className="welcome">
         <header className="topbar">
-          <span className="brand-mark" aria-hidden="true">B</span>
+          <span className="brand-mark tile-face tile-red" aria-hidden="true">
+            <span className="tile-mark">●</span>
+            <strong>B</strong>
+          </span>
           <span className="brand-name">Burako</span>
           <a
             className="github-link"
@@ -412,7 +415,11 @@ export default function App() {
     <main className="game-page">
       <header className="game-header">
         <a className="game-brand" href="#" onClick={(event) => { event.preventDefault(); setGame(null); }}>
-          <span className="brand-mark" aria-hidden="true">B</span><span>Burako</span>
+          <span className="brand-mark tile-face tile-red" aria-hidden="true">
+            <span className="tile-mark">●</span>
+            <strong>B</strong>
+          </span>
+          <span>Burako</span>
         </a>
         <div className="match-meta">
           <div className="match-meta-details">{game.target !== 'cut' && <><span>Mano {game.round}</span><span className="meta-divider" /></>}{formatTargetLabel(game.target)}</div>

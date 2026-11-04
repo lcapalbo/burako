@@ -28,7 +28,9 @@ button { font: inherit; }
     linear-gradient(116deg, #f2f4ed 0 59%, #e8eee1 59% 100%);
 }
 .topbar { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
-.brand-mark { display: grid; place-items: center; width: 34px; height: 34px; background: var(--felt); color: white; border-radius: 50%; font-family: Georgia, serif; font-size: 19px; }
+.brand-mark.tile-face { width: 30px; height: 42px; flex-basis: 30px; border-radius: 4px; }
+.brand-mark.tile-face strong { font-size: 21px; }
+.brand-mark.tile-face .tile-mark { top: 4px; left: 4px; font-size: 5px; }
 .brand-name { font-size: 14px; font-weight: 700; }
 .github-link { display: grid; place-items: center; width: 36px; height: 36px; margin-left: auto; border-radius: 50%; color: var(--ink); text-decoration: none; }
 .github-link:hover { color: var(--felt); background: #e8eee1; }
@@ -85,7 +87,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .game-page { min-height: 100vh; padding: 0 clamp(16px, 4vw, 58px) 36px; color: var(--ink); background: #f2f4ed; }
 .game-header { display: flex; align-items: center; gap: 20px; max-width: 1180px; height: 68px; margin: 0 auto; border-bottom: 1px solid #dbe1d8; }
 .game-brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 13px; font-weight: 750; text-decoration: none; }
-.game-brand .brand-mark { width: 30px; height: 30px; font-size: 17px; }
+.game-brand .brand-mark.tile-face { width: 27px; height: 38px; flex-basis: 27px; }
 .match-meta { display: grid; justify-items: end; gap: 1px; margin-left: auto; color: #65756c; font-size: 12px; }
 .match-meta-details { display: flex; align-items: center; gap: 10px; }
 .match-score { font-variant-numeric: tabular-nums; }
@@ -278,7 +280,7 @@ h1 em { color: var(--coral); font-weight: 500; }
   .game-page { padding: 0 14px calc(88px + env(safe-area-inset-bottom)); }
   .game-header { height: 58px; gap: 8px; }
   .game-brand { gap: 7px; font-size: 11px; }
-  .game-brand .brand-mark { width: 27px; height: 27px; }
+  .game-brand .brand-mark.tile-face { width: 25px; height: 35px; flex-basis: 25px; }
   .match-meta { gap: 2px; font-size: 10px; }
   .quiet-button { font-size: 11px; }
   .round-indicator { max-width: 92px; text-align: right; font-size: 10px; }
