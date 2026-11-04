@@ -448,8 +448,17 @@ export default function App() {
       </section>
 
       <section
-        className={`felt-table ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'}`}
+        className={`felt-table ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'} ${canDiscard || canLaySelectedMeld ? 'has-table-action' : ''}`}
         aria-label="Mesa de juego"
+        onClick={(event) => {
+          if (!(event.target instanceof Element)) return;
+          if (event.target.closest('button, a, [role="button"]')) return;
+          if (canLaySelectedMeld && game.phase === 'play' && game.currentPlayer === 0) {
+            perform((current) => layMeld(current, 0, selectedTileIds));
+          } else if (canDiscard) {
+            perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer');
+          }
+        }}
       >
         <div className="piles-row">
           <button
@@ -506,17 +515,8 @@ export default function App() {
             const isTurnTeam = game.phase !== 'round-over'
               && game.phase !== 'match-over'
               && game.players.find((player) => player.id === game.currentPlayer)?.team === team;
-            const canLayOnTable = team === 0 && game.phase === 'play' && game.currentPlayer === 0 && canLaySelectedMeld;
             return (
-              <section
-                className={`meld-team ${isTurnTeam ? 'is-turn' : ''} ${canLayOnTable ? 'can-lay-selection' : ''}`}
-                key={team}
-                aria-label={`Juegos de ${teamName}`}
-                onClick={(event) => {
-                  if (!canLayOnTable || (event.target instanceof Element && event.target.closest('.meld-group'))) return;
-                  perform((current) => layMeld(current, 0, selectedTileIds));
-                }}
-              >
+              <section className={`meld-team ${isTurnTeam ? 'is-turn' : ''}`} key={team} aria-label={`Juegos de ${teamName}`}>
                 <header className="meld-team-header">
                   <h3 className="meld-team-heading">{teamName}</h3>
                   <span className={`meld-dead-status ${deadTaken ? 'is-taken' : ''}`}>Muerto {deadTaken ? 'levantado' : 'pendiente'}</span>
