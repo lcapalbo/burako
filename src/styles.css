@@ -95,19 +95,28 @@ h1 em { color: var(--coral); font-weight: 500; }
 .quiet-button, .sort-button { border: 0; color: #56675f; background: transparent; font-size: 12px; font-weight: 700; cursor: pointer; }
 .quiet-button { padding: 8px 0 8px 12px; }
 .game-rules-link { text-decoration: none; }
-.opponent-bar { display: flex; align-items: center; gap: 10px; max-width: 1180px; min-height: 56px; margin: 0 auto; }
-.opponent-avatar, .player-avatar { display: block; width: 30px; height: 30px; flex: 0 0 30px; aspect-ratio: 1; }
+.opponent-bar { display: flex; align-items: center; max-width: 1180px; min-height: 52px; margin: 0 auto; }
+.opponent-avatar, .player-avatar { display: block; width: 38px; height: 38px; aspect-ratio: 1; }
 .opponent-avatar { color: #568aa1; }
 .player-avatar { color: var(--coral); }
-.opponent-avatar.is-turn { filter: drop-shadow(0 0 4px rgba(86, 138, 161, .8)); }
-.player-avatar.is-turn { filter: drop-shadow(0 0 4px rgba(220, 112, 78, .8)); }
-.opponent-name, .player-name { display: grid; gap: 2px; }
-.opponent-name strong, .player-name strong { font-size: 12px; }
-.opponent-name span, .player-name span, .hand-count { color: #77857d; font-size: 10px; }
+.table-avatar { position: absolute; z-index: 4; display: grid; width: 52px; height: 52px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: transform .2s ease, filter .2s ease; }
+.table-avatar-computer { top: -35px; right: 12px; }
+.table-avatar-player { bottom: -35px; left: 12px; }
+.table-avatar.is-turn { transform: scale(1.14); filter: drop-shadow(0 0 7px rgba(255, 228, 90, .85)); }
+.table-avatar::before { position: absolute; inset: 3px; border: 2px solid transparent; border-radius: 50%; content: ""; pointer-events: none; }
+.table-avatar.is-turn::before { border-color: #ffe45a; animation: avatar-turn-glow 1.2s ease-in-out infinite; }
+.table-avatar:focus-visible { outline: 3px solid #fffefa; outline-offset: 2px; }
+.avatar-tooltip { position: absolute; z-index: 5; width: max-content; padding: 6px 9px; border: 1px solid #294c3c; border-radius: 9px; color: #172a26; background: #fffefa; box-shadow: 0 3px 8px rgba(11, 33, 23, .22); font-size: 11px; font-weight: 750; line-height: 1; pointer-events: none; }
+.avatar-tooltip::before { position: absolute; left: 16px; width: 8px; height: 8px; border-right: 1px solid #294c3c; border-bottom: 1px solid #294c3c; background: #fffefa; content: ""; transform: rotate(45deg); }
+.table-avatar-computer .avatar-tooltip { top: calc(100% + 5px); right: 3px; }
+.table-avatar-computer .avatar-tooltip::before { top: -5px; right: 16px; left: auto; transform: rotate(225deg); }
+.table-avatar-player .avatar-tooltip { bottom: calc(100% + 5px); left: 3px; }
+.table-avatar-player .avatar-tooltip::before { bottom: -5px; }
+.hand-count { color: #77857d; font-size: 10px; }
 .player-header-meta { display: flex; align-items: center; gap: 9px; }
-.hidden-tiles { display: flex; margin-left: 8px; }
+.hidden-tiles { display: flex; margin-left: auto; margin-right: 76px; }
 .hidden-tiles span { display: block; width: 16px; height: 22px; margin-left: -5px; border: 1px solid #c1d0c6; border-radius: 3px; background: repeating-linear-gradient(45deg, #dae7dc 0 3px, #eaf0e8 3px 6px); }
-.opponent-rack { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 3px; max-width: 58%; margin-left: 8px; }
+.opponent-rack { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 3px; max-width: calc(100% - 76px); margin-left: auto; margin-right: 76px; }
 .opponent-rack .tile-face { width: 34px; height: 48px; flex-basis: 34px; border-radius: 4px; }
 .opponent-rack .tile-face strong { font-size: 22px; }
 .opponent-rack .tile-mark { top: 3px; left: 4px; font-size: 5px; }
@@ -219,6 +228,10 @@ h1 em { color: var(--coral); font-weight: 500; }
   0%, 45% { filter: brightness(1.16); box-shadow: 0 0 0 2px var(--lemon), 0 0 10px rgba(220, 232, 138, .65); }
   100% { filter: none; box-shadow: 0 2px 5px rgba(19, 42, 30, .1); }
 }
+@keyframes avatar-turn-glow {
+  0%, 100% { opacity: .58; box-shadow: 0 0 3px rgba(255, 228, 90, .45), inset 0 0 3px rgba(255, 228, 90, .2); }
+  50% { opacity: 1; box-shadow: 0 0 12px rgba(255, 228, 90, .95), inset 0 0 5px rgba(255, 228, 90, .36); }
+}
 @keyframes recent-tile-shine { to { transform: translateX(120%); } }
 .tile-face strong { font-family: Georgia, serif; font-size: 34px; font-weight: 500; line-height: 1; }
 .tile-mark { position: absolute; top: 5px; left: 6px; font-size: 8px; }
@@ -239,7 +252,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .result-banner button { padding: 7px 10px; border: 0; border-radius: 2px; color: white; background: var(--felt); font-size: 11px; font-weight: 700; cursor: pointer; }
 .result-banner .points-detail-button { margin-left: 0; border: 1px solid #cbd6cc; color: var(--ink); background: transparent; }
 .result-banner.is-final { border-left-color: var(--coral); }
-.player-area { max-width: 1180px; margin: 20px auto 0; }
+.player-area { max-width: 1180px; margin: 24px auto 0; }
 .player-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .player-heading > div { display: flex; align-items: center; gap: 9px; }
 .player-heading strong { font-size: 13px; }
@@ -285,8 +298,11 @@ h1 em { color: var(--coral); font-weight: 500; }
   .match-meta { gap: 2px; font-size: 10px; }
   .quiet-button { font-size: 11px; }
   .round-indicator { max-width: 92px; text-align: right; font-size: 10px; }
-  .opponent-bar { min-height: 48px; }
-  .opponent-rack { flex: 1 1 calc(100% - 40px); justify-content: flex-start; max-width: none; margin-left: 40px; }
+  .opponent-bar { min-height: 44px; }
+  .opponent-rack { flex: 1 1 100%; justify-content: flex-end; max-width: none; margin-left: 0; margin-right: 56px; }
+  .hidden-tiles { margin-right: 56px; }
+  .table-avatar-computer { right: 5px; }
+  .table-avatar-player { left: 5px; }
   .felt-table { min-height: 270px; padding: 6.5px 6px 8px; }
   .piles-row { min-height: 114px; }
   .meld-area { grid-template-columns: minmax(0, 1fr); min-height: 95px; gap: 9px; }
@@ -338,4 +354,5 @@ h1 em { color: var(--coral); font-weight: 500; }
 @media (prefers-reduced-motion: reduce) {
   .tile-face.is-recent, .tile-face.is-preview { animation: none; outline: 2px solid var(--lemon); }
   .tile-face.is-recent::after, .tile-face.is-preview::after { display: none; }
+  .table-avatar.is-turn::before { animation: none; opacity: 1; box-shadow: 0 0 8px rgba(255, 228, 90, .8); }
 }

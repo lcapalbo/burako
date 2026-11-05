@@ -138,6 +138,7 @@ export default function App() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [discardSortMode, setDiscardSortMode] = useState<HandSortMode>('original');
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
+  const [activeAvatar, setActiveAvatar] = useState<'player' | 'computer' | null>(null);
   const [touchDragPosition, setTouchDragPosition] = useState<{ x: number; y: number } | null>(null);
   const touchReorderRef = useRef<{ pointerId: number; tileId: string; startX: number; startY: number; dragging: boolean } | null>(null);
   const ignoreNextTileClickRef = useRef(false);
@@ -433,18 +434,9 @@ export default function App() {
       </header>
 
       <section ref={opponentBarRef} className="opponent-bar" aria-label="Atril de la computadora">
-        <svg className={`opponent-avatar ${!roundClosed && game.currentPlayer === 1 ? 'is-turn' : ''}`} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-          <circle cx="16" cy="16" r="16" fill="currentColor" />
-          <path d="M16 5.5v3M13 5.5h6" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.6" />
-          <rect x="8" y="10" width="16" height="13" rx="4" fill="none" stroke="white" strokeWidth="1.8" />
-          <circle cx="12.5" cy="15.5" r="1.2" fill="white" />
-          <circle cx="19.5" cy="15.5" r="1.2" fill="white" />
-          <path d="M12.5 19h7" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.5" />
-        </svg>
-        <div className="opponent-name"><strong>La computadora</strong><span>{roundClosed ? `${computer.hand.length} fichas` : game.currentPlayer === 1 ? error || 'Está pensando…' : `${computer.hand.length} fichas`}</span></div>
         {revealComputerHand
           ? <div className="opponent-rack" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
-          : !roundClosed && <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: Math.min(computer.hand.length, 8) }, (_, index) => <span key={index} />)}</div>}
+          : !roundClosed && <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: computer.hand.length }, (_, index) => <span key={index} />)}</div>}
       </section>
 
       <section
@@ -460,6 +452,37 @@ export default function App() {
           }
         }}
       >
+        <button
+          className={`table-avatar table-avatar-computer ${!roundClosed && game.currentPlayer === 1 ? 'is-turn' : ''}`}
+          type="button"
+          aria-label="Mostrar nombre de computadora"
+          aria-expanded={activeAvatar === 'computer'}
+          onClick={() => setActiveAvatar((current) => current === 'computer' ? null : 'computer')}
+        >
+          <svg className="opponent-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <circle cx="16" cy="16" r="16" fill="currentColor" />
+            <path d="M16 5.5v3M13 5.5h6" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.6" />
+            <rect x="8" y="10" width="16" height="13" rx="4" fill="none" stroke="white" strokeWidth="1.8" />
+            <circle cx="12.5" cy="15.5" r="1.2" fill="white" />
+            <circle cx="19.5" cy="15.5" r="1.2" fill="white" />
+            <path d="M12.5 19h7" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.5" />
+          </svg>
+          {activeAvatar === 'computer' && <span className="avatar-tooltip">Computadora</span>}
+        </button>
+        <button
+          className={`table-avatar table-avatar-player ${humanTurn ? 'is-turn' : ''}`}
+          type="button"
+          aria-label="Mostrar nombre de jugador"
+          aria-expanded={activeAvatar === 'player'}
+          onClick={() => setActiveAvatar((current) => current === 'player' ? null : 'player')}
+        >
+          <svg className="player-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <circle cx="16" cy="16" r="16" fill="currentColor" />
+            <circle cx="16" cy="11.5" r="4" fill="white" />
+            <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />
+          </svg>
+          {activeAvatar === 'player' && <span className="avatar-tooltip">Vos</span>}
+        </button>
         <div className="piles-row">
           <button
             className="stock-pile pile-action"
@@ -680,15 +703,7 @@ export default function App() {
       <section ref={playerAreaRef} className="player-area" aria-label="Tu atril">
         <div className="player-heading">
           <div className="player-header-meta">
-            <svg className={`player-avatar ${humanTurn ? 'is-turn' : ''}`} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-              <circle cx="16" cy="16" r="16" fill="currentColor" />
-              <circle cx="16" cy="11.5" r="4" fill="white" />
-              <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />
-            </svg>
-            <div className="player-name">
-              <strong>Vos</strong>
-              <span className="hand-count">{playerHeaderText}</span>
-            </div>
+            <span className="hand-count">{playerHeaderText}</span>
           </div>
           <div className="hand-tools">
             <button className="sort-button" type="button" disabled={!humanTurn} onClick={cycleHandSort}>{handSortLabel}</button>
