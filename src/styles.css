@@ -252,8 +252,8 @@ h1 em { color: var(--coral); font-weight: 500; }
 .result-banner button { padding: 7px 10px; border: 0; border-radius: 2px; color: white; background: var(--felt); font-size: 11px; font-weight: 700; cursor: pointer; }
 .result-banner .points-detail-button { margin-left: 0; border: 1px solid #cbd6cc; color: var(--ink); background: transparent; }
 .result-banner.is-final { border-left-color: var(--coral); }
-.player-area { max-width: 1180px; margin: 24px auto 0; }
-.player-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.player-area { max-width: 1180px; margin: 0 auto; }
+.player-heading { display: flex; align-items: center; justify-content: space-between; margin: 0; padding-left: 68px; }
 .player-heading > div { display: flex; align-items: center; gap: 9px; }
 .player-heading strong { font-size: 13px; }
 .player-name { align-items: flex-start; }
@@ -312,7 +312,6 @@ h1 em { color: var(--coral); font-weight: 500; }
   .meld-tiles .canasta-overlay { bottom: -4px; }
   .meld-tiles .tile-face { width: 37px; height: 52px; flex-basis: 37px; margin: 0 -9px -14px 0; }
   .meld-tiles .tile-face strong { font-size: 21px; }
-  .player-area { margin-top: 17px; }
   .hand-tiles { gap: 4px; }
   .hand-tile { padding: 1px; }
   .hand-tile .tile-face { width: 46px; height: 66px; flex-basis: 46px; }
