@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, findBestMeld, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
-import { runComputerTurn } from '../.test-build/computer.js';
+import { runComputerTurn, runComputerTurnSteps } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
 const stateWithHand = (hand, melds = []) => {
@@ -804,8 +804,11 @@ describe('turnos de la computadora', () => {
     const hand = [tile('computer-eight-yellow', 'yellow', 8), tile('computer-eight-red-copy', 'red', 8)];
     const state = computerState({ hand, melds: [meld], deadTaken: true, phase: 'play' });
 
+    const steps = runComputerTurnSteps(state);
     const next = runComputerTurn(state);
 
+    assert.ok(steps.length > 0);
+    assert.deepEqual(next, steps[steps.length - 1]);
     assert.equal(next.phase, 'draw');
     assert.equal(next.currentPlayer, 0);
     assert.equal(next.melds[0].tiles.length, 3);
@@ -866,8 +869,14 @@ describe('turnos de la computadora', () => {
     const hand = [tile('computer-leg-unmatched-1', 'blue', 1), matching, tile('computer-leg-unmatched-9', 'green', 9), wild];
     const state = computerState({ hand, melds: [meld], phase: 'play' });
 
+    const steps = runComputerTurnSteps(state);
     const next = runComputerTurn(state);
 
+    assert.equal(steps.length, 3);
+    assert.equal(steps[0].melds[0].tiles.length, 4);
+    assert.equal(steps[1].melds[0].tiles.length, 5);
+    assert.equal(steps[2].currentPlayer, 0);
+    assert.deepEqual(next, steps[2]);
     assert.ok(next.melds[0].tiles.some((item) => item.id === matching.id));
     assert.ok(next.melds[0].tiles.some((item) => item.id === wild.id));
     assert.equal(next.melds[0].tiles.length, 5);

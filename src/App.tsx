@@ -23,7 +23,7 @@ import {
   type Target,
   type Tile,
 } from './game';
-import { runComputerTurn } from './computer';
+import { runComputerTurnSteps } from './computer';
 
 const COLOR_NAMES: Record<string, string> = {
   red: 'rojo',
@@ -33,6 +33,9 @@ const COLOR_NAMES: Record<string, string> = {
 };
 const SAVE_KEY = 'burako-local-game-v1';
 const AI_THINKING_DELAY_MS = 1500;
+const COMPUTER_MOVE_DELAY_MS = 700;
+const RECENT_TILE_DURATION_MS = 1400;
+const RECENT_DISCARD_DURATION_MS = RECENT_TILE_DURATION_MS * 2;
 type HandSortMode = 'original' | 'color' | 'number';
 const TARGET_OPTIONS = [
   { label: 'A 2000 pts', value: 2000 },
@@ -82,6 +85,11 @@ function getRecentlyChangedTileIds(previous: GameState, next: GameState): string
     if (!previousDiscard.has(tile.id)) changed.add(tile.id);
   }
   return [...changed];
+}
+
+function getNewDiscardedTileIds(previous: GameState, next: GameState): string[] {
+  const previousDiscard = new Set(previous.discard.map((tile) => tile.id));
+  return next.discard.filter((tile) => !previousDiscard.has(tile.id)).map((tile) => tile.id);
 }
 
 function previewMeldAddition(state: GameState, meldId: string, tileIds: string[]): Tile[] | null {
@@ -134,6 +142,9 @@ export default function App() {
   const [target, setTarget] = useState<Target>(2000);
   const [selection, setSelection] = useState<string[]>([]);
   const [recentlyChangedTileIds, setRecentlyChangedTileIds] = useState<string[]>([]);
+  const [recentlyDiscardedTileIds, setRecentlyDiscardedTileIds] = useState<string[]>([]);
+  const [recentTileDuration, setRecentTileDuration] = useState(RECENT_TILE_DURATION_MS);
+  const [computerTurnInProgress, setComputerTurnInProgress] = useState(false);
   const [error, setError] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [discardSortMode, setDiscardSortMode] = useState<HandSortMode>('original');
@@ -146,6 +157,33 @@ export default function App() {
   const pointsDialogRef = useRef<HTMLDialogElement>(null);
   const rulesDialogRef = useRef<HTMLDialogElement>(null);
   const playerAreaRef = useRef<HTMLElement>(null);
+  const computerTurnInProgressRef = useRef(false);
+  const computerTimerRef = useRef<number | null>(null);
+  const computerWaitResolverRef = useRef<(() => void) | null>(null);
+  const computerTurnIdRef = useRef(0);
+  const componentMountedRef = useRef(true);
+
+  const cancelComputerTurn = () => {
+    computerTurnIdRef.current += 1;
+    if (computerTimerRef.current !== null) window.clearTimeout(computerTimerRef.current);
+    computerTimerRef.current = null;
+    computerWaitResolverRef.current?.();
+    computerWaitResolverRef.current = null;
+    computerTurnInProgressRef.current = false;
+    setComputerTurnInProgress(false);
+  };
+
+  useEffect(() => {
+    componentMountedRef.current = true;
+    return () => {
+      componentMountedRef.current = false;
+      computerTurnIdRef.current += 1;
+      if (computerTimerRef.current !== null) window.clearTimeout(computerTimerRef.current);
+      computerWaitResolverRef.current?.();
+      computerWaitResolverRef.current = null;
+      computerTurnInProgressRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -158,30 +196,74 @@ export default function App() {
 
   useEffect(() => {
     if (recentlyChangedTileIds.length === 0) return;
-    const timer = window.setTimeout(() => setRecentlyChangedTileIds([]), 1400);
+    const timer = window.setTimeout(() => {
+      setRecentlyChangedTileIds([]);
+      setRecentlyDiscardedTileIds([]);
+    }, recentTileDuration);
     return () => window.clearTimeout(timer);
-  }, [recentlyChangedTileIds]);
+  }, [recentTileDuration, recentlyChangedTileIds]);
 
   useEffect(() => {
-    if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over') return;
-    const timer = window.setTimeout(() => {
+    if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over' || computerTurnInProgressRef.current) return;
+    const turnStart = game;
+    const turnId = ++computerTurnIdRef.current;
+    computerTurnInProgressRef.current = true;
+    setComputerTurnInProgress(true);
+    const wait = (duration: number) => new Promise<void>((resolve) => {
+      let timer = 0;
+      const finish = () => {
+        if (computerTimerRef.current === timer) computerTimerRef.current = null;
+        if (computerWaitResolverRef.current === finish) computerWaitResolverRef.current = null;
+        resolve();
+      };
+      computerWaitResolverRef.current = finish;
+      timer = window.setTimeout(() => {
+        finish();
+      }, duration);
+      computerTimerRef.current = timer;
+    });
+    const playTurn = async () => {
       try {
-        const next = runComputerTurn(game);
-        setRecentlyChangedTileIds(getRecentlyChangedTileIds(game, next));
-        setGame(next);
-        setError('');
+        await wait(AI_THINKING_DELAY_MS);
+        if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
+        const steps = runComputerTurnSteps(turnStart);
+        let previous = turnStart;
+        for (const next of steps) {
+          await wait(COMPUTER_MOVE_DELAY_MS);
+          if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
+          const discardedTileIds = getNewDiscardedTileIds(previous, next);
+          setRecentlyChangedTileIds(getRecentlyChangedTileIds(previous, next));
+          setRecentlyDiscardedTileIds(discardedTileIds);
+          setRecentTileDuration(discardedTileIds.length ? RECENT_DISCARD_DURATION_MS : RECENT_TILE_DURATION_MS);
+          setGame(next);
+          setError('');
+          previous = next;
+          if (discardedTileIds.length && next.currentPlayer !== 1) {
+            await wait(RECENT_DISCARD_DURATION_MS);
+            if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
+          }
+        }
       } catch (issue) {
+        if (turnId !== computerTurnIdRef.current) return;
         console.error('Error al completar el turno de la computadora:', issue, issue instanceof Error ? issue.stack : undefined);
-        console.error('Estado de la partida al producirse el error:\n', JSON.stringify(game, null, 2));
+        console.error('Estado de la partida al producirse el error:\n', JSON.stringify(turnStart, null, 2));
         setError('La computadora no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.');
+      } finally {
+        if (turnId === computerTurnIdRef.current) {
+          computerTurnInProgressRef.current = false;
+          if (componentMountedRef.current) setComputerTurnInProgress(false);
+        }
       }
-    }, AI_THINKING_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [game]);
+    };
+    void playTurn();
+  }, [game?.currentPlayer]);
 
   const startGame = (gameTarget: Target) => {
+    cancelComputerTurn();
     setGame(createGame(gameTarget));
     setRecentlyChangedTileIds([]);
+    setRecentlyDiscardedTileIds([]);
+    setRecentTileDuration(RECENT_TILE_DURATION_MS);
     setHandSortMode('original');
     setSelection([]);
     setError('');
@@ -194,6 +276,8 @@ export default function App() {
     try {
       const next = action(game);
       setRecentlyChangedTileIds(getRecentlyChangedTileIds(game, next));
+      setRecentlyDiscardedTileIds([]);
+      setRecentTileDuration(RECENT_TILE_DURATION_MS);
       setGame(next);
       setSelection([]);
       setError('');
@@ -352,19 +436,20 @@ export default function App() {
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
   const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const discardSortLabel = discardSortMode === 'original' ? 'Ordenar por color' : discardSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
-  const humanTurn = game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
-  const openingChoice = game.phase === 'opening-choice' && game.currentPlayer === 0;
+  const humanTurn = !computerTurnInProgress && game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
+  const openingChoice = humanTurn && game.phase === 'opening-choice';
   const canReorderHand = humanTurn && selection.length === 0 && game.phase !== 'opening-choice';
   const playerHeaderText = !humanTurn ? `${human.hand.length} fichas` : game.phase === 'draw' ? 'Robá para empezar' : 'Tu turno';
   const selectedTileIds = selection;
-  const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
+  const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1;
   const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
-  const canFinishEmptyStock = game.phase === 'draw' && game.currentPlayer === 0 && game.stock.length === 0;
+  const canFinishEmptyStock = humanTurn && game.phase === 'draw' && game.stock.length === 0;
   const canLiftDiscard = humanTurn && game.phase === 'draw' && game.discard.length > 0 && human.hand.length + game.discard.length >= 5;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
   const visibleDiscard = game.discard.slice(-3);
   const draggedTile = draggedId ? human.hand.find((tile) => tile.id === draggedId) : undefined;
   const recentlyChangedTileIdSet = new Set(recentlyChangedTileIds);
+  const recentlyDiscardedTileIdSet = new Set(recentlyDiscardedTileIds);
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
     .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg'));
@@ -392,7 +477,7 @@ export default function App() {
   return (
     <main className="game-page">
       <header className="game-header">
-        <a className="game-brand" href="#" onClick={(event) => { event.preventDefault(); setGame(null); }}>
+        <a className="game-brand" href="#" onClick={(event) => { event.preventDefault(); cancelComputerTurn(); setGame(null); }}>
           <span className="brand-mark tile-face tile-red" aria-hidden="true">
             <span className="tile-mark">●</span>
             <strong>B</strong>
@@ -406,7 +491,7 @@ export default function App() {
           </span>}
         </div>
         <a className="quiet-button game-rules-link" href="#reglas" onClick={(event) => { event.preventDefault(); openRules(); }}>Reglas</a>
-        <button className="quiet-button" type="button" onClick={() => setGame(null)}>Salir</button>
+        <button className="quiet-button" type="button" onClick={() => { cancelComputerTurn(); setGame(null); }}>Salir</button>
       </header>
 
       <section className="opponent-bar" aria-label="Atril de la computadora">
@@ -416,7 +501,7 @@ export default function App() {
       </section>
 
       <section
-        className={`felt-table ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'} ${canDiscard || canLaySelectedMeld ? 'has-table-action' : ''}`}
+        className={`felt-table ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'} ${canDiscard || canLaySelectedMeld ? 'has-table-action' : ''}`}
         aria-label="Mesa de juego"
         onClick={(event) => {
           if (!(event.target instanceof Element)) return;
@@ -429,7 +514,7 @@ export default function App() {
         }}
       >
         <button
-          className={`table-avatar table-avatar-computer ${!roundClosed && game.currentPlayer === 1 ? 'is-turn' : ''}`}
+          className={`table-avatar table-avatar-computer ${!roundClosed && (game.currentPlayer === 1 || computerTurnInProgress) ? 'is-turn' : ''}`}
           type="button"
           aria-label="Mostrar nombre de computadora"
           aria-expanded={showAvatarNames}
@@ -492,7 +577,7 @@ export default function App() {
               >
                 {visibleDiscard.map((tile, index) => (
                   <span className="discard-stack-card" key={tile.id} style={{ '--discard-depth': index } as React.CSSProperties}>
-                    <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} />
+                    <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />
                   </span>
                 ))}
               </button>

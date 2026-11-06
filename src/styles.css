@@ -221,6 +221,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meld-add { margin-top: 3px; padding: 4px 0; border: 0; color: #e3eea2; background: none; font-size: 9px; font-weight: 700; cursor: pointer; }
 .tile-face { display: inline-flex; position: relative; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 78px; flex: 0 0 56px; border: 1px solid rgba(28, 54, 41, .15); border-radius: 5px; color: #172a26; background: #fffefa; box-shadow: 0 2px 5px rgba(19, 42, 30, .1); }
 .tile-face.is-recent { overflow: hidden; animation: recent-tile-glow 1.2s ease-out both; }
+.tile-face.is-recent-discard { animation-duration: 2.4s; }
 .tile-face.is-preview { overflow: hidden; animation: recent-tile-glow 1.2s ease-out infinite; }
 .tile-face.is-recent::after, .tile-face.is-preview::after { position: absolute; z-index: 2; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .82) 50%, transparent 70%); content: ""; transform: translateX(-120%); animation: recent-tile-shine .8s ease-out both; pointer-events: none; }
 .tile-face.is-preview::after { animation-duration: 1.2s; animation-iteration-count: infinite; }

@@ -46,25 +46,30 @@ function leavesOnlyRestrictedTile(state: GameState): boolean {
   return state.players[1].hand[0].id === state.restrictedDiscardTileId;
 }
 
-export function runComputerTurn(state: GameState): GameState {
+export function runComputerTurnSteps(state: GameState): GameState[] {
   let next = state;
+  const steps: GameState[] = [];
+  const applyAction = (action: (current: GameState) => GameState) => {
+    next = action(next);
+    steps.push(next);
+  };
   const hand = next.players[1].hand;
   const canLift = next.discard.length > 0 && hand.length + next.discard.length >= 5;
   const shouldLift = canLift && next.discard.length <= 4 && canCompleteWithDiscard(hand, next.discard);
 
   if (next.phase === 'draw') {
     if (next.stock.length === 0) {
-      if (shouldLift) next = takeDiscardPile(next, 1);
-      else return finishEmptyStock(next, 1);
+      if (shouldLift) applyAction((current) => takeDiscardPile(current, 1));
+      else applyAction((current) => finishEmptyStock(current, 1));
     } else if (shouldLift) {
-      next = takeDiscardPile(next, 1);
+      applyAction((current) => takeDiscardPile(current, 1));
     } else {
-      next = drawFromStock(next, 1);
+      applyAction((current) => drawFromStock(current, 1));
     }
   }
 
   if (next.phase === 'opening-choice' && next.currentPlayer === 1) {
-    next = keepOpeningDraw(next, 1);
+    applyAction((current) => keepOpeningDraw(current, 1));
   }
 
   while (next.phase === 'play' && next.currentPlayer === 1) {
@@ -79,6 +84,7 @@ export function runComputerTurn(state: GameState): GameState {
         const candidate = tryRuleAction(() => addToMeld(next, 1, meld.id, [tile.id]));
         if (!candidate || leavesOnlyRestrictedTile(candidate)) continue;
         next = candidate;
+        steps.push(next);
         extended = true;
         break;
       }
@@ -95,11 +101,17 @@ export function runComputerTurn(state: GameState): GameState {
     const candidate = tryRuleAction(() => layMeld(next, 1, best.map((tile) => tile.id)));
     if (!candidate || leavesOnlyRestrictedTile(candidate)) break;
     next = candidate;
+    steps.push(next);
   }
 
   if (next.phase === 'play' && next.currentPlayer === 1 && next.players[1].hand.length > 0) {
     const tile = chooseDiscard(next.players[1].hand, next.restrictedDiscardTileId);
-    next = discardTile(next, 1, tile.id);
+    applyAction((current) => discardTile(current, 1, tile.id));
   }
-  return next;
+  return steps;
+}
+
+export function runComputerTurn(state: GameState): GameState {
+  const steps = runComputerTurnSteps(state);
+  return steps.length ? steps[steps.length - 1] : state;
 }
