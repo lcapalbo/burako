@@ -446,7 +446,6 @@ export default function App() {
   const canFinishEmptyStock = humanTurn && game.phase === 'draw' && game.stock.length === 0;
   const canLiftDiscard = humanTurn && game.phase === 'draw' && game.discard.length > 0 && human.hand.length + game.discard.length >= 5;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
-  const visibleDiscard = game.discard.slice(-3);
   const draggedTile = draggedId ? human.hand.find((tile) => tile.id === draggedId) : undefined;
   const recentlyChangedTileIdSet = new Set(recentlyChangedTileIds);
   const recentlyDiscardedTileIdSet = new Set(recentlyDiscardedTileIds);
@@ -574,27 +573,24 @@ export default function App() {
                     {game.stock.length > 0
                       ? <span className="stack-back"><i /><i /><i /></span>
                       : <span className="empty-stock">Montón vacío</span>}
-                    <div className="stock-pile-label"><small>MONTÓN</small><span className="pile-count">{game.stock.length}</span></div>
+                    <span className="pile-count">{game.stock.length}</span>
                   </button>
                   <div className="discard-pile">
-                    {visibleDiscard.length > 0 ? (
+                    {game.discard.length > 0 ? (
                       <button
-                        className="discard-stack pile-action"
+                        className="meld-tiles discard-stack pile-action"
                         type="button"
                         disabled={!canUseDiscardPile && !openingChoice}
                         aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canDiscard ? 'Descartar ficha seleccionada en el pozo' : `Levantar todo el pozo (${game.discard.length} fichas)`}
                         title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
-                        style={{ width: `${42 + (visibleDiscard.length - 1) * 16}px` }}
                         onClick={() => openingChoice
                           ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
                           : canDiscard
                             ? perform((current) => discardTile(current, 0, selectedTileIds[0]))
                             : perform((current) => takeDiscardPile(current, 0))}
                       >
-                        {visibleDiscard.map((tile, index) => (
-                          <span className="discard-stack-card" key={tile.id} style={{ '--discard-depth': index } as React.CSSProperties}>
-                            <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />
-                          </span>
+                        {game.discard.map((tile) => (
+                          <TileFace tile={tile} key={tile.id} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />
                         ))}
                       </button>
                     ) : canDiscard || openingChoice
@@ -602,7 +598,6 @@ export default function App() {
                         ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
                         : perform((current) => discardTile(current, 0, selectedTileIds[0]))}>Pozo vacío</button>
                       : <span className="empty-discard">Pozo vacío</span>}
-                    <button className="pile-view-button" type="button" disabled={!game.discard.length} onClick={() => { setDiscardSortMode('original'); discardDialogRef.current?.showModal(); }}>VER POZO <span className="pile-count">{game.discard.length}</span></button>
                   </div>
                 </div>}
                 <section className={`meld-team ${isTurnTeam ? 'is-turn' : ''}`} aria-label={`Juegos de ${teamName}`}>
