@@ -126,7 +126,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .felt-table::after { position: absolute; z-index: 2; inset: 0; border-radius: inherit; content: ""; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
 .felt-table.is-computer-turn::after { background: linear-gradient(to bottom, rgba(220, 232, 138, .28), transparent 18px); box-shadow: inset 0 1px 0 rgba(220, 232, 138, .7); opacity: 1; }
 .felt-table.is-human-turn::after { background: linear-gradient(to top, rgba(220, 232, 138, .28), transparent 18px); box-shadow: inset 0 -1px 0 rgba(220, 232, 138, .7); opacity: 1; }
-.piles-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: clamp(44px, 11vw, 132px); }
+.piles-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: clamp(44px, 11vw, 132px); padding: 8px 9px; border: 1px solid rgba(232, 241, 220, .2); border-radius: 4px; background: rgba(9, 48, 36, .12); }
 .stock-pile, .discard-pile { display: flex; min-width: 70px; flex-direction: column; align-items: center; gap: 8px; color: #e8eee1; }
 .pile-action { padding: 0; border: 0; color: inherit; background: transparent; font: inherit; }
 .pile-action:not(:disabled) { cursor: pointer; }
@@ -199,8 +199,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .rules-markdown strong { color: #203d31; }
 .meld-area { display: contents; }
 .empty-table { align-self: center; margin: 10px 0; color: rgba(230, 239, 226, .64); font-family: Georgia, serif; font-size: 14px; font-style: italic; }
-.meld-team { min-width: 0; padding: 8px 9px 12px; border: 1px solid rgba(232, 241, 220, .2); border-radius: 4px; background: rgba(9, 48, 36, .12); }
-.meld-team.is-turn { border-color: rgba(220, 232, 138, .48); box-shadow: 0 0 12px rgba(220, 232, 138, .16), inset 0 0 12px rgba(220, 232, 138, .05); }
+.meld-team { min-width: 0; }
 .meld-team-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 0px; }
 .meld-team-heading { margin: 0; color: #e3eea2; font-size: 10px; font-weight: 800; }
 .meld-dead-status { color: rgba(230, 239, 226, .7); font-size: 8px; }
