@@ -32,7 +32,7 @@ const COLOR_NAMES: Record<string, string> = {
   yellow: 'amarillo',
 };
 const SAVE_KEY = 'burako-local-game-v1';
-const AI_THINKING_DELAY_MS = 1500;
+const AI_THINKING_DELAY_MS = 500;
 const COMPUTER_MOVE_DELAY_MS = 700;
 const RECENT_TILE_DURATION_MS = 1400;
 const RECENT_DISCARD_DURATION_MS = RECENT_TILE_DURATION_MS * 2;
@@ -557,7 +557,9 @@ export default function App() {
                 ? perform((current) => finishEmptyStock(current, 0))
                 : perform((current) => drawFromStock(current, 0))}
           >
-            <span className="stack-back"><i /><i /><i /></span>
+            {game.stock.length > 0
+              ? <span className="stack-back"><i /><i /><i /></span>
+              : <span className="empty-stock">Montón vacío</span>}
             <div className="stock-pile-label"><small>MONTÓN</small><span className="pile-count">{game.stock.length}</span></div>
           </button>
           <div className="discard-pile">
