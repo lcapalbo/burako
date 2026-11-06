@@ -145,6 +145,7 @@ export default function App() {
   const [recentlyDiscardedTileIds, setRecentlyDiscardedTileIds] = useState<string[]>([]);
   const [recentTileDuration, setRecentTileDuration] = useState(RECENT_TILE_DURATION_MS);
   const [computerTurnInProgress, setComputerTurnInProgress] = useState(false);
+  const [compactMelds, setCompactMelds] = useState(false);
   const [error, setError] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
@@ -155,6 +156,7 @@ export default function App() {
   const pointsDialogRef = useRef<HTMLDialogElement>(null);
   const rulesDialogRef = useRef<HTMLDialogElement>(null);
   const playerAreaRef = useRef<HTMLElement>(null);
+  const feltTableRef = useRef<HTMLElement>(null);
   const computerTurnInProgressRef = useRef(false);
   const computerTimerRef = useRef<number | null>(null);
   const computerWaitResolverRef = useRef<(() => void) | null>(null);
@@ -200,6 +202,38 @@ export default function App() {
     }, recentTileDuration);
     return () => window.clearTimeout(timer);
   }, [recentTileDuration, recentlyChangedTileIds]);
+
+  useEffect(() => {
+    setCompactMelds(false);
+  }, [game?.round]);
+
+  useEffect(() => {
+    const table = feltTableRef.current;
+    if (!table) return;
+
+    const measureOverflow = () => {
+      const teamAreas = table.querySelectorAll<HTMLElement>('.meld-team');
+      if ([...teamAreas].some((teamArea) => teamArea.scrollHeight > teamArea.clientHeight + 1)) setCompactMelds(true);
+    };
+    const resizeObserver = new ResizeObserver(measureOverflow);
+    const observeContent = () => {
+      resizeObserver.disconnect();
+      resizeObserver.observe(table);
+      table.querySelectorAll<HTMLElement>('.meld-team, .meld-categories, .meld-category-games, .meld-tiles').forEach((element) => resizeObserver.observe(element));
+      measureOverflow();
+    };
+    const mutationObserver = new MutationObserver(observeContent);
+
+    observeContent();
+    mutationObserver.observe(table, { childList: true, subtree: true, characterData: true });
+    const handleResize = () => setCompactMelds(false);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [Boolean(game)]);
 
   useEffect(() => {
     if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over' || computerTurnInProgressRef.current) return;
@@ -492,7 +526,8 @@ export default function App() {
       </section>
 
       <section
-        className={`felt-table ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'} ${canDiscard || canLaySelectedMeld ? 'has-table-action' : ''}`}
+        ref={feltTableRef}
+        className={`felt-table ${compactMelds ? 'is-compact-melds' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'} ${canDiscard || canLaySelectedMeld ? 'has-table-action' : ''}`}
         aria-label="Mesa de juego"
         onClick={(event) => {
           if (!(event.target instanceof Element)) return;
