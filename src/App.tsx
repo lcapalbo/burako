@@ -585,9 +585,12 @@ export default function App() {
                             ? perform((current) => discardTile(current, 0, selectedTileIds[0]))
                             : perform((current) => takeDiscardPile(current, 0))}
                       >
-                        {game.discard.map((tile) => (
-                          <TileFace tile={tile} key={tile.id} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />
-                        ))}
+                        {game.discard.map((tile, index) => {
+                          const tileFace = <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />;
+                          return index === game.discard.length - 1
+                            ? <span className="discard-final-tile" key={tile.id}>{tileFace}<span className="pile-count tile-count-badge" aria-hidden="true">{game.discard.length}</span></span>
+                            : <TileFace tile={tile} key={tile.id} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />;
+                        })}
                       </button>
                     ) : canDiscard || openingChoice
                       ? <button className="empty-discard pile-action" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
