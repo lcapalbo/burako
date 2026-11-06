@@ -377,6 +377,7 @@ export default function App() {
   const selectedTileIds = selection;
   const canDiscard = game.phase === 'play' && game.currentPlayer === 0 && selection.length === 1;
   const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
+  const canFinishEmptyStock = game.phase === 'draw' && game.currentPlayer === 0 && game.stock.length === 0;
   const canLiftDiscard = humanTurn && game.phase === 'draw' && game.discard.length > 0 && human.hand.length + game.discard.length >= 5;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
   const visibleDiscard = game.discard.slice(-3);
@@ -385,13 +386,6 @@ export default function App() {
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
     .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg'));
-  const admissibleMeldCount = selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0
-    ? meldsForTeam(0).filter((meld) => previewMeldAddition(game, meld.id, selectedTileIds) !== null).length
-    : 0;
-  const selectionLabel = `${selection.length} seleccionada${selection.length === 1 ? '' : 's'}`;
-  const admissibleMeldHint = admissibleMeldCount > 0
-    ? ` - admisible${selection.length === 1 ? '' : 's'} en ${admissibleMeldCount} juego${admissibleMeldCount === 1 ? '' : 's'} bajado${admissibleMeldCount === 1 ? '' : 's'}. Tocá ${admissibleMeldCount === 1 ? 'el juego' : 'uno de esos juegos'} para agregar${selection.length === 1 ? 'la' : 'las'}.`
-    : '';
   const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const cycleDiscardSort = () => setDiscardSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const pointsHistory = game.roundHistory ?? [];
@@ -487,12 +481,14 @@ export default function App() {
           <button
             className="stock-pile pile-action"
             type="button"
-            disabled={!canDrawFromStock && !openingChoice}
-            aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
-            title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Robar ficha del montón'}
+            disabled={!canDrawFromStock && !openingChoice && !canFinishEmptyStock}
+            aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canFinishEmptyStock ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
+            title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canFinishEmptyStock ? 'Terminar la mano' : 'Robar ficha del montón'}
             onClick={() => openingChoice
               ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')
-              : perform((current) => drawFromStock(current, 0), 'player')}
+              : canFinishEmptyStock
+                ? perform((current) => finishEmptyStock(current, 0))
+                : perform((current) => drawFromStock(current, 0), 'player')}
           >
             <span className="stack-back"><i /><i /><i /></span>
             <div className="stock-pile-label"><small>MONTÓN</small><span className="pile-count">{game.stock.length}</span></div>
@@ -682,25 +678,25 @@ export default function App() {
         </div>
       </dialog>
 
-      {game.result && <section className={`result-banner ${game.phase === 'match-over' ? 'is-final' : ''}`} role="status">
-        <strong>{game.result}</strong>
-        {(game.phase === 'match-over' || (game.target !== 'cut' && game.phase === 'round-over')) && <span className="result-score-summary">
-          {currentHandScores
-            ? <ScorePairSummary label="Puntaje de la mano" scores={currentHandScores} />
-            : <>Puntaje de la mano no disponible para esta partida guardada.</>}
-          {hasPreviousRounds && <>
-            {' · '}
-            <ScorePairSummary label="Acumulado de partida" scores={[game.scores[0], game.scores[1]]} />
-          </>}
-        </span>}
-        <div className="result-actions">
-          <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>
-          {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound)}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
-          {game.phase === 'match-over' && <button type="button" onClick={() => startGame(game.target)}>Jugar de nuevo</button>}
-        </div>
-      </section>}
-
       <section ref={playerAreaRef} className="player-area" aria-label="Tu atril">
+        {game.result && <section className={`result-banner ${game.phase === 'match-over' ? 'is-final' : ''}`} role="status">
+          <strong>{game.result}</strong>
+          {(game.phase === 'match-over' || (game.target !== 'cut' && game.phase === 'round-over')) && <span className="result-score-summary">
+            {currentHandScores
+              ? <ScorePairSummary label="Puntaje de la mano" scores={currentHandScores} />
+              : <>Puntaje de la mano no disponible para esta partida guardada.</>}
+            {hasPreviousRounds && <>
+              {' · '}
+              <ScorePairSummary label="Acumulado de partida" scores={[game.scores[0], game.scores[1]]} />
+            </>}
+          </span>}
+          <div className="result-actions">
+            <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>
+            {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound)}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
+            {game.phase === 'match-over' && <button type="button" onClick={() => startGame(game.target)}>Jugar de nuevo</button>}
+          </div>
+        </section>}
+        {error && <p className="error-message" role="alert">{error}</p>}
         <div className="player-heading">
           <div className="player-header-meta">
             <span className="hand-count">{playerHeaderText}</span>
@@ -759,25 +755,6 @@ export default function App() {
         ><TileFace tile={draggedTile} /></div>}
       </section>
 
-      {error && <p className="error-message" role="alert">{error}</p>}
-      <footer className="action-bar">
-        {game.phase === 'opening-choice' && game.currentPlayer === 0 ? <>
-          <span className="action-hint">La primera ficha puede cambiarse por otra del montón</span>
-          <button className="primary-action" type="button" onClick={() => perform((current) => keepOpeningDraw(current, 0))}>Jugar con esta ficha</button>
-          <button className="secondary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')}>Descartar y robar otra</button>
-        </> : game.phase === 'draw' && game.currentPlayer === 0 ? <>
-          <span className="action-hint">Elegí cómo robar para empezar tu turno</span>
-          <button className="primary-action" type="button" disabled={game.stock.length === 0} onClick={() => perform((current) => drawFromStock(current, 0), 'player')}>Robar ficha del montón</button>
-          <button className="secondary-action" type="button" disabled={!game.discard.length || human.hand.length + game.discard.length < 5} onClick={() => perform((current) => takeDiscardPile(current, 0), 'player')}>Levantar todo el pozo</button>
-          {game.stock.length === 0 && <button className="text-action" type="button" onClick={() => perform((current) => finishEmptyStock(current, 0))}>Terminar la mano</button>}
-        </> : game.phase === 'play' && game.currentPlayer === 0 ? <>
-          <span className="action-hint">{selection.length
-            ? `${selectionLabel}${admissibleMeldHint}`
-            : 'Seleccioná fichas del atril'}</span>
-          <button className="primary-action" type="button" disabled={!canLaySelectedMeld} onClick={() => perform((current) => layMeld(current, 0, selectedTileIds))}>Bajar nuevo juego</button>
-          <button className="secondary-action" type="button" disabled={!canDiscard} onClick={() => perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Descartar</button>
-        </> : <span className="action-hint ai-hint">{game.phase === 'match-over' || game.phase === 'round-over' ? 'La mano está cerrada' : 'La computadora está jugando'}</span>}
-      </footer>
       {rulesDialog}
     </main>
   );
