@@ -145,20 +145,7 @@ export default function App() {
   const discardDialogRef = useRef<HTMLDialogElement>(null);
   const pointsDialogRef = useRef<HTMLDialogElement>(null);
   const rulesDialogRef = useRef<HTMLDialogElement>(null);
-  const opponentBarRef = useRef<HTMLElement>(null);
   const playerAreaRef = useRef<HTMLElement>(null);
-  const pendingScrollTargetRef = useRef<'player' | 'computer' | null>(null);
-
-  useEffect(() => {
-    const target = pendingScrollTargetRef.current;
-    if (!target) return;
-    pendingScrollTargetRef.current = null;
-    const frame = window.requestAnimationFrame(() => {
-      const section = target === 'player' ? playerAreaRef.current : opponentBarRef.current;
-      section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [game]);
 
   useEffect(() => {
     try {
@@ -202,15 +189,10 @@ export default function App() {
 
   const begin = () => startGame(target);
 
-  const perform = (action: (current: GameState) => GameState, scrollTarget?: 'player' | 'computer') => {
+  const perform = (action: (current: GameState) => GameState) => {
     if (!game) return;
     try {
       const next = action(game);
-      const scrollToPlayer = scrollTarget === 'player' && next.currentPlayer === 0
-        && (next.phase === 'draw' || next.phase === 'opening-choice' || next.phase === 'play');
-      const scrollToComputer = scrollTarget === 'computer' && next.currentPlayer === 1
-        && (next.phase === 'draw' || next.phase === 'play');
-      pendingScrollTargetRef.current = scrollToPlayer ? 'player' : scrollToComputer ? 'computer' : null;
       setRecentlyChangedTileIds(getRecentlyChangedTileIds(game, next));
       setGame(next);
       setSelection([]);
@@ -427,7 +409,7 @@ export default function App() {
         <button className="quiet-button" type="button" onClick={() => setGame(null)}>Salir</button>
       </header>
 
-      <section ref={opponentBarRef} className="opponent-bar" aria-label="Atril de la computadora">
+      <section className="opponent-bar" aria-label="Atril de la computadora">
         {revealComputerHand
           ? <div className="opponent-rack" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
           : !roundClosed && <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: computer.hand.length }, (_, index) => <span key={index} />)}</div>}
@@ -442,7 +424,7 @@ export default function App() {
           if (canLaySelectedMeld && game.phase === 'play' && game.currentPlayer === 0) {
             perform((current) => layMeld(current, 0, selectedTileIds));
           } else if (canDiscard) {
-            perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer');
+            perform((current) => discardTile(current, 0, selectedTileIds[0]));
           }
         }}
       >
@@ -485,10 +467,10 @@ export default function App() {
             aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canFinishEmptyStock ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
             title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canFinishEmptyStock ? 'Terminar la mano' : 'Robar ficha del montón'}
             onClick={() => openingChoice
-              ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')
+              ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
               : canFinishEmptyStock
                 ? perform((current) => finishEmptyStock(current, 0))
-                : perform((current) => drawFromStock(current, 0), 'player')}
+                : perform((current) => drawFromStock(current, 0))}
           >
             <span className="stack-back"><i /><i /><i /></span>
             <div className="stock-pile-label"><small>MONTÓN</small><span className="pile-count">{game.stock.length}</span></div>
@@ -503,10 +485,10 @@ export default function App() {
                 title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
                 style={{ width: `${42 + (visibleDiscard.length - 1) * 16}px` }}
                 onClick={() => openingChoice
-                  ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')
+                  ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
                   : canDiscard
-                    ? perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')
-                    : perform((current) => takeDiscardPile(current, 0), 'player')}
+                    ? perform((current) => discardTile(current, 0, selectedTileIds[0]))
+                    : perform((current) => takeDiscardPile(current, 0))}
               >
                 {visibleDiscard.map((tile, index) => (
                   <span className="discard-stack-card" key={tile.id} style={{ '--discard-depth': index } as React.CSSProperties}>
@@ -516,8 +498,8 @@ export default function App() {
               </button>
             ) : canDiscard || openingChoice
               ? <button className="empty-discard pile-action" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
-                ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'player')
-                : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'computer')}>Pozo vacío</button>
+                ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
+                : perform((current) => discardTile(current, 0, selectedTileIds[0]))}>Pozo vacío</button>
               : <span className="empty-discard">Pozo vacío</span>}
             <button className="pile-view-button" type="button" disabled={!game.discard.length} onClick={() => { setDiscardSortMode('original'); discardDialogRef.current?.showModal(); }}>VER POZO <span className="pile-count">{game.discard.length}</span></button>
           </div>
