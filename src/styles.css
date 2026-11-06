@@ -200,7 +200,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meld-area { display: contents; }
 .empty-table { align-self: center; margin: 10px 0; color: rgba(230, 239, 226, .64); font-family: Georgia, serif; font-size: 14px; font-style: italic; }
 .meld-team { min-width: 0; }
-.meld-team-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 0px; }
+.meld-team-header { display: flex; align-items: baseline; justify-content: flex-start; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 0px; }
 .meld-team-heading { margin: 0; color: #e3eea2; font-size: 10px; font-weight: 800; }
 .meld-dead-status { color: rgba(230, 239, 226, .7); font-size: 8px; }
 .meld-dead-status.is-taken { color: #e7eea5; }
