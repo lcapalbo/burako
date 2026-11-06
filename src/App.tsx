@@ -366,7 +366,8 @@ export default function App() {
   const recentlyChangedTileIdSet = new Set(recentlyChangedTileIds);
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
-    .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg'));
+    .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg')
+      || (first.kind === 'leg' && second.kind === 'leg' ? getLegNumber(first.tiles) - getLegNumber(second.tiles) : 0));
   const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const cycleDiscardSort = () => setDiscardSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const pointsHistory = game.roundHistory ?? [];
@@ -390,10 +391,6 @@ export default function App() {
   const renderTeamMelds = (team: number) => {
     const teamMelds = meldsForTeam(team);
     const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
-    const categories = [
-      { key: 'run', label: 'Escaleras', melds: teamMelds.filter((meld) => meld.kind === 'run') },
-      { key: 'leg', label: 'Piernas', melds: teamMelds.filter((meld) => meld.kind === 'leg').sort((first, second) => getLegNumber(first.tiles) - getLegNumber(second.tiles)) },
-    ].filter((category) => category.melds.length > 0);
     const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
     const isTurnTeam = game.phase !== 'round-over'
       && game.phase !== 'match-over'
@@ -414,9 +411,7 @@ export default function App() {
         </button>}
         {teamMelds.length === 0 && !(team === 0 && canLaySelectedMeld && game.phase === 'play')
           ? <p className="empty-team-melds">Sin juegos bajados</p>
-          : <div className="meld-categories">{categories.map((category) => (
-            <section className="meld-category" key={category.key} aria-label={category.label}>
-              <div className="meld-category-games">{category.melds.map((meld) => {
+          : <div className="meld-categories">{teamMelds.map((meld) => {
                 const previewTiles = selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0
                   ? previewMeldAddition(game, meld.id, selectedTileIds)
                   : null;
@@ -452,9 +447,7 @@ export default function App() {
                     {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
                   </div>
                 </div>;
-              })}</div>
-            </section>
-          ))}</div>}
+              })}</div>}
       </section>
     );
   };
@@ -508,9 +501,29 @@ export default function App() {
         </section>
 
         <section className="piles-row" aria-label="Pozo y montón">
+          <div className="stock-pile">
+            <header className="pile-heading">
+              <h2 className="pile-title stock-pile-label">Montón</h2>
+            </header>
+            <button
+              className={`stock-action pile-action ${canDrawFromStock || (openingChoice && game.stock.length > 0) ? 'is-actionable' : ''}`}
+              type="button"
+              disabled={!canDrawFromStock && !(openingChoice && game.stock.length > 0) && !(game.phase === 'draw' && game.currentPlayer === 0 && game.stock.length === 0 && !canLiftDiscard)}
+              aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : game.stock.length === 0 ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
+              title={openingChoice ? 'Descartar la ficha inicial y robar otra' : game.stock.length === 0 ? 'Terminar la mano' : 'Robar ficha del montón'}
+              onClick={() => openingChoice
+                ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
+                : game.stock.length === 0
+                  ? perform((current) => finishEmptyStock(current, 0))
+                  : perform((current) => drawFromStock(current, 0))}
+            >
+              <span className="stack-back"><i /><i /><i /><span className="pile-count">{game.stock.length}</span></span>
+            </button>
+          </div>
+
           <div className="discard-pile">
             <header className="pile-heading">
-              <h2>Pozo</h2>
+              <h2 className="pile-title">Pozo</h2>
               {game.discard.length >= 5 && <button className="sort-button discard-sort-button" type="button" onClick={cycleDiscardSort}>
                 {discardSortMode === 'original' ? 'Ordenar por color' : discardSortMode === 'color' ? 'Ordenar por número' : 'Orden original'}
               </button>}
@@ -537,22 +550,6 @@ export default function App() {
               </span>
             </button>
           </div>
-
-          <button
-            className={`stock-pile pile-action ${canDrawFromStock || (openingChoice && game.stock.length > 0) ? 'is-actionable' : ''}`}
-            type="button"
-            disabled={!canDrawFromStock && !(openingChoice && game.stock.length > 0) && !(game.phase === 'draw' && game.currentPlayer === 0 && game.stock.length === 0 && !canLiftDiscard)}
-            aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : game.stock.length === 0 ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
-            title={openingChoice ? 'Descartar la ficha inicial y robar otra' : game.stock.length === 0 ? 'Terminar la mano' : 'Robar ficha del montón'}
-            onClick={() => openingChoice
-              ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
-              : game.stock.length === 0
-                ? perform((current) => finishEmptyStock(current, 0))
-                : perform((current) => drawFromStock(current, 0))}
-          >
-            <span className="stock-pile-label">Montón</span>
-            <span className="stack-back"><i /><i /><i /><span className="pile-count">{game.stock.length}</span></span>
-          </button>
         </section>
 
         <section className="player-zone" aria-label="Tu mesa">
