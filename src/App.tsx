@@ -138,7 +138,7 @@ export default function App() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [discardSortMode, setDiscardSortMode] = useState<HandSortMode>('original');
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
-  const [activeAvatar, setActiveAvatar] = useState<'player' | 'computer' | null>(null);
+  const [showAvatarNames, setShowAvatarNames] = useState(false);
   const [touchDragPosition, setTouchDragPosition] = useState<{ x: number; y: number } | null>(null);
   const touchReorderRef = useRef<{ pointerId: number; tileId: string; startX: number; startY: number; dragging: boolean } | null>(null);
   const ignoreNextTileClickRef = useRef(false);
@@ -456,8 +456,8 @@ export default function App() {
           className={`table-avatar table-avatar-computer ${!roundClosed && game.currentPlayer === 1 ? 'is-turn' : ''}`}
           type="button"
           aria-label="Mostrar nombre de computadora"
-          aria-expanded={activeAvatar === 'computer'}
-          onClick={() => setActiveAvatar((current) => current === 'computer' ? null : 'computer')}
+          aria-expanded={showAvatarNames}
+          onClick={() => setShowAvatarNames((visible) => !visible)}
         >
           <svg className="opponent-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
             <circle cx="16" cy="16" r="16" fill="currentColor" />
@@ -467,21 +467,21 @@ export default function App() {
             <circle cx="19.5" cy="15.5" r="1.2" fill="white" />
             <path d="M12.5 19h7" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.5" />
           </svg>
-          {activeAvatar === 'computer' && <span className="avatar-tooltip">Computadora</span>}
+          {showAvatarNames && <span className="avatar-tooltip">Computadora</span>}
         </button>
         <button
           className={`table-avatar table-avatar-player ${humanTurn ? 'is-turn' : ''}`}
           type="button"
           aria-label="Mostrar nombre de jugador"
-          aria-expanded={activeAvatar === 'player'}
-          onClick={() => setActiveAvatar((current) => current === 'player' ? null : 'player')}
+          aria-expanded={showAvatarNames}
+          onClick={() => setShowAvatarNames((visible) => !visible)}
         >
           <svg className="player-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
             <circle cx="16" cy="16" r="16" fill="currentColor" />
             <circle cx="16" cy="11.5" r="4" fill="white" />
             <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />
           </svg>
-          {activeAvatar === 'player' && <span className="avatar-tooltip">Vos</span>}
+          {showAvatarNames && <span className="avatar-tooltip">Vos</span>}
         </button>
         <div className="piles-row">
           <button
