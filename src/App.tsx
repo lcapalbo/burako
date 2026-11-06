@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rulesMarkdown from '../reglas-burako.md?raw';
 import {
+  COLORS,
   addToMeld,
   createGame,
   discardOpeningDrawAndRedraw,
@@ -219,7 +220,7 @@ export default function App() {
     const observeContent = () => {
       resizeObserver.disconnect();
       resizeObserver.observe(table);
-      table.querySelectorAll<HTMLElement>('.meld-team, .meld-categories, .meld-category-games, .meld-tiles').forEach((element) => resizeObserver.observe(element));
+      table.querySelectorAll<HTMLElement>('.meld-team, .meld-games, .meld-tiles').forEach((element) => resizeObserver.observe(element));
       measureOverflow();
     };
     const mutationObserver = new MutationObserver(observeContent);
@@ -478,7 +479,15 @@ export default function App() {
   const recentlyDiscardedTileIdSet = new Set(recentlyDiscardedTileIds);
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
-    .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg'));
+    .sort((first, second) => {
+      if (first.kind !== second.kind) return first.kind === 'run' ? -1 : 1;
+      if (first.kind === 'run' && second.kind === 'run') {
+        const firstColor = first.tiles.find((tile) => tile.color !== null)?.color ?? null;
+        const secondColor = second.tiles.find((tile) => tile.color !== null)?.color ?? null;
+        return COLORS.indexOf(firstColor as (typeof COLORS)[number]) - COLORS.indexOf(secondColor as (typeof COLORS)[number]);
+      }
+      return getLegNumber(first.tiles) - getLegNumber(second.tiles);
+    });
   const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const pointsHistory = game.roundHistory ?? [];
   const currentRoundScore = pointsHistory.length ? pointsHistory[pointsHistory.length - 1] : null;
@@ -574,10 +583,6 @@ export default function App() {
           {([1, 0] as const).map((team) => {
             const teamMelds = meldsForTeam(team);
             const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
-            const categories = [
-              { key: 'run', label: 'Escaleras', melds: teamMelds.filter((meld) => meld.kind === 'run') },
-              { key: 'leg', label: 'Piernas', melds: teamMelds.filter((meld) => meld.kind === 'leg').sort((first, second) => getLegNumber(first.tiles) - getLegNumber(second.tiles)) },
-            ].filter((category) => category.melds.length > 0);
             const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
             const isTurnTeam = game.phase !== 'round-over'
               && game.phase !== 'match-over'
@@ -637,9 +642,7 @@ export default function App() {
                 </header>
                 {teamMelds.length === 0
                   ? <p className="empty-team-melds">Sin juegos bajados</p>
-                  : <div className="meld-categories">{categories.map((category) => (
-                    <section className="meld-category" key={category.key} aria-label={category.label}>
-                      <div className="meld-category-games">{category.melds.map((meld) => (
+                  : <div className="meld-games">{teamMelds.map((meld) => (
                         (() => {
                           const previewTiles = selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0
                             ? previewMeldAddition(game, meld.id, selectedTileIds)
@@ -677,9 +680,7 @@ export default function App() {
                           </div>
                           </div>;
                         })()
-                      ))}</div>
-                    </section>
-                  ))}</div>}
+                      ))}</div>}
                 </section>
               </Fragment>
             );
