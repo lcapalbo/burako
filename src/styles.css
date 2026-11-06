@@ -204,7 +204,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .meld-team-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 8px; }
 .meld-team-heading { margin: 0; color: #e3eea2; font-size: 10px; font-weight: 800; }
 .meld-dead-status { color: rgba(230, 239, 226, .7); font-size: 8px; }
-.meld-dead-status.is-taken { color: #e7eea5; font-weight: 700; }
+.meld-dead-status.is-taken { color: #e7eea5; }
 .empty-team-melds { margin: 0; color: rgba(230, 239, 226, .64); font-size: 9px; font-style: italic; }
 .meld-categories { display: grid; gap: 3px; }
 .meld-category { min-width: 0; }

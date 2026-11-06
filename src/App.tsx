@@ -534,7 +534,7 @@ export default function App() {
               { key: 'run', label: 'Escaleras', melds: teamMelds.filter((meld) => meld.kind === 'run') },
               { key: 'leg', label: 'Piernas', melds: teamMelds.filter((meld) => meld.kind === 'leg').sort((first, second) => getLegNumber(first.tiles) - getLegNumber(second.tiles)) },
             ].filter((category) => category.melds.length > 0);
-            const teamName = team === 1 ? 'Computadora' : 'Vos';
+            const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
             const isTurnTeam = game.phase !== 'round-over'
               && game.phase !== 'match-over'
               && game.players.find((player) => player.id === game.currentPlayer)?.team === team;
