@@ -147,13 +147,11 @@ export default function App() {
   const [computerTurnInProgress, setComputerTurnInProgress] = useState(false);
   const [error, setError] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [discardSortMode, setDiscardSortMode] = useState<HandSortMode>('original');
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
   const [showAvatarNames, setShowAvatarNames] = useState(false);
   const [touchDragPosition, setTouchDragPosition] = useState<{ x: number; y: number } | null>(null);
   const touchReorderRef = useRef<{ pointerId: number; tileId: string; startX: number; startY: number; dragging: boolean } | null>(null);
   const ignoreNextTileClickRef = useRef(false);
-  const discardDialogRef = useRef<HTMLDialogElement>(null);
   const pointsDialogRef = useRef<HTMLDialogElement>(null);
   const rulesDialogRef = useRef<HTMLDialogElement>(null);
   const playerAreaRef = useRef<HTMLElement>(null);
@@ -435,7 +433,6 @@ export default function App() {
   const revealComputerHand = roundClosed && !(computer.indirectDead && !computer.playedAfterDead);
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
   const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
-  const discardSortLabel = discardSortMode === 'original' ? 'Ordenar por color' : discardSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const humanTurn = !computerTurnInProgress && game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const openingChoice = humanTurn && game.phase === 'opening-choice';
   const canReorderHand = humanTurn && selection.length === 0 && game.phase !== 'opening-choice';
@@ -453,7 +450,6 @@ export default function App() {
     .filter((meld) => meld.team === team)
     .sort((first, second) => Number(first.kind === 'leg') - Number(second.kind === 'leg'));
   const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
-  const cycleDiscardSort = () => setDiscardSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const pointsHistory = game.roundHistory ?? [];
   const currentRoundScore = pointsHistory.length ? pointsHistory[pointsHistory.length - 1] : null;
   const previousRoundScores = currentRoundScore ? pointsHistory.slice(0, -1) : pointsHistory;
@@ -656,35 +652,6 @@ export default function App() {
           })}
         </div>
       </section>
-
-      <dialog
-        ref={discardDialogRef}
-        className="discard-dialog"
-        aria-labelledby="discard-dialog-title"
-        onClose={() => setDiscardSortMode('original')}
-        onClick={(event) => { if (event.target === event.currentTarget) discardDialogRef.current?.close(); }}
-      >
-        <div className="discard-dialog-content">
-          <header className="discard-dialog-header">
-            <div>
-              <p className="discard-dialog-eyebrow">Pozo de descartes</p>
-              <h2 id="discard-dialog-title">{game.discard.length} {game.discard.length === 1 ? 'ficha' : 'fichas'}</h2>
-            </div>
-            <button className="discard-dialog-close" type="button" aria-label="Cerrar pozo" autoFocus onClick={() => discardDialogRef.current?.close()}>×</button>
-          </header>
-          <ol className="discard-tile-list" aria-label="Fichas del pozo">
-            {sortHandForDisplay(game.discard, discardSortMode).map((tile) => (
-              <li className="discard-tile" key={tile.id}>
-                <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} />
-              </li>
-            ))}
-          </ol>
-          <footer className="discard-dialog-footer">
-            <button className="sort-button" type="button" onClick={cycleDiscardSort}>{discardSortLabel}</button>
-            <button className="primary-action" type="button" onClick={() => discardDialogRef.current?.close()}>Cerrar</button>
-          </footer>
-        </div>
-      </dialog>
 
       <dialog
         ref={pointsDialogRef}
