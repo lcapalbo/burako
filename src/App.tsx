@@ -236,10 +236,6 @@ export default function App() {
           setGame(next);
           setError('');
           previous = next;
-          if (discardedTileIds.length && next.currentPlayer !== 1) {
-            await wait(RECENT_DISCARD_DURATION_MS);
-            if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
-          }
         }
       } catch (issue) {
         if (turnId !== computerTurnIdRef.current) return;
