@@ -1006,7 +1006,7 @@ export default function App() {
           <strong>{game.result}</strong>
           {(game.phase === 'match-over' || (game.target !== 'cut' && game.phase === 'round-over')) && <span className="result-score-summary">
             {currentHandScores
-              ? <ScorePairSummary label="Puntaje de la mano" scores={currentHandScores} />
+              ? <ScorePairSummary label="Puntos" scores={currentHandScores} />
               : <>Puntaje de la mano no disponible para esta partida guardada.</>}
             {hasPreviousRounds && <>
               {' · '}
