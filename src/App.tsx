@@ -153,7 +153,7 @@ function TileFace({ tile, selected = false, className = '' }: { tile: Tile; sele
     : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}${isWildTwo ? ', comodín' : ''}`;
   return (
     <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${isWildTwo ? 'tile-two-wild' : ''} ${selected ? 'is-selected' : ''} ${className}`} data-tile-id={tile.id} role="img" aria-label={label}>
-      {tile.kind !== 'joker' && <span className="tile-mark" aria-hidden="true">●</span>}
+      {tile.kind !== 'joker' && <span className="tile-mark" aria-hidden="true" />}
       <strong>{tile.kind === 'joker' ? '★' : tile.value}</strong>
       {tile.kind === 'joker' && <small>COMODÍN</small>}
     </span>
@@ -628,8 +628,8 @@ export default function App() {
     return (
       <main className="welcome">
         <header className="topbar">
-          <span className="brand-mark tile-face tile-red" aria-hidden="true">
-            <span className="tile-mark">●</span>
+          <span className="brand-mark tile-face tile-blue" aria-hidden="true">
+            <span className="tile-mark" />
             <strong>B</strong>
           </span>
           <span className="brand-name">Burako</span>
@@ -757,8 +757,8 @@ export default function App() {
       </div>
       <header className="game-header">
         <a className="game-brand" href="#" onClick={(event) => { event.preventDefault(); cancelComputerTurn(); setGame(null); }}>
-          <span className="brand-mark tile-face tile-red" aria-hidden="true">
-            <span className="tile-mark">●</span>
+          <span className="brand-mark tile-face tile-blue" aria-hidden="true">
+            <span className="tile-mark" />
             <strong>B</strong>
           </span>
           <span>Burako</span>

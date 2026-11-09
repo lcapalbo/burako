@@ -247,10 +247,13 @@ h1 em { color: var(--coral); font-weight: 500; }
 }
 @keyframes recent-tile-shine { to { transform: translateX(120%); } }
 .tile-face strong { font-family: Georgia, serif; font-size: 34px; font-weight: 500; line-height: 1; }
-.tile-mark { position: absolute; top: 5px; left: 6px; font-size: 8px; }
+.tile-mark { position: absolute; top: 5px; left: 6px; display: block; width: .75em; aspect-ratio: 1; background: currentColor; font-size: 8px; }
 .tile-red { color: #ff704e; }
+.tile-red .tile-mark { width: .95em; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .tile-blue { color: #2467b2; }
+.tile-blue .tile-mark { border-radius: 50%; }
 .tile-green { color: #23803a; }
+.tile-green .tile-mark { width: .95em; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .tile-yellow { color: #a78024; }
 .tile-two-wild.tile-red { background-color: #fff0ec; }
 .tile-two-wild.tile-blue { background-color: #e8f0ff; }
