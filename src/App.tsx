@@ -849,12 +849,11 @@ export default function App() {
             const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
             const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
             const canLaySelection = team === 0 && humanTurn && game.phase === 'play' && canLaySelectedMeld;
-            const previewMeldKind = canLaySelection ? getMeldKind(selectedTiles) : null;
-            const previewMeldTiles = canLaySelectedMeld
-              ? layMeld(game, 0, selection).melds.slice(-1)[0]?.tiles ?? selectedTiles
-              : selectedTiles;
-            const nextMeldIndex = previewMeldKind
-              ? teamMelds.findIndex((meld) => compareMelds({ kind: previewMeldKind, tiles: selectedTiles }, meld) < 0)
+            const previewMeld = canLaySelection ? layMeld(game, 0, selection).melds.slice(-1)[0] ?? null : null;
+            const previewMeldKind = previewMeld?.kind ?? null;
+            const previewMeldTiles = previewMeld?.tiles ?? selectedTiles;
+            const nextMeldIndex = previewMeld
+              ? teamMelds.findIndex((meld) => compareMelds(previewMeld, meld) < 0)
               : -1;
             const previewMeldIndex = nextMeldIndex < 0 ? teamMelds.length : nextMeldIndex;
             const isTurnTeam = game.phase !== 'round-over'
