@@ -226,8 +226,8 @@ function getTileFlights(previous: GameState, next: GameState, firstId: number): 
 function ScorePairSummary({ label, scores }: { label: string; scores: [number, number] }) {
   return (
     <span className="result-score-pair">
-      {label}: vos <span className={scores[0] >= scores[1] ? 'is-leading-score' : ''}>{scores[0].toLocaleString('es-AR')}</span>
-      {' · '}computadora <span className={scores[1] >= scores[0] ? 'is-leading-score' : ''}>{scores[1].toLocaleString('es-AR')}</span>
+      {label}: <span className={scores[0] >= scores[1] ? 'is-leading-score' : ''}>{scores[0].toLocaleString('es-AR')}</span> (vos)
+      {' a '} <span className={scores[1] >= scores[0] ? 'is-leading-score' : ''}>{scores[1].toLocaleString('es-AR')}</span>
     </span>
   );
 }
@@ -1001,7 +1001,7 @@ export default function App() {
               : <>Puntaje de la mano no disponible para esta partida guardada.</>}
             {hasPreviousRounds && <>
               {' · '}
-              <ScorePairSummary label="Acumulado de partida" scores={[game.scores[0], game.scores[1]]} />
+              <ScorePairSummary label="Partida" scores={[game.scores[0], game.scores[1]]} />
             </>}
           </span>}
           <div className="result-actions">
