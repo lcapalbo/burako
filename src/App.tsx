@@ -41,6 +41,7 @@ const RECENT_TILE_DURATION_MS = 1400;
 const RECENT_DISCARD_DURATION_MS = RECENT_TILE_DURATION_MS * 2;
 const TILE_FLIGHT_DURATION_MS = 560;
 type HandSortMode = 'original' | 'color' | 'number';
+type MeldDensity = 'normal' | 'compact' | 'minimum';
 type TileFlight = {
   id: number;
   batchId: number;
@@ -241,7 +242,8 @@ export default function App() {
   const [tileFlights, setTileFlights] = useState<TileFlight[]>([]);
   const [recentTileDuration, setRecentTileDuration] = useState(RECENT_TILE_DURATION_MS);
   const [computerTurnInProgress, setComputerTurnInProgress] = useState(false);
-  const [compactMelds, setCompactMelds] = useState(false);
+  const [meldDensity, setMeldDensity] = useState<MeldDensity>('normal');
+  const [discardDensity, setDiscardDensity] = useState<MeldDensity>('normal');
   const [error, setError] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
@@ -381,7 +383,8 @@ export default function App() {
   }, [tileFlights]);
 
   useEffect(() => {
-    setCompactMelds(false);
+    setMeldDensity('normal');
+    setDiscardDensity('normal');
   }, [game?.round]);
 
   useEffect(() => {
@@ -390,7 +393,29 @@ export default function App() {
 
     const measureOverflow = () => {
       const teamAreas = table.querySelectorAll<HTMLElement>('.meld-team');
-      if ([...teamAreas].some((teamArea) => teamArea.scrollHeight > teamArea.clientHeight + 1)) setCompactMelds(true);
+      const meldsOverflow = () => [...teamAreas].some((teamArea) => teamArea.scrollHeight > teamArea.clientHeight + 1);
+      if (meldsOverflow()) {
+        if (meldDensity === 'normal') {
+          table.classList.add('is-compact-melds');
+          const compactMeldsOverflow = meldsOverflow();
+          table.classList.remove('is-compact-melds');
+          setMeldDensity(compactMeldsOverflow ? 'minimum' : 'compact');
+        } else if (meldDensity === 'compact') {
+          setMeldDensity('minimum');
+        }
+      }
+
+      const discardStack = table.querySelector<HTMLElement>('.discard-stack');
+      if (discardStack) {
+        const rowTops = [...discardStack.children]
+          .map((tile) => tile.getBoundingClientRect().top)
+          .filter((top, index, tops) => tops.findIndex((otherTop) => Math.abs(otherTop - top) < 2) === index);
+        setDiscardDensity((density) => {
+          if (density === 'normal' && rowTops.length > 1) return 'compact';
+          if (density === 'compact' && rowTops.length > 1) return 'minimum';
+          return density;
+        });
+      }
     };
     const resizeObserver = new ResizeObserver(measureOverflow);
     const observeContent = () => {
@@ -403,14 +428,17 @@ export default function App() {
 
     observeContent();
     mutationObserver.observe(table, { childList: true, subtree: true, characterData: true });
-    const handleResize = () => setCompactMelds(false);
+    const handleResize = () => {
+      setMeldDensity('normal');
+      setDiscardDensity('normal');
+    };
     window.addEventListener('resize', handleResize);
     return () => {
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };
-  }, [Boolean(game)]);
+  }, [Boolean(game), meldDensity, discardDensity]);
 
   useEffect(() => {
     if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over' || computerTurnInProgressRef.current) return;
@@ -781,7 +809,7 @@ export default function App() {
 
       <section
         ref={feltTableRef}
-        className={`felt-table ${compactMelds ? 'is-compact-melds' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'}`}
+        className={`felt-table ${meldDensity === 'compact' ? 'is-compact-melds' : ''} ${meldDensity === 'minimum' ? 'is-minimum-melds' : ''} ${discardDensity === 'compact' ? 'is-compact-discard' : ''} ${discardDensity === 'minimum' ? 'is-minimum-discard' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'}`}
         aria-label="Mesa de juego"
       >
         <button
@@ -857,7 +885,7 @@ export default function App() {
                   <div className="discard-pile">
                     {game.discard.length > 0 ? (
                       <button
-                        className="meld-tiles discard-stack pile-action"
+                        className={`meld-tiles discard-stack pile-action ${discardDensity === 'minimum' ? 'is-minimum-density' : discardDensity === 'compact' ? 'is-compact-density' : ''}`}
                         data-animation-zone="discard"
                         type="button"
                         disabled={!canUseDiscardPile && !openingChoice}
@@ -910,6 +938,12 @@ export default function App() {
                           };
                           const tilesToDisplay = previewTiles ?? meld.tiles;
                           const shownTiles = meld.kind === 'leg' ? sortLegTiles(tilesToDisplay) : tilesToDisplay;
+                          const runColor = meld.kind === 'run'
+                            ? shownTiles.find((tile) => tile.kind === 'number' && tile.value !== 2)?.color ?? null
+                            : null;
+                          const jokerIndex = meld.kind === 'run'
+                            ? shownTiles.findIndex((tile) => tile.kind === 'joker' || (tile.value === 2 && runColor !== null && tile.color !== runColor))
+                            : -1;
                           return <div
                             className={`meld-group ${canAddSelection ? 'meld-target' : ''}`}
                             key={meld.id}
@@ -920,14 +954,16 @@ export default function App() {
                             onKeyDown={canAddSelection ? handleKeyDown : undefined}
                           >
                           <div className="meld-tiles">
-                            {shownTiles.map((tile) => {
+                            {shownTiles.map((tile, tileIndex) => {
                               const selectedForPreview = canAddSelection && selectedTileIds.includes(tile.id);
+                              const normalOverlapInMinimum = meldDensity === 'minimum' && meld.kind === 'run'
+                                && (tileIndex === 1 || (jokerIndex >= 0 && (tileIndex === jokerIndex || tileIndex === jokerIndex + 1)));
                               return <TileFace
                                 tile={tile}
                                 key={tile.id}
                                 className={selectedForPreview
-                                  ? 'is-preview'
-                                  : `${recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''}`}
+                                  ? `is-preview ${normalOverlapInMinimum ? 'is-normal-minimum-overlap' : ''}`
+                                  : `${recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} ${normalOverlapInMinimum ? 'is-normal-minimum-overlap' : ''}`}
                               />;
                             })}
                             {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
@@ -1063,7 +1099,7 @@ export default function App() {
           </div>
         </div>}
         <div
-          className={`hand-tiles ${human.hand.length >= 20 ? 'is-compact' : ''}`}
+          className="hand-tiles"
           data-animation-zone="hand-0"
           onDragOver={(event) => event.preventDefault()}
           onClick={(event) => {
