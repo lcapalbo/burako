@@ -104,6 +104,16 @@ function previewMeldAddition(state: GameState, meldId: string, tileIds: string[]
   }
 }
 
+function canLayMeldSelection(state: GameState, tileIds: string[]): boolean {
+  try {
+    layMeld(state, 0, tileIds);
+    return true;
+  } catch (issue) {
+    if (issue instanceof GameRuleError) return false;
+    throw issue;
+  }
+}
+
 function loadSavedGame(): GameState | null {
   try {
     const saved = window.localStorage.getItem(SAVE_KEY);
@@ -479,7 +489,7 @@ export default function App() {
   const human = game.players[0];
   const computer = game.players[1];
   const selectedTiles = human.hand.filter((tile) => selection.includes(tile.id));
-  const canLaySelectedMeld = getMeldKind(selectedTiles) !== null;
+  const canLaySelectedMeld = getMeldKind(selectedTiles) !== null && canLayMeldSelection(game, selection);
   const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
   const revealComputerHand = roundClosed && !(computer.indirectDead && !computer.playedAfterDead);
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
@@ -489,11 +499,14 @@ export default function App() {
   const canReorderHand = humanTurn && selection.length === 0 && game.phase !== 'opening-choice';
   const playerHeaderText = !humanTurn ? `${human.hand.length} fichas` : game.phase === 'draw' ? 'Robá para empezar' : 'Tu turno';
   const selectedTileIds = selection;
-  const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1;
+  const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1 && selection[0] !== game.restrictedDiscardTileId;
   const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
   const canFinishEmptyStock = humanTurn && game.phase === 'draw' && game.stock.length === 0;
   const canLiftDiscard = humanTurn && game.phase === 'draw' && game.discard.length > 0 && human.hand.length + game.discard.length >= 5;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
+  const discardPreviewTile = openingChoice
+    ? human.hand.find((tile) => tile.id === game.openingDrawTileId)
+    : canDiscard ? selectedTiles[0] : undefined;
   const draggedTile = draggedId ? human.hand.find((tile) => tile.id === draggedId) : undefined;
   const recentlyChangedTileIdSet = new Set(recentlyChangedTileIds);
   const recentlyDiscardedTileIdSet = new Set(recentlyDiscardedTileIds);
@@ -556,17 +569,8 @@ export default function App() {
 
       <section
         ref={feltTableRef}
-        className={`felt-table ${compactMelds ? 'is-compact-melds' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'} ${canDiscard || canLaySelectedMeld ? 'has-table-action' : ''}`}
+        className={`felt-table ${compactMelds ? 'is-compact-melds' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'}`}
         aria-label="Mesa de juego"
-        onClick={(event) => {
-          if (!(event.target instanceof Element)) return;
-          if (event.target.closest('button, a, [role="button"]')) return;
-          if (canLaySelectedMeld && game.phase === 'play' && game.currentPlayer === 0) {
-            perform((current) => layMeld(current, 0, selectedTileIds), 'bajar-combinacion');
-          } else if (canDiscard) {
-            perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar');
-          }
-        }}
       >
         <button
           className={`table-avatar table-avatar-computer ${!roundClosed && (game.currentPlayer === 1 || computerTurnInProgress) ? 'is-turn' : ''}`}
@@ -604,6 +608,7 @@ export default function App() {
             const teamMelds = meldsForTeam(team);
             const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
             const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
+            const canLaySelection = team === 0 && humanTurn && game.phase === 'play' && canLaySelectedMeld;
             const isTurnTeam = game.phase !== 'round-over'
               && game.phase !== 'match-over'
               && game.players.find((player) => player.id === game.currentPlayer)?.team === team;
@@ -613,12 +618,10 @@ export default function App() {
                   <button
                     className="stock-pile pile-action"
                     type="button"
-                    disabled={!canDrawFromStock && !openingChoice && !canFinishEmptyStock}
-                    aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canFinishEmptyStock ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
-                    title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canFinishEmptyStock ? 'Terminar la mano' : 'Robar ficha del montón'}
-                    onClick={() => openingChoice
-                      ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
-                      : canFinishEmptyStock
+                    disabled={!canDrawFromStock && !canFinishEmptyStock}
+                    aria-label={canFinishEmptyStock ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
+                    title={canFinishEmptyStock ? 'Terminar la mano' : 'Robar ficha del montón'}
+                    onClick={() => canFinishEmptyStock
                         ? perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio')
                         : perform((current) => drawFromStock(current, 0), 'robar-del-monton')}
                   >
@@ -644,14 +647,18 @@ export default function App() {
                         {game.discard.map((tile, index) => {
                           const tileFace = <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />;
                           return index === game.discard.length - 1
-                            ? <span className="discard-final-tile" key={tile.id}>{tileFace}<span className="pile-count tile-count-badge" aria-hidden="true">{game.discard.length}</span></span>
+                            ? <span className="discard-final-tile" key={tile.id}>{tileFace}{!discardPreviewTile && <span className="pile-count tile-count-badge" aria-hidden="true">{game.discard.length}</span>}</span>
                             : <TileFace tile={tile} key={tile.id} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />;
                         })}
+                        {discardPreviewTile && <span className="discard-preview-tile">
+                          <TileFace tile={discardPreviewTile} className="is-preview" />
+                          {game.discard.length > 0 && <span className="pile-count tile-count-badge" aria-hidden="true">{game.discard.length}</span>}
+                        </span>}
                       </button>
                     ) : canDiscard || openingChoice
-                      ? <button className="empty-discard pile-action" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
+                      ? <button className={`empty-discard pile-action ${discardPreviewTile ? 'has-discard-preview' : ''}`} type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
                         ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
-                        : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')}>Pozo vacío</button>
+                        : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')}>{discardPreviewTile ? <TileFace tile={discardPreviewTile} className="is-preview" /> : 'Pozo vacío'}</button>
                       : <span className="empty-discard">Pozo vacío</span>}
                   </div>
                 </div>}
@@ -660,7 +667,7 @@ export default function App() {
                   <h3 className="meld-team-heading">{teamName}</h3>
                   <span className={`meld-dead-status ${deadTaken ? 'is-taken' : ''}`}>Muerto {deadTaken ? 'levantado' : 'pendiente'}</span>
                 </header>
-                {teamMelds.length === 0
+                {teamMelds.length === 0 && !canLaySelection
                   ? <p className="empty-team-melds">Sin juegos bajados</p>
                   : <div className="meld-games">{teamMelds.map((meld) => (
                         (() => {
@@ -700,7 +707,12 @@ export default function App() {
                           </div>
                           </div>;
                         })()
-                      ))}</div>}
+                      ))}{canLaySelection && <button
+                        className="meld-group meld-target meld-new-preview"
+                        type="button"
+                        aria-label={`Bajar juego de ${selectedTiles.length} fichas`}
+                        onClick={() => perform((current) => layMeld(current, 0, selectedTileIds), 'bajar-combinacion')}
+                      ><span className="meld-tiles">{selectedTiles.map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}</span></button>}</div>}
                 </section>
               </Fragment>
             );
