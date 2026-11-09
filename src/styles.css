@@ -261,6 +261,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .player-heading strong { font-size: 13px; }
 .player-name { align-items: flex-start; }
 .hand-count { color: #748179; font-size: 10px; }
+.hand-count.is-turn-hint { color: var(--ink); font-weight: 700; }
 .sort-button { padding: 6px 0 6px 8px; }
 .sort-button:disabled { opacity: .4; cursor: not-allowed; }
 .hand-tools { display: flex; align-items: center; gap: 7px; }

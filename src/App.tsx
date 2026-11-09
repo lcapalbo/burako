@@ -297,6 +297,16 @@ export default function App() {
   }, [game]);
 
   useEffect(() => {
+    if (!game || computerTurnInProgress || game.currentPlayer !== 0 || game.phase !== 'draw' || game.stock.length > 0) return;
+    const humanCanLiftDiscard = game.discard.length > 0
+      && game.players[0].hand.length + game.discard.length >= 5;
+    if (humanCanLiftDiscard) return;
+    setGame(finishEmptyStock(game, 0));
+    setSelection([]);
+    setError('');
+  }, [computerTurnInProgress, game]);
+
+  useEffect(() => {
     if (recentlyChangedTileIds.length === 0) return;
     const timer = window.setTimeout(() => {
       setRecentlyChangedTileIds([]);
@@ -670,13 +680,27 @@ export default function App() {
   const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
   const humanTurn = !computerTurnInProgress && game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const openingChoice = humanTurn && game.phase === 'opening-choice';
-  const canReorderHand = humanTurn && selection.length === 0 && game.phase !== 'opening-choice';
-  const playerHeaderText = !humanTurn ? `${human.hand.length} fichas` : game.phase === 'draw' ? 'Robá para empezar' : 'Tu turno';
-  const selectedTileIds = selection;
-  const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1 && selection[0] !== game.restrictedDiscardTileId;
   const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
   const canFinishEmptyStock = humanTurn && game.phase === 'draw' && game.stock.length === 0;
   const canLiftDiscard = humanTurn && game.phase === 'draw' && game.discard.length > 0 && human.hand.length + game.discard.length >= 5;
+  const canReorderHand = humanTurn && selection.length === 0 && game.phase !== 'opening-choice' && !canFinishEmptyStock;
+  const playerHeaderText = !humanTurn
+    ? `${human.hand.length} fichas`
+    : game.phase === 'draw'
+      ? game.turnNumber === 0 && game.roundStarter === 0 && canDrawFromStock
+        ? 'Abrís vos. Robá para empezar'
+        : canFinishEmptyStock
+          ? canLiftDiscard
+            ? 'Levantá el pozo, o tocá en tu atril para terminar'
+            : 'La mano termina: no podés levantar el pozo'
+          : canDrawFromStock && canLiftDiscard
+            ? 'Robá o levantá el pozo para empezar'
+            : 'Robá para empezar'
+      : game.phase === 'opening-choice'
+        ? 'Conservá o descartá tu primera ficha'
+        : 'Seleccioná fichas. Tocá las vistas previas para mover';
+  const selectedTileIds = selection;
+  const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1 && selection[0] !== game.restrictedDiscardTileId;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
   const discardPreviewTile = openingChoice
     ? human.hand.find((tile) => tile.id === game.openingDrawTileId)
@@ -989,7 +1013,7 @@ export default function App() {
         {error && <p className="error-message" role="alert">{error}</p>}
         <div className="player-heading">
           <div className="player-header-meta">
-            <span className="hand-count">{playerHeaderText}</span>
+            <span className={`hand-count ${humanTurn ? 'is-turn-hint' : ''}`}>{playerHeaderText}</span>
           </div>
           <div className="hand-tools">
             <button className="sort-button" type="button" disabled={!humanTurn} onClick={cycleHandSort}>{handSortLabel}</button>
@@ -999,6 +1023,11 @@ export default function App() {
           className={`hand-tiles ${human.hand.length >= 20 ? 'is-compact' : ''}`}
           data-animation-zone="hand-0"
           onDragOver={(event) => event.preventDefault()}
+          onClick={(event) => {
+            if (canFinishEmptyStock && !(event.target as HTMLElement).closest('[data-hand-tile-id]')) {
+              perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio');
+            }
+          }}
           onPointerDown={handleTouchReorderStart}
           onPointerMove={handleTouchReorderMove}
           onPointerUp={finishTouchReorder}
@@ -1019,6 +1048,10 @@ export default function App() {
                 onClick={() => {
                   if (ignoreNextTileClickRef.current) {
                     ignoreNextTileClickRef.current = false;
+                    return;
+                  }
+                  if (canFinishEmptyStock) {
+                    perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio');
                     return;
                   }
                   if (openingChoiceTile) {
