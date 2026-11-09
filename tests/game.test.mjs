@@ -798,6 +798,103 @@ describe('turnos de la computadora', () => {
     assert.ok(next.discard.some((item) => item.id === topDiscard.id));
   });
 
+  it('considera las diez fichas superiores y puede formar un juego con dos del pozo y dos del atril', () => {
+    const hand = [
+      tile('computer-run-five', 'green', 5),
+      tile('computer-run-eight', 'green', 8),
+      tile('computer-unrelated-one', 'blue', 1),
+      tile('computer-unrelated-eleven', 'red', 11),
+      tile('computer-unrelated-four', 'yellow', 4),
+    ];
+    const discard = [
+      tile('computer-run-six-discard', 'green', 6),
+      tile('computer-run-joker-discard', null, 0, 'joker'),
+    ];
+    const state = computerState({ hand, discard, stock: [tile('computer-ten-stock', 'red', 10)] });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.ok(steps.some((step) => step.melds.some((meld) => meld.tiles.length === 4)));
+  });
+
+  it('levanta un pozo de hasta diez fichas si el juego está entre las fichas superiores', () => {
+    const hand = [tile('computer-top-ten-hand-1', 'blue', 4), tile('computer-top-ten-hand-2', 'red', 9)];
+    const discard = [
+      tile('computer-top-ten-old-1', 'red', 1),
+      tile('computer-top-ten-old-2', 'blue', 4),
+      tile('computer-top-ten-old-3', 'green', 9),
+      tile('computer-top-ten-old-4', 'yellow', 3),
+      tile('computer-top-ten-old-5', 'red', 6),
+      tile('computer-top-ten-old-6', 'blue', 8),
+      tile('computer-top-ten-old-7', 'green', 12),
+      tile('computer-top-ten-match-1', 'yellow', 8),
+      tile('computer-top-ten-match-2', 'red', 8),
+      tile('computer-top-ten-match-3', 'blue', 8),
+    ];
+    const state = computerState({ hand, discard, stock: [tile('computer-top-ten-stock', 'green', 5)] });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.equal(steps[0].players[1].hand.length, 12);
+  });
+
+  it('no considera fichas anteriores a las diez superiores del pozo', () => {
+    const hand = [tile('computer-outside-hand-1', 'red', 8), tile('computer-outside-hand-2', 'blue', 12)];
+    const discard = [
+      tile('computer-outside-match-1', 'yellow', 8),
+      tile('computer-outside-match-2', 'green', 8),
+      tile('computer-outside-match-3', 'blue', 8),
+      tile('computer-outside-1', 'red', 1),
+      tile('computer-outside-2', 'red', 5),
+      tile('computer-outside-3', 'red', 9),
+      tile('computer-outside-4', 'blue', 2),
+      tile('computer-outside-5', 'blue', 6),
+      tile('computer-outside-6', 'blue', 10),
+      tile('computer-outside-7', 'green', 3),
+      tile('computer-outside-8', 'green', 7),
+    ];
+    const state = computerState({ hand, discard, stock: [tile('computer-outside-stock', 'yellow', 11)] });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.notEqual(steps[0].discard.length, 0);
+    assert.equal(steps[0].stock.length, 0);
+  });
+
+  it('levanta el pozo cuando una ficha completa una canasta de un juego propio', () => {
+    const meld = {
+      id: 'computer-near-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 6 }, (_, index) => tile(`computer-near-canasta-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 1,
+    };
+    const hand = [tile('computer-canasta-hand-1', 'red', 1), tile('computer-canasta-hand-2', 'blue', 4), tile('computer-canasta-hand-3', 'green', 9), tile('computer-canasta-hand-4', 'yellow', 12)];
+    const state = computerState({ hand, melds: [meld], discard: [tile('computer-canasta-discard', 'red', 8)], stock: [tile('computer-canasta-stock', 'blue', 10)] });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.equal(steps[1].melds[0].tiles.length, 7);
+  });
+
+  it('levanta el pozo cuando una ficha lleva un juego de cinco a seis', () => {
+    const meld = {
+      id: 'computer-six-tile-meld',
+      kind: 'leg',
+      tiles: Array.from({ length: 5 }, (_, index) => tile(`computer-six-tile-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 9)),
+      team: 1,
+    };
+    const hand = [tile('computer-six-hand-1', 'red', 1), tile('computer-six-hand-2', 'blue', 4), tile('computer-six-hand-3', 'green', 8), tile('computer-six-hand-4', 'yellow', 12)];
+    const state = computerState({ hand, melds: [meld], discard: [tile('computer-six-discard', 'red', 9)], stock: [tile('computer-six-stock', 'blue', 10)] });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.equal(steps[1].melds[0].tiles.length, 6);
+  });
+
   it('rechaza agregar fichas que dejarían una ficha sin canasta y completa el turno', () => {
     const existing = [tile('meld-eight-red', 'red', 8), tile('meld-eight-blue', 'blue', 8), tile('meld-eight-green', 'green', 8)];
     const meld = { id: 'computer-leg-eight', kind: 'leg', tiles: existing, team: 1 };

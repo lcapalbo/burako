@@ -6,6 +6,7 @@ import {
   findBestMeld,
   finishEmptyStock,
   getMeldKind,
+  isCanasta,
   keepOpeningDraw,
   layMeld,
   takeDiscardPile,
@@ -15,13 +16,83 @@ import {
 } from './game.js';
 import { logGameDebug, summarizeGameState } from './diagnostics.js';
 
+const MAX_DISCARD_TILES_TO_EVALUATE = 10;
+const MAX_MELD_CANDIDATE_SIZE = 4;
+
+function isWild(tile: Tile): boolean {
+  return tile.kind === 'joker' || tile.value === 2;
+}
+
+function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
+  return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
+}
+
 function canCompleteWithDiscard(hand: Tile[], discard: Tile[]): boolean {
-  for (const tile of discard.slice(-4)) {
-    for (let first = 0; first < hand.length; first += 1) {
-      for (let second = first + 1; second < hand.length; second += 1) {
-        if (getMeldKind([tile, hand[first], hand[second]])) return true;
-      }
+  const discardTiles = discard.slice(-MAX_DISCARD_TILES_TO_EVALUATE);
+  const discardIds = new Set(discardTiles.map((tile) => tile.id));
+  const candidates = [...hand, ...discardTiles];
+  const selected: Tile[] = [];
+  let canComplete = false;
+
+  const search = (start: number): void => {
+    if (selected.length >= 3 && selected.some((tile) => discardIds.has(tile.id)) && getMeldKind(selected)) {
+      canComplete = true;
+      return;
     }
+    if (canComplete || selected.length === MAX_MELD_CANDIDATE_SIZE) return;
+
+    for (let index = start; index < candidates.length; index += 1) {
+      const tile = candidates[index];
+      if (!canStillFormMeld(selected, tile)) continue;
+      selected.push(tile);
+      search(index + 1);
+      selected.pop();
+      if (canComplete) return;
+    }
+  };
+
+  search(0);
+  return canComplete;
+}
+
+function canExtendMeldWithDiscard(state: GameState): boolean {
+  if (state.melds.some((meld) => meld.team === 1 && isCanasta(meld))) return false;
+  const lifted = tryRuleAction(() => takeDiscardPile(state, 1));
+  if (!lifted) return false;
+  const discardIds = new Set(state.discard.slice(-MAX_DISCARD_TILES_TO_EVALUATE).map((tile) => tile.id));
+  const candidates = lifted.players[1].hand;
+
+  for (const meld of state.melds) {
+    if (meld.team !== 1) continue;
+    const targetLength = meld.tiles.length < 6 ? 6 : 7;
+    const needed = targetLength - meld.tiles.length;
+    const selected: Tile[] = [];
+    let canExtend = false;
+
+    const search = (start: number): void => {
+      if (selected.length === needed) {
+        if (
+          selected.some((tile) => discardIds.has(tile.id)) &&
+          getMeldKind([...meld.tiles, ...selected]) === meld.kind &&
+          tryRuleAction(() => addToMeld(lifted, 1, meld.id, selected.map((tile) => tile.id)))
+        ) {
+          canExtend = true;
+        }
+        return;
+      }
+
+      for (let index = start; index < candidates.length; index += 1) {
+        const tile = candidates[index];
+        if (!canStillFormMeld([...meld.tiles, ...selected], tile)) continue;
+        selected.push(tile);
+        search(index + 1);
+        selected.pop();
+        if (canExtend) return;
+      }
+    };
+
+    search(0);
+    if (canExtend) return true;
   }
   return false;
 }
@@ -58,7 +129,9 @@ export function runComputerTurnSteps(state: GameState): GameState[] {
   };
   const hand = next.players[1].hand;
   const canLift = next.discard.length > 0 && hand.length + next.discard.length >= 5;
-  const shouldLift = canLift && next.discard.length <= 4 && canCompleteWithDiscard(hand, next.discard);
+  const shouldLift = canLift && next.discard.length <= MAX_DISCARD_TILES_TO_EVALUATE && (
+    canCompleteWithDiscard(hand, next.discard) || canExtendMeldWithDiscard(next)
+  );
 
   if (next.phase === 'draw') {
     if (next.stock.length === 0) {
