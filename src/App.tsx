@@ -702,6 +702,7 @@ export default function App() {
   const selectedTileIds = selection;
   const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1 && selection[0] !== game.restrictedDiscardTileId;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
+  const shouldShowHandControls = !roundClosed && human.hand.length > 0;
   const discardPreviewTile = openingChoice
     ? human.hand.find((tile) => tile.id === game.openingDrawTileId)
     : canDiscard ? selectedTiles[0] : undefined;
@@ -1011,14 +1012,14 @@ export default function App() {
           </div>
         </section>}
         {error && <p className="error-message" role="alert">{error}</p>}
-        <div className="player-heading">
+        {shouldShowHandControls && <div className="player-heading">
           <div className="player-header-meta">
             <span className={`hand-count ${humanTurn ? 'is-turn-hint' : ''}`}>{playerHeaderText}</span>
           </div>
           <div className="hand-tools">
             <button className="sort-button" type="button" disabled={!humanTurn} onClick={cycleHandSort}>{handSortLabel}</button>
           </div>
-        </div>
+        </div>}
         <div
           className={`hand-tiles ${human.hand.length >= 20 ? 'is-compact' : ''}`}
           data-animation-zone="hand-0"
