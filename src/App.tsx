@@ -246,6 +246,7 @@ export default function App() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
   const [showAvatarNames, setShowAvatarNames] = useState(false);
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [touchDragPosition, setTouchDragPosition] = useState<{ x: number; y: number } | null>(null);
   const touchReorderRef = useRef<{ pointerId: number; tileId: string; startX: number; startY: number; dragging: boolean } | null>(null);
   const ignoreNextTileClickRef = useRef(false);
@@ -677,7 +678,11 @@ export default function App() {
   const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
   const revealComputerHand = roundClosed && !(computer.indirectDead && !computer.playedAfterDead);
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
-  const handSortLabel = handSortMode === 'original' ? 'Ordenar por color' : handSortMode === 'color' ? 'Ordenar por número' : 'Orden original';
+  const sortMenuOptions = [
+    { mode: 'color' as const, icon: 'color', label: 'Color' },
+    { mode: 'number' as const, icon: 'number', label: 'Número' },
+    { mode: 'original' as const, icon: 'original', label: 'Original' },
+  ];
   const humanTurn = !computerTurnInProgress && game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const openingChoice = humanTurn && game.phase === 'opening-choice';
   const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
@@ -712,7 +717,10 @@ export default function App() {
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
     .sort(compareMelds);
-  const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
+  const handleHandSortMode = (mode: HandSortMode) => {
+    setHandSortMode(mode);
+    setSortMenuOpen(false);
+  };
   const pointsHistory = game.roundHistory ?? [];
   const currentRoundScore = pointsHistory.length ? pointsHistory[pointsHistory.length - 1] : null;
   const previousRoundScores = currentRoundScore ? pointsHistory.slice(0, -1) : pointsHistory;
@@ -1016,8 +1024,42 @@ export default function App() {
           <div className="player-header-meta">
             <span className={`hand-count ${humanTurn ? 'is-turn-hint' : ''}`}>{playerHeaderText}</span>
           </div>
-          <div className="hand-tools">
-            <button className="sort-button" type="button" disabled={!humanTurn} onClick={cycleHandSort}>{handSortLabel}</button>
+          <div className="hand-tools sort-menu-container">
+            <button
+              className="sort-button sort-trigger"
+              type="button"
+              disabled={!humanTurn}
+              aria-expanded={sortMenuOpen}
+              aria-haspopup="menu"
+              onClick={() => setSortMenuOpen((open) => !open)}
+            >Ordenar</button>
+            {sortMenuOpen && (
+              <div className="sort-menu" role="menu" aria-label="Orden del atril">
+                {sortMenuOptions.map(({ mode, icon, label }) => (
+                  <button
+                    key={mode}
+                    className={`sort-menu-option ${handSortMode === mode ? 'is-active' : ''}`}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={handSortMode === mode}
+                    onClick={() => handleHandSortMode(mode)}
+                  >
+                    <span className="sort-menu-icon" aria-hidden="true">
+                      {icon === 'color' && (
+                        <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="5.5" fill="currentColor" /></svg>
+                      )}
+                      {icon === 'number' && (
+                        <svg viewBox="0 0 18 18" aria-hidden="true" preserveAspectRatio="xMidYMid meet"><path d="M7 3.5 5.5 14.5M12.5 3.5 11 14.5M3.5 7h11M2.5 11h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                      )}
+                      {icon === 'original' && (
+                        <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M12.5 4.2A5.6 5.6 0 1 0 14.5 9H12.7A3.7 3.7 0 1 1 9 5.4c1.1 0 2.1.5 2.8 1.3L9.5 8.4H15V3l-2.5 1.2Z" fill="currentColor" /></svg>
+                      )}
+                    </span>
+                    <span className="sort-menu-label">{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>}
         <div
