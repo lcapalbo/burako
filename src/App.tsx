@@ -21,6 +21,7 @@ import {
   sortTilesByNumber,
   takeDiscardPile,
   type GameState,
+  type Meld,
   type Target,
   type Tile,
 } from './game';
@@ -75,6 +76,16 @@ function getLegNumber(tiles: Tile[]): number {
   return tiles.find((tile) => tile.kind !== 'joker' && tile.value !== 2)?.value
     ?? tiles.find((tile) => tile.kind !== 'joker')?.value
     ?? 14;
+}
+
+function compareMelds(first: Pick<Meld, 'kind' | 'tiles'>, second: Pick<Meld, 'kind' | 'tiles'>): number {
+  if (first.kind !== second.kind) return first.kind === 'run' ? -1 : 1;
+  if (first.kind === 'run' && second.kind === 'run') {
+    const firstColor = first.tiles.find((tile) => tile.color !== null)?.color ?? null;
+    const secondColor = second.tiles.find((tile) => tile.color !== null)?.color ?? null;
+    return COLORS.indexOf(firstColor as (typeof COLORS)[number]) - COLORS.indexOf(secondColor as (typeof COLORS)[number]);
+  }
+  return getLegNumber(first.tiles) - getLegNumber(second.tiles);
 }
 
 function getRecentlyChangedTileIds(previous: GameState, next: GameState): string[] {
@@ -663,15 +674,7 @@ export default function App() {
   const recentlyDiscardedTileIdSet = new Set(recentlyDiscardedTileIds);
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
-    .sort((first, second) => {
-      if (first.kind !== second.kind) return first.kind === 'run' ? -1 : 1;
-      if (first.kind === 'run' && second.kind === 'run') {
-        const firstColor = first.tiles.find((tile) => tile.color !== null)?.color ?? null;
-        const secondColor = second.tiles.find((tile) => tile.color !== null)?.color ?? null;
-        return COLORS.indexOf(firstColor as (typeof COLORS)[number]) - COLORS.indexOf(secondColor as (typeof COLORS)[number]);
-      }
-      return getLegNumber(first.tiles) - getLegNumber(second.tiles);
-    });
+    .sort(compareMelds);
   const cycleHandSort = () => setHandSortMode((mode) => mode === 'original' ? 'color' : mode === 'color' ? 'number' : 'original');
   const pointsHistory = game.roundHistory ?? [];
   const currentRoundScore = pointsHistory.length ? pointsHistory[pointsHistory.length - 1] : null;
@@ -773,9 +776,20 @@ export default function App() {
             const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
             const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
             const canLaySelection = team === 0 && humanTurn && game.phase === 'play' && canLaySelectedMeld;
+            const previewMeldKind = canLaySelection ? getMeldKind(selectedTiles) : null;
+            const nextMeldIndex = previewMeldKind
+              ? teamMelds.findIndex((meld) => compareMelds({ kind: previewMeldKind, tiles: selectedTiles }, meld) < 0)
+              : -1;
+            const previewMeldIndex = nextMeldIndex < 0 ? teamMelds.length : nextMeldIndex;
             const isTurnTeam = game.phase !== 'round-over'
               && game.phase !== 'match-over'
               && game.players.find((player) => player.id === game.currentPlayer)?.team === team;
+            const newMeldPreview = canLaySelection && <button
+              className="meld-group meld-target meld-new-preview"
+              type="button"
+              aria-label={`Bajar juego de ${selectedTiles.length} fichas`}
+              onClick={() => perform((current) => layMeld(current, 0, selectedTileIds), 'bajar-combinacion')}
+            ><span className="meld-tiles">{selectedTiles.map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}</span></button>;
             return (
               <Fragment key={team}>
                 {team === 0 && <div className="piles-row">
@@ -835,8 +849,10 @@ export default function App() {
                 </header>
                 {teamMelds.length === 0 && !canLaySelection
                   ? <p className="empty-team-melds">Sin juegos bajados</p>
-                  : <div className="meld-games">{teamMelds.map((meld) => (
-                        (() => {
+                  : <div className="meld-games">{teamMelds.map((meld, index) => (
+                    <Fragment key={meld.id}>
+                      {canLaySelection && previewMeldIndex === index && newMeldPreview}
+                      {(() => {
                           const previewTiles = selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0
                             ? previewMeldAddition(game, meld.id, selectedTileIds)
                             : null;
@@ -872,13 +888,9 @@ export default function App() {
                             {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
                           </div>
                           </div>;
-                        })()
-                      ))}{canLaySelection && <button
-                        className="meld-group meld-target meld-new-preview"
-                        type="button"
-                        aria-label={`Bajar juego de ${selectedTiles.length} fichas`}
-                        onClick={() => perform((current) => layMeld(current, 0, selectedTileIds), 'bajar-combinacion')}
-                      ><span className="meld-tiles">{selectedTiles.map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}</span></button>}</div>}
+                          })()}
+                        </Fragment>
+                      ))}{canLaySelection && previewMeldIndex === teamMelds.length && newMeldPreview}</div>}
                 </section>
               </Fragment>
             );
