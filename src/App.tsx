@@ -507,7 +507,19 @@ export default function App() {
   };
 
   const toggleTile = (id: string) => {
-    setSelection((selected) => selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
+    const newTile = human.hand.find((tile) => tile.id === id);
+    setSelection((selected) => {
+      if (selected.includes(id)) return selected.filter((item) => item !== id);
+      if (selected.length === 0 || !newTile) return [...selected, id];
+
+      const selectedTiles = human.hand.filter((tile) => selected.includes(tile.id));
+      const isWildcard = (tile: Tile) => tile.kind === 'joker' || tile.value === 2;
+      const isRelatedToAll = selectedTiles.every((tile) => isWildcard(tile)
+        || isWildcard(newTile)
+        || tile.color === newTile.color
+        || tile.value === newTile.value);
+      return isRelatedToAll ? [...selected, id] : [id];
+    });
     setError('');
   };
 
