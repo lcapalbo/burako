@@ -850,6 +850,9 @@ export default function App() {
             const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
             const canLaySelection = team === 0 && humanTurn && game.phase === 'play' && canLaySelectedMeld;
             const previewMeldKind = canLaySelection ? getMeldKind(selectedTiles) : null;
+            const previewMeldTiles = canLaySelectedMeld
+              ? layMeld(game, 0, selection).melds.slice(-1)[0]?.tiles ?? selectedTiles
+              : selectedTiles;
             const nextMeldIndex = previewMeldKind
               ? teamMelds.findIndex((meld) => compareMelds({ kind: previewMeldKind, tiles: selectedTiles }, meld) < 0)
               : -1;
@@ -862,7 +865,7 @@ export default function App() {
               type="button"
               aria-label={`Bajar juego de ${selectedTiles.length} fichas`}
               onClick={() => perform((current) => layMeld(current, 0, selectedTileIds), 'bajar-combinacion')}
-            ><span className="meld-tiles">{selectedTiles.map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}</span></button>;
+            ><span className="meld-tiles">{(previewMeldKind === 'run' ? previewMeldTiles : sortLegTiles(previewMeldTiles)).map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}</span></button>;
             return (
               <Fragment key={team}>
                 {team === 0 && <div className="piles-row">
