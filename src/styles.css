@@ -216,6 +216,11 @@ h1 em { color: var(--coral); font-weight: 500; }
 .felt-table.is-compact-melds .meld-games .meld-tiles .tile-face { width: 36px; height: 50px; flex-basis: 36px; margin: 0 -13px -19px 0; }
 .felt-table.is-compact-melds .meld-games .meld-tiles .tile-face strong { align-self: flex-start; margin-left: 5px; font-size: 19px; }
 .meld-add { margin-top: 3px; padding: 4px 0; border: 0; color: #e3eea2; background: none; font-size: 9px; font-weight: 700; cursor: pointer; }
+.tile-flight-layer { position: fixed; z-index: 1000; inset: 0; overflow: hidden; pointer-events: none; }
+.tile-flight { position: fixed; z-index: 1001; display: block; transform-origin: top left; pointer-events: none; will-change: transform; }
+.tile-flight .tile-face { width: 100%; height: 100%; flex: 0 0 100%; margin: 0; }
+.tile-flight-back { display: block; width: 100%; height: 100%; border: 1px solid #d5e0cb; border-radius: 5px; background: repeating-linear-gradient(135deg, #2c8064 0 5px, #226f56 5px 10px); box-shadow: 0 2px 5px rgba(19, 42, 30, .2); }
+.is-flight-arrival { visibility: hidden !important; }
 .tile-face { display: inline-flex; position: relative; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 78px; flex: 0 0 56px; border: 1px solid rgba(28, 54, 41, .15); border-radius: 5px; color: #172a26; background: #fffefa; box-shadow: 0 2px 5px rgba(19, 42, 30, .1); }
 .tile-face.is-recent { overflow: hidden; animation: recent-tile-glow 1.2s ease-out both; }
 .tile-face.is-recent-discard { animation-duration: 2.4s; }

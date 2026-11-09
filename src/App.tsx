@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rulesMarkdown from '../reglas-burako.md?raw';
@@ -38,7 +38,16 @@ const AI_THINKING_DELAY_MS = 500;
 const COMPUTER_MOVE_DELAY_MS = 700;
 const RECENT_TILE_DURATION_MS = 1400;
 const RECENT_DISCARD_DURATION_MS = RECENT_TILE_DURATION_MS * 2;
+const TILE_FLIGHT_DURATION_MS = 560;
 type HandSortMode = 'original' | 'color' | 'number';
+type TileFlight = {
+  id: number;
+  batchId: number;
+  tile: Tile;
+  from: { left: number; top: number; width: number; height: number };
+  toZone: string;
+  faceDown: boolean;
+};
 const TARGET_OPTIONS = [
   { label: 'A 2000 pts', value: 2000 },
   { label: 'A 3000 pts', value: 3000 },
@@ -132,12 +141,75 @@ function TileFace({ tile, selected = false, className = '' }: { tile: Tile; sele
     ? 'comodín especial'
     : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}${isWildTwo ? ', comodín' : ''}`;
   return (
-    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${isWildTwo ? 'tile-two-wild' : ''} ${selected ? 'is-selected' : ''} ${className}`} role="img" aria-label={label}>
+    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${isWildTwo ? 'tile-two-wild' : ''} ${selected ? 'is-selected' : ''} ${className}`} data-tile-id={tile.id} role="img" aria-label={label}>
       {tile.kind !== 'joker' && <span className="tile-mark" aria-hidden="true">●</span>}
       <strong>{tile.kind === 'joker' ? '★' : tile.value}</strong>
       {tile.kind === 'joker' && <small>COMODÍN</small>}
     </span>
   );
+}
+
+function getTileLocations(state: GameState): Map<string, string> {
+  const locations = new Map<string, string>();
+  for (const tile of state.stock) locations.set(tile.id, 'stock');
+  for (const tile of state.discard) locations.set(tile.id, 'discard');
+  for (const player of state.players) {
+    for (const tile of player.hand) locations.set(tile.id, `hand-${player.id}`);
+  }
+  for (const meld of state.melds) {
+    for (const tile of meld.tiles) locations.set(tile.id, `meld-${meld.team}`);
+  }
+  return locations;
+}
+
+function findAnimationElement(zone: string, tileId?: string): HTMLElement | null {
+  if (zone === 'stock') return document.querySelector<HTMLElement>('[data-animation-anchor="stock"] .stack-back');
+  const zones = document.querySelectorAll<HTMLElement>(`[data-animation-zone="${zone}"]`);
+  for (const zoneElement of zones) {
+    const tileElement = [...zoneElement.querySelectorAll<HTMLElement>('[data-tile-id]')]
+      .find((element) => element.dataset.tileId === tileId);
+    if (tileElement) return tileElement;
+  }
+  return null;
+}
+
+function getTileFlights(previous: GameState, next: GameState, firstId: number): TileFlight[] {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return [];
+
+  const previousLocations = getTileLocations(previous);
+  const nextLocations = getTileLocations(next);
+  const nextTiles = new Map<string, Tile>();
+  for (const player of next.players) for (const tile of player.hand) nextTiles.set(tile.id, tile);
+  for (const tile of next.discard) nextTiles.set(tile.id, tile);
+  for (const meld of next.melds) for (const tile of meld.tiles) nextTiles.set(tile.id, tile);
+  for (const tile of previous.stock) if (!nextTiles.has(tile.id)) nextTiles.set(tile.id, tile);
+  for (const tile of previous.discard) if (!nextTiles.has(tile.id)) nextTiles.set(tile.id, tile);
+  for (const player of previous.players) for (const tile of player.hand) if (!nextTiles.has(tile.id)) nextTiles.set(tile.id, tile);
+
+  const flights: TileFlight[] = [];
+  for (const [tileId, fromZone] of previousLocations) {
+    const toZone = nextLocations.get(tileId);
+    if (!toZone || fromZone === toZone) continue;
+    const isDraw = fromZone === 'stock' && toZone.startsWith('hand-');
+    const isDiscardPickup = fromZone === 'discard' && toZone.startsWith('hand-');
+    const isPlay = fromZone.startsWith('hand-') && (toZone.startsWith('meld-') || toZone === 'discard');
+    if (!isDraw && !isDiscardPickup && !isPlay) continue;
+
+    const source = findAnimationElement(fromZone, tileId);
+    const tile = nextTiles.get(tileId);
+    if (!source || !tile) continue;
+    const rect = source.getBoundingClientRect();
+    const destinationPlayer = toZone.startsWith('hand-') ? Number(toZone.slice('hand-'.length)) : null;
+    flights.push({
+      id: firstId + flights.length,
+      batchId: firstId,
+      tile,
+      from: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      toZone,
+      faceDown: destinationPlayer === 1,
+    });
+  }
+  return flights;
 }
 
 function ScorePairSummary({ label, scores }: { label: string; scores: [number, number] }) {
@@ -155,6 +227,7 @@ export default function App() {
   const [selection, setSelection] = useState<string[]>([]);
   const [recentlyChangedTileIds, setRecentlyChangedTileIds] = useState<string[]>([]);
   const [recentlyDiscardedTileIds, setRecentlyDiscardedTileIds] = useState<string[]>([]);
+  const [tileFlights, setTileFlights] = useState<TileFlight[]>([]);
   const [recentTileDuration, setRecentTileDuration] = useState(RECENT_TILE_DURATION_MS);
   const [computerTurnInProgress, setComputerTurnInProgress] = useState(false);
   const [compactMelds, setCompactMelds] = useState(false);
@@ -174,6 +247,10 @@ export default function App() {
   const computerWaitResolverRef = useRef<(() => void) | null>(null);
   const computerTurnIdRef = useRef(0);
   const componentMountedRef = useRef(true);
+  const nextTileFlightIdRef = useRef(0);
+  const tileFlightNodesRef = useRef(new Map<number, HTMLElement>());
+  const startedTileFlightsRef = useRef(new Set<number>());
+  const tileFlightTimersRef = useRef(new Map<number, number>());
 
   const cancelComputerTurn = () => {
     computerTurnIdRef.current += 1;
@@ -191,6 +268,8 @@ export default function App() {
       componentMountedRef.current = false;
       computerTurnIdRef.current += 1;
       if (computerTimerRef.current !== null) window.clearTimeout(computerTimerRef.current);
+      for (const timer of tileFlightTimersRef.current.values()) window.clearTimeout(timer);
+      tileFlightTimersRef.current.clear();
       computerWaitResolverRef.current?.();
       computerWaitResolverRef.current = null;
       computerTurnInProgressRef.current = false;
@@ -214,6 +293,70 @@ export default function App() {
     }, recentTileDuration);
     return () => window.clearTimeout(timer);
   }, [recentTileDuration, recentlyChangedTileIds]);
+
+  useLayoutEffect(() => {
+    for (const flight of tileFlights) {
+      if (startedTileFlightsRef.current.has(flight.id)) continue;
+      const target = findAnimationElement(flight.toZone, flight.tile.id);
+      const element = tileFlightNodesRef.current.get(flight.id);
+      if (!target || !element) {
+        setTileFlights((current) => current.filter((item) => item.id !== flight.id));
+        continue;
+      }
+
+      const targetRect = target.getBoundingClientRect();
+      const deltaX = targetRect.left - flight.from.left;
+      const deltaY = targetRect.top - flight.from.top;
+      const startScaleX = flight.from.width / targetRect.width;
+      const startScaleY = flight.from.height / targetRect.height;
+      element.style.width = `${targetRect.width}px`;
+      element.style.height = `${targetRect.height}px`;
+      if (!flight.faceDown) {
+        const flightFace = element.querySelector<HTMLElement>('.tile-flight-face');
+        for (const selector of ['strong', '.tile-mark', 'small']) {
+          const targetText = target.querySelector<HTMLElement>(selector);
+          const flightText = flightFace?.querySelector<HTMLElement>(selector);
+          if (!targetText || !flightText) continue;
+          const targetTextStyle = window.getComputedStyle(targetText);
+          flightText.style.fontFamily = targetTextStyle.fontFamily;
+          flightText.style.fontSize = targetTextStyle.fontSize;
+          flightText.style.fontWeight = targetTextStyle.fontWeight;
+          flightText.style.letterSpacing = targetTextStyle.letterSpacing;
+          flightText.style.lineHeight = targetTextStyle.lineHeight;
+          if (selector === '.tile-mark') {
+            flightText.style.top = targetTextStyle.top;
+            flightText.style.left = targetTextStyle.left;
+          }
+        }
+      }
+      startedTileFlightsRef.current.add(flight.id);
+      let completed = false;
+      const delay = (flight.id - flight.batchId) * 28;
+      const finishFlight = () => {
+        if (completed) return;
+        completed = true;
+        const timer = tileFlightTimersRef.current.get(flight.id);
+        if (timer !== undefined) window.clearTimeout(timer);
+        tileFlightTimersRef.current.delete(flight.id);
+        startedTileFlightsRef.current.delete(flight.id);
+        tileFlightNodesRef.current.delete(flight.id);
+        setTileFlights((current) => current.filter((item) => item.id !== flight.id));
+      };
+      const animation = element.animate([
+        { transform: `translate(0, 0) scale(${startScaleX}, ${startScaleY})` },
+        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1, 1)` },
+      ], {
+        duration: TILE_FLIGHT_DURATION_MS,
+        delay,
+        easing: 'cubic-bezier(.22, .72, .24, 1)',
+        fill: 'forwards',
+      });
+      animation.onfinish = finishFlight;
+      animation.oncancel = finishFlight;
+      const timer = window.setTimeout(finishFlight, TILE_FLIGHT_DURATION_MS + delay + 100);
+      tileFlightTimersRef.current.set(flight.id, timer);
+    }
+  }, [tileFlights]);
 
   useEffect(() => {
     setCompactMelds(false);
@@ -281,6 +424,9 @@ export default function App() {
           await wait(COMPUTER_MOVE_DELAY_MS);
           if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
           const discardedTileIds = getNewDiscardedTileIds(previous, next);
+          const flights = getTileFlights(previous, next, nextTileFlightIdRef.current);
+          nextTileFlightIdRef.current += flights.length;
+          if (flights.length) setTileFlights((current) => [...current, ...flights]);
           setRecentlyChangedTileIds(getRecentlyChangedTileIds(previous, next));
           setRecentlyDiscardedTileIds(discardedTileIds);
           setRecentTileDuration(discardedTileIds.length ? RECENT_DISCARD_DURATION_MS : RECENT_TILE_DURATION_MS);
@@ -316,6 +462,7 @@ export default function App() {
     setGame(createGame(gameTarget));
     setRecentlyChangedTileIds([]);
     setRecentlyDiscardedTileIds([]);
+    setTileFlights([]);
     setRecentTileDuration(RECENT_TILE_DURATION_MS);
     setHandSortMode('original');
     setSelection([]);
@@ -328,6 +475,9 @@ export default function App() {
     if (!game) return;
     try {
       const next = action(game);
+      const flights = getTileFlights(game, next, nextTileFlightIdRef.current);
+      nextTileFlightIdRef.current += flights.length;
+      if (flights.length) setTileFlights((current) => [...current, ...flights]);
       logGameDebug('user:action', {
         action: actionName,
         before: summarizeGameState(game),
@@ -488,6 +638,7 @@ export default function App() {
 
   const human = game.players[0];
   const computer = game.players[1];
+  const flightTileIds = new Set(tileFlights.map((flight) => flight.tile.id));
   const selectedTiles = human.hand.filter((tile) => selection.includes(tile.id));
   const canLaySelectedMeld = getMeldKind(selectedTiles) !== null && canLayMeldSelection(game, selection);
   const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
@@ -543,6 +694,19 @@ export default function App() {
 
   return (
     <main className="game-page">
+      <div className="tile-flight-layer" aria-hidden="true">
+        {tileFlights.map((flight) => <span
+          className="tile-flight"
+          key={flight.id}
+          ref={(element) => {
+            if (element) tileFlightNodesRef.current.set(flight.id, element);
+            else tileFlightNodesRef.current.delete(flight.id);
+          }}
+          style={{ left: flight.from.left, top: flight.from.top, width: flight.from.width, height: flight.from.height }}
+        >{flight.faceDown
+          ? <span className="tile-flight-back" />
+          : <TileFace tile={flight.tile} className="tile-flight-face" />}</span>)}
+      </div>
       <header className="game-header">
         <a className="game-brand" href="#" onClick={(event) => { event.preventDefault(); cancelComputerTurn(); setGame(null); }}>
           <span className="brand-mark tile-face tile-red" aria-hidden="true">
@@ -563,8 +727,8 @@ export default function App() {
 
       <section className="opponent-bar" aria-label="Atril de la computadora">
         {revealComputerHand
-          ? <div className="opponent-rack" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} />)}</div>
-          : !roundClosed && <div className="hidden-tiles" aria-hidden="true">{Array.from({ length: computer.hand.length }, (_, index) => <span key={index} />)}</div>}
+          ? <div className="opponent-rack" data-animation-zone="hand-1" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>
+          : !roundClosed && <div className="hidden-tiles" data-animation-zone="hand-1" aria-hidden="true">{computer.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>}
       </section>
 
       <section
@@ -617,6 +781,7 @@ export default function App() {
                 {team === 0 && <div className="piles-row">
                   <button
                     className="stock-pile pile-action"
+                    data-animation-anchor="stock"
                     type="button"
                     disabled={!canDrawFromStock && !canFinishEmptyStock}
                     aria-label={canFinishEmptyStock ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
@@ -634,6 +799,7 @@ export default function App() {
                     {game.discard.length > 0 ? (
                       <button
                         className="meld-tiles discard-stack pile-action"
+                        data-animation-zone="discard"
                         type="button"
                         disabled={!canUseDiscardPile && !openingChoice}
                         aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canDiscard ? 'Descartar ficha seleccionada en el pozo' : `Levantar todo el pozo (${game.discard.length} fichas)`}
@@ -645,10 +811,10 @@ export default function App() {
                             : perform((current) => takeDiscardPile(current, 0), 'levantar-pozo')}
                       >
                         {game.discard.map((tile, index) => {
-                          const tileFace = <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />;
+                          const tileFace = <TileFace tile={tile} className={`${recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''}`} />;
                           return index === game.discard.length - 1
                             ? <span className="discard-final-tile" key={tile.id}>{tileFace}{!discardPreviewTile && <span className="pile-count tile-count-badge" aria-hidden="true">{game.discard.length}</span>}</span>
-                            : <TileFace tile={tile} key={tile.id} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />;
+                            : <TileFace tile={tile} key={tile.id} className={`${recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''}`} />;
                         })}
                         {discardPreviewTile && <span className="discard-preview-tile">
                           <TileFace tile={discardPreviewTile} className="is-preview" />
@@ -656,13 +822,13 @@ export default function App() {
                         </span>}
                       </button>
                     ) : canDiscard || openingChoice
-                      ? <button className={`empty-discard pile-action ${discardPreviewTile ? 'has-discard-preview' : ''}`} type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
+                      ? <button className={`empty-discard pile-action ${discardPreviewTile ? 'has-discard-preview' : ''}`} data-animation-zone="discard" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
                         ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
                         : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')}>{discardPreviewTile ? <TileFace tile={discardPreviewTile} className="is-preview" /> : 'Pozo vacío'}</button>
                       : <span className="empty-discard">Pozo vacío</span>}
                   </div>
                 </div>}
-                <section className={`meld-team ${isTurnTeam ? 'is-turn' : ''}`} aria-label={`Juegos de ${teamName}`}>
+                <section className={`meld-team ${isTurnTeam ? 'is-turn' : ''}`} data-animation-zone={`meld-${team}`} aria-label={`Juegos de ${teamName}`}>
                 <header className="meld-team-header">
                   <h3 className="meld-team-heading">{teamName}</h3>
                   <span className={`meld-dead-status ${deadTaken ? 'is-taken' : ''}`}>Muerto {deadTaken ? 'levantado' : 'pendiente'}</span>
@@ -700,7 +866,7 @@ export default function App() {
                                 key={tile.id}
                                 className={selectedForPreview
                                   ? 'is-preview'
-                                  : recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''}
+                                  : `${recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''}`}
                               />;
                             })}
                             {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
@@ -807,6 +973,7 @@ export default function App() {
         </div>
         <div
           className={`hand-tiles ${human.hand.length >= 20 ? 'is-compact' : ''}`}
+          data-animation-zone="hand-0"
           onDragOver={(event) => event.preventDefault()}
           onPointerDown={handleTouchReorderStart}
           onPointerMove={handleTouchReorderMove}
@@ -817,7 +984,7 @@ export default function App() {
             const openingChoiceTile = game.phase === 'opening-choice' && game.openingDrawTileId === tile.id;
             return (
               <button
-                className={`hand-tile ${canReorderHand ? 'is-reorderable' : ''} ${selection.includes(tile.id) ? 'selected' : ''} ${draggedId === tile.id ? 'is-touch-dragging' : ''}`}
+                className={`hand-tile ${canReorderHand ? 'is-reorderable' : ''} ${selection.includes(tile.id) ? 'selected' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} ${draggedId === tile.id ? 'is-touch-dragging' : ''}`}
                 type="button"
                 key={tile.id}
                 data-hand-tile-id={tile.id}
