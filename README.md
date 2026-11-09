@@ -41,3 +41,19 @@ npm run build
 ```
 
 La partida se guarda localmente en el navegador; el proyecto no requiere backend ni cuenta de usuario.
+
+## Diagnóstico de turnos
+
+Los logs de diagnóstico están desactivados por defecto. Para habilitarlos en la consola del navegador, ejecutá:
+
+```js
+window.__BURAKO_DEBUG__ = true
+```
+
+Para desactivarlos durante la sesión:
+
+```js
+window.__BURAKO_DEBUG__ = false
+```
+
+Los eventos usan el prefijo `[Burako]` e incluyen el inicio y los pasos del turno de la computadora, sus decisiones, y las acciones del usuario.

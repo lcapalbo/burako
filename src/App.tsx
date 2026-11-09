@@ -25,6 +25,7 @@ import {
   type Tile,
 } from './game';
 import { runComputerTurnSteps } from './computer';
+import { logGameDebug, summarizeGameState } from './diagnostics';
 
 const COLOR_NAMES: Record<string, string> = {
   red: 'rojo',
@@ -240,6 +241,7 @@ export default function App() {
     if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over' || computerTurnInProgressRef.current) return;
     const turnStart = game;
     const turnId = ++computerTurnIdRef.current;
+    logGameDebug('computer:thinking-start', { turnId, state: summarizeGameState(turnStart) });
     computerTurnInProgressRef.current = true;
     setComputerTurnInProgress(true);
     const wait = (duration: number) => new Promise<void>((resolve) => {
@@ -255,13 +257,17 @@ export default function App() {
       }, duration);
       computerTimerRef.current = timer;
     });
+    let lastAppliedState = turnStart;
     const playTurn = async () => {
       try {
+        logGameDebug('computer:thinking-delay-start', { turnId, durationMs: AI_THINKING_DELAY_MS });
         await wait(AI_THINKING_DELAY_MS);
         if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
         const steps = runComputerTurnSteps(turnStart);
+        logGameDebug('computer:plan-ready', { turnId, stepCount: steps.length });
         let previous = turnStart;
-        for (const next of steps) {
+        for (const [index, next] of steps.entries()) {
+          logGameDebug('computer:step-delay-start', { turnId, step: index + 1, stepCount: steps.length, durationMs: COMPUTER_MOVE_DELAY_MS });
           await wait(COMPUTER_MOVE_DELAY_MS);
           if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
           const discardedTileIds = getNewDiscardedTileIds(previous, next);
@@ -271,6 +277,8 @@ export default function App() {
           setGame(next);
           setError('');
           previous = next;
+          lastAppliedState = next;
+          logGameDebug('computer:step-committed', { turnId, step: index + 1, state: summarizeGameState(next) });
         }
       } catch (issue) {
         if (turnId !== computerTurnIdRef.current) return;
@@ -278,6 +286,11 @@ export default function App() {
         console.error('Estado de la partida al producirse el error:\n', JSON.stringify(turnStart, null, 2));
         setError('La computadora no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.');
       } finally {
+        logGameDebug('computer:turn-finished', {
+          turnId,
+          cancelled: turnId !== computerTurnIdRef.current || !componentMountedRef.current,
+          state: summarizeGameState(lastAppliedState),
+        });
         if (turnId === computerTurnIdRef.current) {
           computerTurnInProgressRef.current = false;
           if (componentMountedRef.current) setComputerTurnInProgress(false);
@@ -285,9 +298,10 @@ export default function App() {
       }
     };
     void playTurn();
-  }, [game?.currentPlayer]);
+  }, [game?.currentPlayer, game?.phase]);
 
   const startGame = (gameTarget: Target) => {
+    logGameDebug('user:action', { action: 'nueva-partida', target: gameTarget });
     cancelComputerTurn();
     setGame(createGame(gameTarget));
     setRecentlyChangedTileIds([]);
@@ -300,10 +314,15 @@ export default function App() {
 
   const begin = () => startGame(target);
 
-  const perform = (action: (current: GameState) => GameState) => {
+  const perform = (action: (current: GameState) => GameState, actionName = 'jugada') => {
     if (!game) return;
     try {
       const next = action(game);
+      logGameDebug('user:action', {
+        action: actionName,
+        before: summarizeGameState(game),
+        after: summarizeGameState(next),
+      });
       setRecentlyChangedTileIds(getRecentlyChangedTileIds(game, next));
       setRecentlyDiscardedTileIds([]);
       setRecentTileDuration(RECENT_TILE_DURATION_MS);
@@ -311,6 +330,7 @@ export default function App() {
       setSelection([]);
       setError('');
     } catch (issue) {
+      logGameDebug('user:action-failed', { action: actionName, message: issue instanceof Error ? issue.message : String(issue), state: summarizeGameState(game) });
       setError(issue instanceof Error ? issue.message : 'No se pudo realizar esa jugada.');
     }
   };
@@ -542,9 +562,9 @@ export default function App() {
           if (!(event.target instanceof Element)) return;
           if (event.target.closest('button, a, [role="button"]')) return;
           if (canLaySelectedMeld && game.phase === 'play' && game.currentPlayer === 0) {
-            perform((current) => layMeld(current, 0, selectedTileIds));
+            perform((current) => layMeld(current, 0, selectedTileIds), 'bajar-combinacion');
           } else if (canDiscard) {
-            perform((current) => discardTile(current, 0, selectedTileIds[0]));
+            perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar');
           }
         }}
       >
@@ -597,10 +617,10 @@ export default function App() {
                     aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canFinishEmptyStock ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
                     title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canFinishEmptyStock ? 'Terminar la mano' : 'Robar ficha del montón'}
                     onClick={() => openingChoice
-                      ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
+                      ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
                       : canFinishEmptyStock
-                        ? perform((current) => finishEmptyStock(current, 0))
-                        : perform((current) => drawFromStock(current, 0))}
+                        ? perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio')
+                        : perform((current) => drawFromStock(current, 0), 'robar-del-monton')}
                   >
                     {game.stock.length > 0
                       ? <span className="stack-back"><i /><i /><i /></span>
@@ -616,10 +636,10 @@ export default function App() {
                         aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canDiscard ? 'Descartar ficha seleccionada en el pozo' : `Levantar todo el pozo (${game.discard.length} fichas)`}
                         title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
                         onClick={() => openingChoice
-                          ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
+                          ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
                           : canDiscard
-                            ? perform((current) => discardTile(current, 0, selectedTileIds[0]))
-                            : perform((current) => takeDiscardPile(current, 0))}
+                            ? perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')
+                            : perform((current) => takeDiscardPile(current, 0), 'levantar-pozo')}
                       >
                         {game.discard.map((tile, index) => {
                           const tileFace = <TileFace tile={tile} className={recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} />;
@@ -630,8 +650,8 @@ export default function App() {
                       </button>
                     ) : canDiscard || openingChoice
                       ? <button className="empty-discard pile-action" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
-                        ? perform((current) => discardOpeningDrawAndRedraw(current, 0))
-                        : perform((current) => discardTile(current, 0, selectedTileIds[0]))}>Pozo vacío</button>
+                        ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
+                        : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')}>Pozo vacío</button>
                       : <span className="empty-discard">Pozo vacío</span>}
                   </div>
                 </div>}
@@ -648,7 +668,7 @@ export default function App() {
                             ? previewMeldAddition(game, meld.id, selectedTileIds)
                             : null;
                           const canAddSelection = previewTiles !== null;
-                          const addSelection = () => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds));
+                          const addSelection = () => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds), 'agregar-a-juego');
                           const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
                             if (!canAddSelection || (event.key !== 'Enter' && event.key !== ' ')) return;
                             event.preventDefault();
@@ -760,7 +780,7 @@ export default function App() {
           </span>}
           <div className="result-actions">
             <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>
-            {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound)}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
+            {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound, 'repartir-proxima-mano')}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
             {game.phase === 'match-over' && <button type="button" onClick={() => startGame(game.target)}>Jugar de nuevo</button>}
           </div>
         </section>}
@@ -799,7 +819,7 @@ export default function App() {
                     return;
                   }
                   if (openingChoiceTile) {
-                    perform((current) => keepOpeningDraw(current, 0));
+                    perform((current) => keepOpeningDraw(current, 0), 'conservar-robo-inicial');
                     return;
                   }
                   toggleTile(tile.id);

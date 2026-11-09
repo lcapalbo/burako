@@ -13,6 +13,7 @@ import {
   type GameState,
   type Tile,
 } from './game.js';
+import { logGameDebug, summarizeGameState } from './diagnostics.js';
 
 function canCompleteWithDiscard(hand: Tile[], discard: Tile[]): boolean {
   for (const tile of discard.slice(-4)) {
@@ -49,9 +50,11 @@ function leavesOnlyRestrictedTile(state: GameState): boolean {
 export function runComputerTurnSteps(state: GameState): GameState[] {
   let next = state;
   const steps: GameState[] = [];
-  const applyAction = (action: (current: GameState) => GameState) => {
+  logGameDebug('computer:turn-start', { state: summarizeGameState(state) });
+  const applyAction = (description: string, action: (current: GameState) => GameState) => {
     next = action(next);
     steps.push(next);
+    logGameDebug('computer:step-applied', { action: description, state: summarizeGameState(next) });
   };
   const hand = next.players[1].hand;
   const canLift = next.discard.length > 0 && hand.length + next.discard.length >= 5;
@@ -59,17 +62,24 @@ export function runComputerTurnSteps(state: GameState): GameState[] {
 
   if (next.phase === 'draw') {
     if (next.stock.length === 0) {
-      if (shouldLift) applyAction((current) => takeDiscardPile(current, 1));
-      else applyAction((current) => finishEmptyStock(current, 1));
+      if (shouldLift) applyAction('levantar-pozo', (current) => takeDiscardPile(current, 1));
+      else applyAction('terminar-mano-por-monton-vacio', (current) => finishEmptyStock(current, 1));
     } else if (shouldLift) {
-      applyAction((current) => takeDiscardPile(current, 1));
+      applyAction('levantar-pozo', (current) => takeDiscardPile(current, 1));
     } else {
-      applyAction((current) => drawFromStock(current, 1));
+      applyAction('robar-del-monton', (current) => drawFromStock(current, 1));
     }
+    logGameDebug('computer:draw-decision', {
+      shouldLift,
+      stockCount: state.stock.length,
+      discardCount: state.discard.length,
+      action: steps[steps.length - 1]?.phase === 'round-over' ? 'terminar-mano' : shouldLift ? 'levantar-pozo' : 'robar-del-monton',
+    });
   }
 
   if (next.phase === 'opening-choice' && next.currentPlayer === 1) {
-    applyAction((current) => keepOpeningDraw(current, 1));
+    logGameDebug('computer:opening-decision', { action: 'conservar-ficha-inicial' });
+    applyAction('conservar-ficha-inicial', (current) => keepOpeningDraw(current, 1));
   }
 
   while (next.phase === 'play' && next.currentPlayer === 1) {
@@ -85,6 +95,8 @@ export function runComputerTurnSteps(state: GameState): GameState[] {
         if (!candidate || leavesOnlyRestrictedTile(candidate)) continue;
         next = candidate;
         steps.push(next);
+        logGameDebug('computer:meld-decision', { action: 'agregar-a-juego', meldId: meld.id, tileIds: [tile.id] });
+        logGameDebug('computer:step-applied', { action: 'agregar-a-juego', state: summarizeGameState(next) });
         extended = true;
         break;
       }
@@ -102,12 +114,20 @@ export function runComputerTurnSteps(state: GameState): GameState[] {
     if (!candidate || leavesOnlyRestrictedTile(candidate)) break;
     next = candidate;
     steps.push(next);
+    logGameDebug('computer:meld-decision', { action: 'bajar-juego', tileIds: best.map((tile) => tile.id) });
+    logGameDebug('computer:step-applied', { action: 'bajar-juego', state: summarizeGameState(next) });
   }
 
   if (next.phase === 'play' && next.currentPlayer === 1 && next.players[1].hand.length > 0) {
     const tile = chooseDiscard(next.players[1].hand, next.restrictedDiscardTileId);
-    applyAction((current) => discardTile(current, 1, tile.id));
+    logGameDebug('computer:discard-decision', { tileId: tile.id, color: tile.color, value: tile.value, kind: tile.kind });
+    applyAction('descartar', (current) => discardTile(current, 1, tile.id));
   }
+  logGameDebug('computer:turn-plan-complete', {
+    stepCount: steps.length,
+    noProgress: steps.length === 0 && state.currentPlayer === 1 && state.phase !== 'round-over' && state.phase !== 'match-over',
+    state: summarizeGameState(next),
+  });
   return steps;
 }
 
