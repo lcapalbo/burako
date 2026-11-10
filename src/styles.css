@@ -20,6 +20,8 @@ button { font: inherit; }
 .welcome, .game-page { user-select: none; -webkit-user-select: none; }
 
 .welcome {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   overflow: hidden;
   position: relative;
@@ -36,7 +38,7 @@ button { font: inherit; }
 .github-link { display: grid; place-items: center; width: 36px; height: 36px; margin-left: auto; border-radius: 50%; color: var(--ink); text-decoration: none; }
 .github-link:hover { color: var(--felt); background: #e8eee1; }
 .github-link svg { display: block; width: 21px; height: 21px; fill: currentColor; }
-.welcome-copy { position: relative; z-index: 1; max-width: 590px; padding-top: clamp(72px, 15vh, 150px); }
+.welcome-copy { position: relative; z-index: 1; max-width: 590px; padding-top: clamp(64px, 12vh, 120px); }
 .eyebrow { color: var(--felt); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; }
 h1 { margin: 16px 0 18px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(48px, 7vw, 86px); font-weight: 500; line-height: .99; letter-spacing: 0; }
 h1 em { color: var(--coral); font-weight: 500; }
@@ -44,7 +46,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .start-button { margin-top: 24px; padding: 14px 18px; border: 0; border-radius: 3px; background: var(--ink); color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
 .start-button span { margin-left: 32px; color: var(--lemon); font-size: 18px; }
 .start-button:hover { background: var(--felt); }
-.offline-note { margin-top: 14px; color: #7b8880; font-size: 11px; }
+.welcome-footer { position: relative; z-index: 1; margin-top: auto; padding-top: 24px; color: #7b8880; font-size: 11px; }
 .rules-invitation { margin: 10px 0 0; }
 .rules-inline-link { padding: 0; border: 0; color: var(--felt); background: transparent; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .rules-inline-link:hover { color: var(--ink); }
@@ -59,10 +61,10 @@ h1 em { color: var(--coral); font-weight: 500; }
 .tile-wild { left: 103px; top: 180px; color: #8d5d42; transform: rotate(-3deg); }
 
 @media (max-width: 760px) {
-  .welcome { min-height: 100svh; padding: 20px 22px 34px; background: radial-gradient(ellipse at 50% 88%, rgba(220, 232, 138, .4), transparent 42%), #f2f4ed; }
-  .welcome-copy { padding-top: 70px; }
+  .welcome { min-height: 100svh; overflow: visible; padding: 20px 22px 34px; background: radial-gradient(ellipse at 50% 88%, rgba(220, 232, 138, .4), transparent 42%), #f2f4ed; }
+  .welcome-copy { padding-top: 52px; }
   h1 { font-size: clamp(48px, 14vw, 68px); }
-  .tile-composition { top: auto; bottom: -34px; right: 4%; width: 320px; height: 240px; transform: scale(.76) rotate(-8deg); transform-origin: bottom right; }
+  .tile-composition { position: relative; top: auto; right: auto; bottom: auto; align-self: flex-end; flex: 0 0 270px; width: 320px; height: 270px; margin-top: 4px; transform: scale(.76) rotate(-8deg); transform-origin: top center; }
   .tile-composition .tile-face { width: 86px; height: 120px; flex-basis: 86px; }
   .tile-composition .tile-face strong { font-size: 46px; }
   .tile-composition .tile-mark { top: 8px; left: 9px; font-size: 11px; }

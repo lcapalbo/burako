@@ -700,7 +700,6 @@ export default function App() {
             ))}
           </div>
           <button className="start-button" type="button" onClick={begin}>Comenzar partida <span aria-hidden="true">→</span></button>
-          <p className="offline-note">Sin cuenta ni publicidad · La partida se juega en tu dispositivo</p>
         </section>
         <aside className="tile-composition" aria-label="Fichas de ejemplo">
           <TileFace tile={{ id: 'welcome-red-7', color: 'red', value: 7, kind: 'number' }} className="tile-one" />
@@ -708,6 +707,7 @@ export default function App() {
           <TileFace tile={{ id: 'welcome-blue-9', color: 'blue', value: 9, kind: 'number' }} className="tile-three" />
           <TileFace tile={{ id: 'welcome-yellow-2', color: 'yellow', value: 2, kind: 'number' }} className="tile-wild" />
         </aside>
+        <footer className="welcome-footer">Sin cuenta ni publicidad · La partida se juega en tu dispositivo</footer>
         {rulesDialog}
       </main>
     );
