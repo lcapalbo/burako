@@ -387,11 +387,13 @@ export default function App() {
     setDiscardDensity('normal');
   }, [game?.round]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const table = feltTableRef.current;
     if (!table) return;
 
     const measureOverflow = () => {
+      if (game?.discard.length === 0) setDiscardDensity('normal');
+
       const teamAreas = table.querySelectorAll<HTMLElement>('.meld-team');
       const meldsOverflow = () => [...teamAreas].some((teamArea) => teamArea.scrollHeight > teamArea.clientHeight + 1);
       if (meldsOverflow()) {
@@ -450,7 +452,7 @@ export default function App() {
       mutationObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };
-  }, [Boolean(game), meldDensity, discardDensity]);
+  }, [Boolean(game), meldDensity, discardDensity, selection, game?.phase, game?.discard.length, game?.players[0].hand.length]);
 
   useEffect(() => {
     if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over' || computerTurnInProgressRef.current) return;
@@ -522,6 +524,7 @@ export default function App() {
     logGameDebug('user:action', { action: 'nueva-partida', target: gameTarget });
     cancelComputerTurn();
     setGame(createGame(gameTarget));
+    setDiscardDensity('normal');
     setRecentlyChangedTileIds([]);
     setRecentlyDiscardedTileIds([]);
     setTileFlights([]);
