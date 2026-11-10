@@ -654,7 +654,7 @@ export default function App() {
 
   if (!game) {
     return (
-      <main className="welcome">
+      <main className="welcome" onContextMenu={(event) => event.preventDefault()}>
         <header className="topbar">
           <span className="brand-mark tile-face tile-blue" aria-hidden="true">
             <span className="tile-mark" />
@@ -769,7 +769,7 @@ export default function App() {
     : points.toLocaleString('es-AR');
 
   return (
-    <main className="game-page">
+    <main className="game-page" onContextMenu={(event) => event.preventDefault()}>
       <div className="tile-flight-layer" aria-hidden="true">
         {tileFlights.map((flight) => <span
           className="tile-flight"
