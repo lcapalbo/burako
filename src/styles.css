@@ -150,7 +150,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .discard-final-tile .tile-face { width: 42px; height: 59px; flex-basis: 42px; margin: 0; }
 .discard-preview-tile { position: relative; z-index: 4; display: block; width: 42px; height: 59px; flex: 0 0 42px; margin: 0 -10px -16px 0; }
 .discard-preview-tile .tile-face { width: 42px; height: 59px; flex-basis: 42px; margin: 0; }
-.tile-count-badge { position: absolute; right: -5px; bottom: -5px; z-index: 1; }
+.tile-count-badge { position: absolute; right: -5px; bottom: -5px; z-index: 3; }
 .stack-back { position: relative; width: 42px; height: 59px; }
 .stack-back i { position: absolute; display: block; inset: 0; border: 1px solid #d5e0cb; border-radius: 5px; background: repeating-linear-gradient(135deg, #2c8064 0 5px, #226f56 5px 10px); }
 .stack-back i:nth-child(1) { transform: translate(-4px, 4px) rotate(-5deg); }
