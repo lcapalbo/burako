@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <circle cx="16" cy="16" r="16" fill="#568aa1" /> 
+
+  {/* Cabeza y cabello */}
+  <path d="M10.5 12.4a5.5 5.5 0 0 1 11 0v5.1c0 3.4-2.1 5.8-5.5 5.8s-5.5-2.4-5.5-5.8v-5.1Z"
+    fill="none" stroke="white" strokeWidth="1.4" />
+  <path d="M10.7 12.7c1.5-.2 2.7-1.1 3.5-2.2 1.3 1.1 3.6 1.7 6.9 1.7"
+    fill="none" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+
+  {/* Rasgos sintéticos */}
+  <path d="M12.5 15.2h1.8m3.4 0h1.8"
+    stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+  <circle cx="13.4" cy="15.2" r=".5" fill="white" />
+  <circle cx="18.6" cy="15.2" r=".5" fill="white" />
+  <path d="M16 15.8v2.1m-1.8 1.3h3.6"
+    fill="none" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+
+  {/* Cuello */}
+  <path d="M13.8 22.5v1.2l2.2 1.2 2.2-1.2v-1.2"
+    fill="none" stroke="white" strokeWidth="1.3" strokeLinejoin="round" />
+
+  {/* Uniforme */}
+  <path d="M7.5 29c.4-3.2 2.1-4.8 5-4.8h1l2.5 1.6 2.5-1.6h1c2.9 0 4.6 1.6 5 4.8"
+    fill="none" stroke="white" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+  <path d="m13.5 24.4 2.5 3.2 2.5-3.2M16 27.6V29"
+    fill="none" stroke="white" strokeWidth="1.2" strokeLinejoin="round" />
+
+  {/* Comunicador ovalado con delta */}
+  <ellipse cx="21.4" cy="26.6" rx="2.4" ry="1.55"
+    fill="none" stroke="white" strokeWidth=".8" />
+  <path d="m21.4 25.5-1.15 2h2.3l-1.15-2Z"
+    fill="none" stroke="white" strokeWidth=".65" strokeLinejoin="round" />
+  <path d="M21.4 25.9v.7"
+    stroke="white" strokeWidth=".55" strokeLinecap="round" />
+</svg>
