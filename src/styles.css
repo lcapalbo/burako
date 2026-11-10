@@ -163,7 +163,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .discard-pile .tile-face strong { font-size: 23px; }
 .discard-pile .tile-mark { font-size: 6px; }
 .empty-discard, .empty-stock { display: grid; place-items: center; width: 42px; height: 59px; border: 1px dashed rgba(255,255,255,.4); border-radius: 5px; color: #d1e0d4; font-size: 8px; }
-.empty-discard.has-discard-preview { overflow: visible; border: 0; background: transparent; }
+.empty-discard.has-discard-preview { position: relative; overflow: visible; border: 0; background: transparent; }
 .empty-discard.has-discard-preview .tile-face { width: 42px; height: 59px; flex-basis: 42px; }
 .discard-dialog { width: min(680px, calc(100vw - 32px)); max-width: none; max-height: min(82vh, 760px); margin: auto; padding: 0; overflow: hidden; border: 1px solid #d5ddd4; border-radius: 6px; color: var(--ink); background: var(--paper); box-shadow: 0 20px 70px rgba(13, 30, 24, .28); }
 .discard-dialog::backdrop { background: rgba(15, 33, 27, .62); backdrop-filter: blur(3px); }
@@ -222,16 +222,26 @@ h1 em { color: var(--coral); font-weight: 500; }
 .canasta-badge { padding: 3px 5px; border-radius: 2px; color: #27392e; background: var(--lemon); font-size: 8px; font-weight: 800; }
 .meld-tiles { position: relative; display: flex; flex-wrap: wrap; overflow: visible; width: max-content; max-width: 100%; padding: 6px 2px 10px; }
 .meld-tiles .canasta-overlay { position: absolute; z-index: 2; bottom: -6px; left: 2px; white-space: nowrap; }
+.preview-action-badge { display: none; position: absolute; z-index: 6; bottom: -6px; left: 50%; padding: 3px 6px; transform: translateX(-50%); border-radius: 2px; color: var(--ink); background: var(--lemon); box-shadow: 0 1px 4px rgba(19, 42, 30, .32); font-size: 9px; font-weight: 800; line-height: 1.2; white-space: nowrap; pointer-events: none; }
+.discard-stack .discard-action-badge { left: var(--discard-action-center-x, 50%); }
+.discard-preview-tile .preview-action-badge { bottom: 0; }
+.hand-tile .preview-action-badge { bottom: 2px; }
 .meld-tiles .tile-face { width: 42px; height: 59px; flex: 0 0 42px; margin: 0 -10px -16px 0; }
 .meld-tiles .tile-face strong { font-size: 23px; }
 .meld-tiles .tile-mark { font-size: 6px; }
 .felt-table.is-compact-melds .meld-games .meld-tiles .tile-face { width: 36px; height: 50px; flex-basis: 36px; margin: 0 -13px -19px 0; }
 .felt-table.is-compact-melds .meld-games .meld-tiles .tile-face strong { align-self: flex-start; margin-left: 5px; font-size: 19px; }
 .felt-table.is-compact-melds .meld-games .meld-tiles .canasta-overlay { bottom: -9px; }
+.felt-table.is-compact-melds .meld-games .preview-action-badge { bottom: -9px; }
 .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face { width: 36px; height: 50px; flex-basis: 36px; margin: 0 -22px -20px 0; }
 .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face.is-normal-minimum-overlap { margin-right: -13px; }
 .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face strong { align-self: flex-start; margin-left: 5px; font-size: 19px; }
 .felt-table.is-minimum-melds .meld-games .meld-tiles .canasta-overlay { bottom: -10px; }
+.felt-table.is-minimum-melds .meld-games .preview-action-badge { bottom: -10px; }
+.felt-table.is-compact-melds .canasta-badge,
+.felt-table.is-minimum-melds .canasta-badge,
+.felt-table.is-compact-melds .preview-action-badge,
+.felt-table.is-minimum-melds .preview-action-badge { padding-top: 2px; padding-bottom: 2px; }
 .felt-table.is-compact-discard .discard-stack .tile-face,
 .felt-table.is-compact-discard .discard-final-tile,
 .felt-table.is-compact-discard .discard-preview-tile { width: 36px; height: 50px; flex-basis: 36px; margin: 0 -13px -19px 0; }
@@ -240,6 +250,8 @@ h1 em { color: var(--coral); font-weight: 500; }
 .felt-table.is-minimum-discard .discard-final-tile,
 .felt-table.is-minimum-discard .discard-preview-tile { width: 32px; height: 45px; flex-basis: 32px; margin: 0 -20px -21px 0; }
 .felt-table.is-minimum-discard .discard-stack .tile-face { margin-right: -20px; }
+.felt-table.is-compact-discard .discard-stack .discard-action-badge { bottom: -9px; }
+.felt-table.is-minimum-discard .discard-stack .discard-action-badge { bottom: -11px; }
 .felt-table.is-compact-discard .discard-stack .tile-face strong,
 .felt-table.is-minimum-discard .discard-stack .tile-face strong { align-self: flex-start; margin-left: 5px; font-size: 19px; }
 .meld-add { margin-top: 3px; padding: 4px 0; border: 0; color: #e3eea2; background: none; font-size: 9px; font-weight: 700; cursor: pointer; }
@@ -301,7 +313,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .hand-tile .tile-face { width: 42px; height: 59px; flex-basis: 42px; }
 .hand-tile .tile-face strong { font-size: 23px; }
 .hand-tile .tile-mark { font-size: 6px; }
-.hand-tile { margin-right: -14px; padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: default; touch-action: none; user-select: none; -webkit-user-select: none; }
+.hand-tile { position: relative; margin-right: -14px; padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: default; touch-action: none; user-select: none; -webkit-user-select: none; }
 .hand-tile.is-reorderable { cursor: grab; }
 .hand-tile.is-touch-dragging { opacity: .68; cursor: grabbing; }
 .touch-drag-ghost { position: fixed; z-index: 20; pointer-events: none; transform: translate(-50%, -20%); filter: drop-shadow(0 8px 12px rgba(19, 42, 30, .3)); opacity: .95; }
@@ -338,21 +350,28 @@ h1 em { color: var(--coral); font-weight: 500; }
   .felt-table.is-minimum-melds .meld-games { gap: 6px 20px; }
   .empty-table { font-size: 12px; text-align: center; }
   .meld-tiles .canasta-overlay { bottom: -4px; }
+  .meld-games .preview-action-badge { bottom: -4px; }
+  .hand-tile .preview-action-badge { bottom: 1px; }
   .meld-tiles .tile-face { width: 37px; height: 52px; flex-basis: 37px; margin: 0 -9px -14px 0; }
   .meld-tiles .tile-face strong { font-size: 21px; }
   .felt-table.is-compact-melds .meld-games .meld-tiles .tile-face { width: 32px; height: 45px; flex-basis: 32px; margin: 0 -11px -17px 0; }
   .felt-table.is-compact-melds .meld-games .meld-tiles .tile-face strong { margin-left: 4px; font-size: 17px; }
   .felt-table.is-compact-melds .meld-games .meld-tiles .canasta-overlay { bottom: -7px; }
+  .felt-table.is-compact-melds .meld-games .preview-action-badge { bottom: -7px; }
   .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face { width: 32px; height: 45px; flex-basis: 32px; margin: 0 -18px -18px 0; }
   .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face.is-normal-minimum-overlap { margin-right: -11px; }
   .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face strong { margin-left: 4px; font-size: 17px; }
   .felt-table.is-minimum-melds .meld-games .meld-tiles .canasta-overlay { bottom: -8px; }
+  .felt-table.is-minimum-melds .meld-games .preview-action-badge { bottom: -8px; }
   .felt-table.is-compact-discard .discard-stack .tile-face,
   .felt-table.is-compact-discard .discard-final-tile,
   .felt-table.is-compact-discard .discard-preview-tile { width: 32px; height: 45px; flex-basis: 32px; margin: 0 -11px -17px 0; }
   .felt-table.is-minimum-discard .discard-stack .tile-face,
   .felt-table.is-minimum-discard .discard-final-tile,
   .felt-table.is-minimum-discard .discard-preview-tile { width: 29px; height: 41px; flex-basis: 29px; margin: 0 -18px -19px 0; }
+  .discard-stack .discard-action-badge { bottom: -4px; }
+  .felt-table.is-compact-discard .discard-stack .discard-action-badge { bottom: -7px; }
+  .felt-table.is-minimum-discard .discard-stack .discard-action-badge { bottom: -9px; }
   .felt-table.is-compact-discard .discard-stack .tile-face strong,
   .felt-table.is-minimum-discard .discard-stack .tile-face strong { margin-left: 4px; font-size: 17px; }
   .discard-final-tile { width: 37px; height: 52px; flex-basis: 37px; margin: 0 -9px -14px 0; }
@@ -392,5 +411,6 @@ h1 em { color: var(--coral); font-weight: 500; }
 @media (prefers-reduced-motion: reduce) {
   .tile-face.is-recent, .tile-face.is-preview { animation: none; outline: 2px solid var(--lemon); }
   .tile-face.is-recent::after, .tile-face.is-preview::after { display: none; }
+  .preview-action-badge { display: block; color: white; background: var(--coral); }
   .table-avatar.is-turn::before { animation: none; opacity: 1; box-shadow: 0 0 8px rgba(255, 228, 90, .8); }
 }

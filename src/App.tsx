@@ -407,7 +407,19 @@ export default function App() {
 
       const discardStack = table.querySelector<HTMLElement>('.discard-stack');
       if (discardStack) {
-        const rowTops = [...discardStack.children]
+        const pileTiles = [...discardStack.children]
+          .filter((tile) => !tile.classList.contains('discard-action-badge'));
+        const actualTileRects = pileTiles
+          .filter((tile) => !tile.classList.contains('discard-preview-tile'))
+          .map((tile) => tile.getBoundingClientRect());
+        if (actualTileRects.length > 0) {
+          const lastRowTop = Math.max(...actualTileRects.map((rect) => rect.top));
+          const lastRowRects = actualTileRects.filter((rect) => Math.abs(rect.top - lastRowTop) < 2);
+          const lastRowCenter = (Math.min(...lastRowRects.map((rect) => rect.left))
+            + Math.max(...lastRowRects.map((rect) => rect.right))) / 2;
+          discardStack.style.setProperty('--discard-action-center-x', `${lastRowCenter - discardStack.getBoundingClientRect().left}px`);
+        }
+        const rowTops = pileTiles
           .map((tile) => tile.getBoundingClientRect().top)
           .filter((top, index, tops) => tops.findIndex((otherTop) => Math.abs(otherTop - top) < 2) === index);
         setDiscardDensity((density) => {
@@ -864,7 +876,7 @@ export default function App() {
               type="button"
               aria-label={`Bajar juego de ${selectedTiles.length} fichas`}
               onClick={() => perform((current) => layMeld(current, 0, selectedTileIds), 'bajar-combinacion')}
-            ><span className="meld-tiles">{(previewMeldKind === 'run' ? previewMeldTiles : sortLegTiles(previewMeldTiles)).map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}</span></button>;
+            ><span className="meld-tiles">{(previewMeldKind === 'run' ? previewMeldTiles : sortLegTiles(previewMeldTiles)).map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}<span className="preview-action-badge" aria-hidden="true">Bajá acá</span></span></button>;
             return (
               <Fragment key={team}>
                 {team === 0 && <div className="piles-row">
@@ -909,11 +921,12 @@ export default function App() {
                           <TileFace tile={discardPreviewTile} className="is-preview" />
                           {game.discard.length > 0 && <span className="pile-count tile-count-badge" aria-hidden="true">{game.discard.length}</span>}
                         </span>}
+                        {discardPreviewTile && <span className="preview-action-badge discard-action-badge" aria-hidden="true">Descartá</span>}
                       </button>
                     ) : canDiscard || openingChoice
                       ? <button className={`empty-discard pile-action ${discardPreviewTile ? 'has-discard-preview' : ''}`} data-animation-zone="discard" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
                         ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
-                        : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')}>{discardPreviewTile ? <TileFace tile={discardPreviewTile} className="is-preview" /> : 'Pozo vacío'}</button>
+                        : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')}>{discardPreviewTile ? <span className="discard-preview-tile"><TileFace tile={discardPreviewTile} className="is-preview" /><span className="preview-action-badge" aria-hidden="true">Descartá</span></span> : 'Pozo vacío'}</button>
                       : <span className="empty-discard">Pozo vacío</span>}
                   </div>
                 </div>}
@@ -968,6 +981,7 @@ export default function App() {
                                   : `${recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} ${normalOverlapInMinimum ? 'is-normal-minimum-overlap' : ''}`}
                               />;
                             })}
+                            {canAddSelection && <span className="preview-action-badge" aria-hidden="true">Bajá acá</span>}
                             {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
                           </div>
                           </div>;
@@ -1149,7 +1163,7 @@ export default function App() {
                 tile={tile}
                 selected={selection.includes(tile.id)}
                 className={openingChoiceTile ? 'is-preview' : recentlyChangedTileIdSet.has(tile.id) && !selection.includes(tile.id) ? 'is-recent' : ''}
-              /></button>
+              />{openingChoiceTile && <span className="preview-action-badge" aria-hidden="true">Conservá</span>}</button>
             );
           })}
         </div>
