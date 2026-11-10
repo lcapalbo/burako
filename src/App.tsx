@@ -82,8 +82,8 @@ function getLegNumber(tiles: Tile[]): number {
 function compareMelds(first: Pick<Meld, 'kind' | 'tiles'>, second: Pick<Meld, 'kind' | 'tiles'>): number {
   if (first.kind !== second.kind) return first.kind === 'run' ? -1 : 1;
   if (first.kind === 'run' && second.kind === 'run') {
-    const firstColor = first.tiles.find((tile) => tile.color !== null)?.color ?? null;
-    const secondColor = second.tiles.find((tile) => tile.color !== null)?.color ?? null;
+    const firstColor = first.tiles.find((tile) => tile.kind !== 'joker' && tile.value !== 2)?.color ?? null;
+    const secondColor = second.tiles.find((tile) => tile.kind !== 'joker' && tile.value !== 2)?.color ?? null;
     return COLORS.indexOf(firstColor as (typeof COLORS)[number]) - COLORS.indexOf(secondColor as (typeof COLORS)[number]);
   }
   return getLegNumber(first.tiles) - getLegNumber(second.tiles);
