@@ -1,6 +1,5 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
-  COLORS,
   addToMeld,
   createGame,
   discardOpeningDrawAndRedraw,
@@ -9,8 +8,6 @@ import {
   finishEmptyStock,
   GameRuleError,
   getMeldKind,
-  isCanasta,
-  isCleanMeld,
   keepOpeningDraw,
   layMeld,
   nextRound,
@@ -18,15 +15,16 @@ import {
   sortTilesByNumber,
   takeDiscardPile,
   type GameState,
-  type Meld,
   type RoundScore,
   type Target,
   type Tile,
 } from './game';
 import { PointsDialog } from './components/PointsDialog';
+import { GameTable, type MeldDensity } from './components/GameTable';
+import { PlayerArea, type HandSortMode } from './components/PlayerArea';
 import { RulesDialog } from './components/RulesDialog';
-import { ScorePairSummary } from './components/ScorePairSummary';
-import { getTileColorName, TileFace } from './components/TileFace';
+import { TileFace } from './components/TileFace';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import { runComputerTurnSteps } from './computer';
 import {
   logGameDebug,
@@ -43,8 +41,6 @@ const RECENT_TILE_DURATION_MS = 1400;
 const RECENT_DISCARD_DURATION_MS = RECENT_TILE_DURATION_MS * 2;
 const TILE_FLIGHT_DURATION_MS = 560;
 const MAX_UNDO_STEPS = 10;
-type HandSortMode = 'original' | 'color' | 'number';
-type MeldDensity = 'normal' | 'compact' | 'minimum';
 type GameHistory = { states: GameState[]; cursor: number };
 type TileFlight = {
   id: number;
@@ -54,13 +50,6 @@ type TileFlight = {
   toZone: string;
   faceDown: boolean;
 };
-const TARGET_OPTIONS = [
-  { label: 'A 2000 pts', value: 2000 },
-  { label: 'A 3000 pts', value: 3000 },
-  { label: 'A 5000 pts', value: 5000 },
-  { label: 'Por Corte', value: 'cut' },
-] as const;
-
 function formatTargetLabel(target: Target): string {
   return target === 'cut' ? 'Por Corte' : `A ${target.toLocaleString('es-AR')} pts`;
 }
@@ -69,28 +58,6 @@ function sortHandForDisplay(hand: Tile[], mode: HandSortMode): Tile[] {
   if (mode === 'color') return sortTiles(hand);
   if (mode === 'number') return sortTilesByNumber(hand);
   return hand;
-}
-
-function sortLegTiles(tiles: Tile[]): Tile[] {
-  const wildcards = tiles.filter((tile) => tile.kind === 'joker' || tile.value === 2);
-  const naturalTiles = tiles.filter((tile) => tile.kind !== 'joker' && tile.value !== 2);
-  return [...sortTiles(wildcards), ...sortTiles(naturalTiles)];
-}
-
-function getLegNumber(tiles: Tile[]): number {
-  return tiles.find((tile) => tile.kind !== 'joker' && tile.value !== 2)?.value
-    ?? tiles.find((tile) => tile.kind !== 'joker')?.value
-    ?? 14;
-}
-
-function compareMelds(first: Pick<Meld, 'kind' | 'tiles'>, second: Pick<Meld, 'kind' | 'tiles'>): number {
-  if (first.kind !== second.kind) return first.kind === 'run' ? -1 : 1;
-  if (first.kind === 'run' && second.kind === 'run') {
-    const firstColor = first.tiles.find((tile) => tile.kind !== 'joker' && tile.value !== 2)?.color ?? null;
-    const secondColor = second.tiles.find((tile) => tile.kind !== 'joker' && tile.value !== 2)?.color ?? null;
-    return COLORS.indexOf(firstColor as (typeof COLORS)[number]) - COLORS.indexOf(secondColor as (typeof COLORS)[number]);
-  }
-  return getLegNumber(first.tiles) - getLegNumber(second.tiles);
 }
 
 function getRecentlyChangedTileIds(previous: GameState, next: GameState): string[] {
@@ -117,16 +84,6 @@ function getRecentlyChangedTileIds(previous: GameState, next: GameState): string
 function getNewDiscardedTileIds(previous: GameState, next: GameState): string[] {
   const previousDiscard = new Set(previous.discard.map((tile) => tile.id));
   return next.discard.filter((tile) => !previousDiscard.has(tile.id)).map((tile) => tile.id);
-}
-
-function previewMeldAddition(state: GameState, meldId: string, tileIds: string[]): Tile[] | null {
-  try {
-    const preview = addToMeld(state, 0, meldId, tileIds);
-    return preview.melds.find((meld) => meld.id === meldId)?.tiles ?? null;
-  } catch (issue) {
-    if (issue instanceof GameRuleError) return null;
-    throw issue;
-  }
 }
 
 function canLayMeldSelection(state: GameState, tileIds: string[]): boolean {
@@ -701,49 +658,13 @@ export default function App() {
   const openRules = () => rulesDialogRef.current?.showModal();
 
   if (!game) {
-    return (
-      <main className="welcome" onContextMenu={(event) => event.preventDefault()}>
-        <header className="topbar">
-          <span className="brand-mark tile-face tile-blue" aria-hidden="true">
-            <span className="tile-mark" />
-            <strong>B</strong>
-          </span>
-          <span className="brand-name">Burako</span>
-          <a
-            className="github-link"
-            href="https://github.com/lcapalbo/burako"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Repositorio de Burako en GitHub"
-            title="Ver repositorio en GitHub"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.04c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.33-1.76-1.33-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.34-5.47-5.94 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.1-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.29-1.23 3.29-1.23.65 1.65.24 2.87.12 3.17.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.63-5.47 5.93.43.37.81 1.09.81 2.22v3.29c0 .32.22.69.83.57A12 12 0 0 0 12 .5Z" />
-            </svg>
-          </a>
-        </header>
-        <section className="welcome-copy">
-          <p className="eyebrow">La mesa está lista</p>
-          <h1>Tu próximo<br /><em>burako</em> empieza acá.</h1>
-          <p className="intro">Jugá una partida contra la computadora.</p>
-          <p className="intro rules-invitation">Si sos nuevo, <button className="rules-inline-link" type="button" onClick={openRules}>estas son las reglas</button>.</p>
-          <div className="target-picker" role="group" aria-label="Objetivo de la partida">
-            {TARGET_OPTIONS.map(({ label, value }) => (
-              <button key={label} type="button" className={target === value ? 'target-option active' : 'target-option'} onClick={() => setTarget(value)}>{label}</button>
-            ))}
-          </div>
-          <button className="start-button" type="button" onClick={begin}>Comenzar partida <span aria-hidden="true">→</span></button>
-        </section>
-        <aside className="tile-composition" aria-label="Fichas de ejemplo">
-          <TileFace tile={{ id: 'welcome-red-7', color: 'red', value: 7, kind: 'number' }} className="tile-one" />
-          <TileFace tile={{ id: 'welcome-green-8', color: 'green', value: 8, kind: 'number' }} className="tile-two" />
-          <TileFace tile={{ id: 'welcome-blue-9', color: 'blue', value: 9, kind: 'number' }} className="tile-three" />
-          <TileFace tile={{ id: 'welcome-yellow-2', color: 'yellow', value: 2, kind: 'number' }} className="tile-wild" />
-        </aside>
-        <footer className="welcome-footer">Sin cuenta ni publicidad · La partida se juega en tu dispositivo</footer>
-        <RulesDialog dialogRef={rulesDialogRef} />
-      </main>
-    );
+    return <WelcomeScreen
+      target={target}
+      onTargetChange={setTarget}
+      onBegin={begin}
+      onOpenRules={openRules}
+      rulesDialogRef={rulesDialogRef}
+    />;
   }
 
   const human = game.players[0];
@@ -755,11 +676,6 @@ export default function App() {
   const revealComputerHand = revealOpponentHandForDebug
     || (roundClosed && !(computer.indirectDead && !computer.playedAfterDead));
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
-  const sortMenuOptions = [
-    { mode: 'color' as const, icon: 'color', label: 'Color' },
-    { mode: 'number' as const, icon: 'number', label: 'Número' },
-    { mode: 'original' as const, icon: 'original', label: 'Original' },
-  ];
   const humanTurn = !computerTurnInProgress && game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const openingChoice = humanTurn && game.phase === 'opening-choice';
   const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
@@ -781,7 +697,6 @@ export default function App() {
       : game.phase === 'opening-choice'
         ? 'Conservá o descartá tu primera ficha'
         : 'Seleccioná fichas. Tocá las vistas previas para mover';
-  const selectedTileIds = selection;
   const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1 && selection[0] !== game.restrictedDiscardTileId;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
   const shouldShowHandControls = !roundClosed && human.hand.length > 0;
@@ -791,9 +706,6 @@ export default function App() {
   const draggedTile = draggedId ? human.hand.find((tile) => tile.id === draggedId) : undefined;
   const recentlyChangedTileIdSet = new Set(recentlyChangedTileIds);
   const recentlyDiscardedTileIdSet = new Set(recentlyDiscardedTileIds);
-  const meldsForTeam = (team: number) => game.melds
-    .filter((meld) => meld.team === team)
-    .sort(compareMelds);
   const handleHandSortMode = (mode: HandSortMode) => {
     setHandSortMode(mode);
     setSortMenuOpen(false);
@@ -813,6 +725,21 @@ export default function App() {
     { label: 'Fichas en juegos bajados', scores: currentRoundScore.scores.map((score) => score.meldTiles) },
     { label: 'Fichas en atril', scores: currentRoundScore.scores.map((score) => score.rackTiles) },
   ] : [];
+  const handleHandTileClick = (tileId: string, openingChoiceTile: boolean) => {
+    if (ignoreNextTileClickRef.current) {
+      ignoreNextTileClickRef.current = false;
+      return;
+    }
+    if (canFinishEmptyStock) {
+      perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio');
+      return;
+    }
+    if (openingChoiceTile) {
+      perform((current) => keepOpeningDraw(current, 0), 'conservar-robo-inicial');
+      return;
+    }
+    toggleTile(tileId);
+  };
   return (
     <main className="game-page" onContextMenu={(event) => event.preventDefault()}>
       <div className="tile-flight-layer" aria-hidden="true">
@@ -846,176 +773,37 @@ export default function App() {
         <button className="quiet-button" type="button" onClick={() => { cancelComputerTurn(); setGame(null); }}>Salir</button>
       </header>
 
-      <section className="opponent-bar" aria-label="Atril de la computadora">
-        {revealComputerHand
-          ? <div className="opponent-rack" data-animation-zone="hand-1" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>
-          : !roundClosed && <div className="hidden-tiles" data-animation-zone="hand-1" aria-hidden="true">{computer.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>}
-      </section>
-
-      <section
-        ref={feltTableRef}
-        className={`felt-table ${meldDensity === 'compact' ? 'is-compact-melds' : ''} ${meldDensity === 'minimum' ? 'is-minimum-melds' : ''} ${discardDensity === 'compact' ? 'is-compact-discard' : ''} ${discardDensity === 'minimum' ? 'is-minimum-discard' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'}`}
-        aria-label="Mesa de juego"
-      >
-        <button
-          className={`table-avatar table-avatar-computer ${!roundClosed && (game.currentPlayer === 1 || computerTurnInProgress) ? 'is-turn' : ''}`}
-          type="button"
-          aria-label="Mostrar nombre de computadora"
-          aria-expanded={showAvatarNames}
-          onClick={() => setShowAvatarNames((visible) => !visible)}
-        >
-          <img className="opponent-avatar" src="/avatars/computer.svg" alt="" aria-hidden="true" />
-          {showAvatarNames && <span className="avatar-tooltip">Computadora</span>}
-        </button>
-        <button
-          className={`table-avatar table-avatar-player ${humanTurn ? 'is-turn' : ''}`}
-          type="button"
-          aria-label="Mostrar nombre de jugador"
-          aria-expanded={showAvatarNames}
-          onClick={() => setShowAvatarNames((visible) => !visible)}
-        >
-          <img className="player-avatar" src="/avatars/player.svg" alt="" aria-hidden="true" />
-          {showAvatarNames && <span className="avatar-tooltip">Vos</span>}
-        </button>
-        <div className="meld-area">
-          {([1, 0] as const).map((team) => {
-            const teamMelds = meldsForTeam(team);
-            const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
-            const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
-            const canLaySelection = team === 0 && humanTurn && game.phase === 'play' && canLaySelectedMeld;
-            const previewMeld = canLaySelection ? layMeld(game, 0, selection).melds.slice(-1)[0] ?? null : null;
-            const previewMeldKind = previewMeld?.kind ?? null;
-            const previewMeldTiles = previewMeld?.tiles ?? selectedTiles;
-            const nextMeldIndex = previewMeld
-              ? teamMelds.findIndex((meld) => compareMelds(previewMeld, meld) < 0)
-              : -1;
-            const previewMeldIndex = nextMeldIndex < 0 ? teamMelds.length : nextMeldIndex;
-            const isTurnTeam = game.phase !== 'round-over'
-              && game.phase !== 'match-over'
-              && game.players.find((player) => player.id === game.currentPlayer)?.team === team;
-            const newMeldPreview = canLaySelection && <button
-              className="meld-group meld-target meld-new-preview"
-              type="button"
-              aria-label={`Bajar juego de ${selectedTiles.length} fichas`}
-              onClick={() => perform((current) => layMeld(current, 0, selectedTileIds), 'bajar-combinacion')}
-            ><span className="meld-tiles">{(previewMeldKind === 'run' ? previewMeldTiles : sortLegTiles(previewMeldTiles)).map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}<span className="preview-action-badge" aria-hidden="true">Bajá acá</span></span></button>;
-            return (
-              <Fragment key={team}>
-                {team === 0 && <div className="piles-row">
-                  <button
-                    className="stock-pile pile-action"
-                    data-animation-anchor="stock"
-                    type="button"
-                    disabled={!canDrawFromStock && !canFinishEmptyStock}
-                    aria-label={canFinishEmptyStock ? 'Terminar la mano porque se agotó el montón' : `Robar ficha del montón (${game.stock.length} restantes)`}
-                    title={canFinishEmptyStock ? 'Terminar la mano' : 'Robar ficha del montón'}
-                    onClick={() => canFinishEmptyStock
-                        ? perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio')
-                        : perform((current) => drawFromStock(current, 0), 'robar-del-monton')}
-                  >
-                    {game.stock.length > 0
-                      ? <span className="stack-back"><i /><i /><i /></span>
-                      : <span className="empty-stock">Montón vacío</span>}
-                    <span className="pile-count">{game.stock.length}</span>
-                  </button>
-                  <div className="discard-pile">
-                    {game.discard.length > 0 ? (
-                      <button
-                        className={`meld-tiles discard-stack pile-action ${discardDensity === 'minimum' ? 'is-minimum-density' : discardDensity === 'compact' ? 'is-compact-density' : ''}`}
-                        data-animation-zone="discard"
-                        type="button"
-                        disabled={!canUseDiscardPile && !openingChoice}
-                        aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canDiscard ? 'Descartar ficha seleccionada en el pozo' : `Levantar todo el pozo (${game.discard.length} fichas)`}
-                        title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
-                        onClick={() => openingChoice
-                          ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
-                          : canDiscard
-                            ? perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')
-                            : perform((current) => takeDiscardPile(current, 0), 'levantar-pozo')}
-                      >
-                        {game.discard.map((tile, index) => {
-                          const tileFace = <TileFace tile={tile} className={`${recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''}`} />;
-                          return index === game.discard.length - 1
-                            ? <span className="discard-final-tile" key={tile.id}>{tileFace}{!discardPreviewTile && <span className="pile-count tile-count-badge" aria-hidden="true">{game.discard.length}</span>}</span>
-                            : <TileFace tile={tile} key={tile.id} className={`${recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''}`} />;
-                        })}
-                        {discardPreviewTile && <span className="discard-preview-tile">
-                          <TileFace tile={discardPreviewTile} className="is-preview" />
-                          {game.discard.length > 0 && <span className="pile-count tile-count-badge" aria-hidden="true">{game.discard.length}</span>}
-                        </span>}
-                        {discardPreviewTile && <span className="preview-action-badge discard-action-badge" aria-hidden="true">Descartá</span>}
-                      </button>
-                    ) : canDiscard || openingChoice
-                      ? <button className={`empty-discard pile-action ${discardPreviewTile ? 'has-discard-preview' : ''}`} data-animation-zone="discard" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
-                        ? perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')
-                        : perform((current) => discardTile(current, 0, selectedTileIds[0]), 'descartar')}>{discardPreviewTile ? <span className="discard-preview-tile"><TileFace tile={discardPreviewTile} className="is-preview" /><span className="preview-action-badge" aria-hidden="true">Descartá</span></span> : 'Pozo vacío'}</button>
-                      : <span className="empty-discard">Pozo vacío</span>}
-                  </div>
-                </div>}
-                <section className={`meld-team ${isTurnTeam ? 'is-turn' : ''}`} data-animation-zone={`meld-${team}`} aria-label={`Juegos de ${teamName}`}>
-                <header className="meld-team-header">
-                  <h3 className="meld-team-heading">{teamName}</h3>
-                  <span className={`meld-dead-status ${deadTaken ? 'is-taken' : ''}`}>Muerto {deadTaken ? 'levantado' : 'pendiente'}</span>
-                </header>
-                {teamMelds.length === 0 && !canLaySelection
-                  ? <p className="empty-team-melds">Sin juegos bajados</p>
-                  : <div className="meld-games">{teamMelds.map((meld, index) => (
-                    <Fragment key={meld.id}>
-                      {canLaySelection && previewMeldIndex === index && newMeldPreview}
-                      {(() => {
-                          const previewTiles = selection.length > 0 && game.phase === 'play' && game.currentPlayer === 0 && meld.team === 0
-                            ? previewMeldAddition(game, meld.id, selectedTileIds)
-                            : null;
-                          const canAddSelection = previewTiles !== null;
-                          const addSelection = () => perform((current) => addToMeld(current, 0, meld.id, selectedTileIds), 'agregar-a-juego');
-                          const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-                            if (!canAddSelection || (event.key !== 'Enter' && event.key !== ' ')) return;
-                            event.preventDefault();
-                            addSelection();
-                          };
-                          const tilesToDisplay = previewTiles ?? meld.tiles;
-                          const shownTiles = meld.kind === 'leg' ? sortLegTiles(tilesToDisplay) : tilesToDisplay;
-                          const runColor = meld.kind === 'run'
-                            ? shownTiles.find((tile) => tile.kind === 'number' && tile.value !== 2)?.color ?? null
-                            : null;
-                          const jokerIndex = meld.kind === 'run'
-                            ? shownTiles.findIndex((tile) => tile.kind === 'joker' || (tile.value === 2 && runColor !== null && tile.color !== runColor))
-                            : -1;
-                          return <div
-                            className={`meld-group ${canAddSelection ? 'meld-target' : ''}`}
-                            key={meld.id}
-                            role={canAddSelection ? 'button' : undefined}
-                            tabIndex={canAddSelection ? 0 : undefined}
-                            aria-label={canAddSelection ? `Agregar ${selection.length} fichas seleccionadas a este juego` : undefined}
-                            onClick={canAddSelection ? addSelection : undefined}
-                            onKeyDown={canAddSelection ? handleKeyDown : undefined}
-                          >
-                          <div className="meld-tiles">
-                            {shownTiles.map((tile, tileIndex) => {
-                              const selectedForPreview = canAddSelection && selectedTileIds.includes(tile.id);
-                              const normalOverlapInMinimum = meldDensity === 'minimum' && meld.kind === 'run'
-                                && (tileIndex === 0 || (jokerIndex >= 0 && (tileIndex === jokerIndex - 1 || tileIndex === jokerIndex + 1)));
-                              return <TileFace
-                                tile={tile}
-                                key={tile.id}
-                                className={selectedForPreview
-                                  ? `is-preview ${normalOverlapInMinimum ? 'is-normal-minimum-overlap' : ''}`
-                                  : `${recentlyChangedTileIdSet.has(tile.id) ? 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} ${normalOverlapInMinimum ? 'is-normal-minimum-overlap' : ''}`}
-                              />;
-                            })}
-                            {canAddSelection && <span className="preview-action-badge" aria-hidden="true">Bajá acá</span>}
-                            {isCanasta(meld) && <strong className="canasta-badge canasta-overlay">{isCleanMeld(meld) ? 'Canasta limpia' : 'Canasta sucia'}</strong>}
-                          </div>
-                          </div>;
-                          })()}
-                        </Fragment>
-                      ))}{canLaySelection && previewMeldIndex === teamMelds.length && newMeldPreview}</div>}
-                </section>
-              </Fragment>
-            );
-          })}
-        </div>
-      </section>
+      <GameTable
+        game={game}
+        feltTableRef={feltTableRef}
+        computerTurnInProgress={computerTurnInProgress}
+        roundClosed={roundClosed}
+        revealComputerHand={revealComputerHand}
+        humanTurn={humanTurn}
+        showAvatarNames={showAvatarNames}
+        onToggleAvatarNames={() => setShowAvatarNames((visible) => !visible)}
+        meldDensity={meldDensity}
+        discardDensity={discardDensity}
+        selection={selection}
+        selectedTiles={selectedTiles}
+        canLaySelectedMeld={canLaySelectedMeld}
+        canDrawFromStock={canDrawFromStock}
+        canFinishEmptyStock={canFinishEmptyStock}
+        canUseDiscardPile={canUseDiscardPile}
+        canDiscard={canDiscard}
+        openingChoice={openingChoice}
+        discardPreviewTile={discardPreviewTile}
+        flightTileIds={flightTileIds}
+        recentlyChangedTileIdSet={recentlyChangedTileIdSet}
+        recentlyDiscardedTileIdSet={recentlyDiscardedTileIdSet}
+        onFinishEmptyStock={() => perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio')}
+        onDrawFromStock={() => perform((current) => drawFromStock(current, 0), 'robar-del-monton')}
+        onDiscardOpeningDrawAndRedraw={() => perform((current) => discardOpeningDrawAndRedraw(current, 0), 'rechazar-robo-inicial-y-robar-otra')}
+        onDiscardTile={(tileId) => perform((current) => discardTile(current, 0, tileId), 'descartar')}
+        onTakeDiscardPile={() => perform((current) => takeDiscardPile(current, 0), 'levantar-pozo')}
+        onLayMeld={(tileIds) => perform((current) => layMeld(current, 0, tileIds), 'bajar-combinacion')}
+        onAddToMeld={(meldId, tileIds) => perform((current) => addToMeld(current, 0, meldId, tileIds), 'agregar-a-juego')}
+      />
 
       <PointsDialog
         dialogRef={pointsDialogRef}
@@ -1026,126 +814,40 @@ export default function App() {
         pointsRows={pointsRows}
       />
 
-      <section ref={playerAreaRef} className="player-area" aria-label="Tu atril">
-        {game.result && <section className={`result-banner ${game.phase === 'match-over' ? 'is-final' : ''}`} role="status">
-          <strong>{game.result}</strong>
-          {(game.phase === 'match-over' || (game.target !== 'cut' && game.phase === 'round-over')) && <span className="result-score-summary">
-            {currentHandScores
-              ? <ScorePairSummary label="Puntos" scores={currentHandScores} />
-              : <>Puntaje de la mano no disponible para esta partida guardada.</>}
-            {hasPreviousRounds && <>
-              {' · '}
-              <ScorePairSummary label="Partida" scores={[game.scores[0], game.scores[1]]} />
-            </>}
-          </span>}
-          <div className="result-actions">
-            <button className="points-detail-button" type="button" onClick={() => pointsDialogRef.current?.showModal()}>Ver detalle de puntos</button>
-            {game.phase === 'round-over' && <button type="button" onClick={() => perform(nextRound, 'repartir-proxima-mano')}>Repartir la próxima mano <span aria-hidden="true">→</span></button>}
-            {game.phase === 'match-over' && <button type="button" onClick={() => startGame(game.target)}>Jugar de nuevo</button>}
-          </div>
-        </section>}
-        {error && <p className="error-message" role="alert">{error}</p>}
-        {shouldShowHandControls && <div className="player-heading">
-          <div className="player-header-meta">
-            <span className={`hand-count ${humanTurn ? 'is-turn-hint' : ''}`}>{playerHeaderText}</span>
-          </div>
-          <div className="hand-tools sort-menu-container">
-            <button
-              className="sort-button sort-trigger"
-              type="button"
-              disabled={!humanTurn}
-              aria-expanded={sortMenuOpen}
-              aria-haspopup="menu"
-              onClick={() => setSortMenuOpen((open) => !open)}
-            >Ordenar</button>
-            {sortMenuOpen && (
-              <div className="sort-menu" role="menu" aria-label="Orden del atril">
-                {sortMenuOptions.map(({ mode, icon, label }) => (
-                  <button
-                    key={mode}
-                    className={`sort-menu-option ${handSortMode === mode ? 'is-active' : ''}`}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={handSortMode === mode}
-                    onClick={() => handleHandSortMode(mode)}
-                  >
-                    <span className="sort-menu-icon" aria-hidden="true">
-                      {icon === 'color' && (
-                        <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="5.5" fill="currentColor" /></svg>
-                      )}
-                      {icon === 'number' && (
-                        <svg viewBox="0 0 18 18" aria-hidden="true" preserveAspectRatio="xMidYMid meet"><path d="M7 3.5 5.5 14.5M12.5 3.5 11 14.5M3.5 7h11M2.5 11h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                      )}
-                      {icon === 'original' && (
-                        <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M12.5 4.2A5.6 5.6 0 1 0 14.5 9H12.7A3.7 3.7 0 1 1 9 5.4c1.1 0 2.1.5 2.8 1.3L9.5 8.4H15V3l-2.5 1.2Z" fill="currentColor" /></svg>
-                      )}
-                    </span>
-                    <span className="sort-menu-label">{label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>}
-        <div
-          className="hand-tiles"
-          data-animation-zone="hand-0"
-          onDragOver={(event) => event.preventDefault()}
-          onClick={(event) => {
-            if (canFinishEmptyStock && !(event.target as HTMLElement).closest('[data-hand-tile-id]')) {
-              perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio');
-            }
-          }}
-          onPointerDown={handleTouchReorderStart}
-          onPointerMove={handleTouchReorderMove}
-          onPointerUp={finishTouchReorder}
-          onPointerCancel={cancelTouchReorder}
-        >
-          {displayedHand.map((tile, index) => {
-            const openingChoiceTile = game.phase === 'opening-choice' && game.openingDrawTileId === tile.id;
-            return (
-              <button
-                className={`hand-tile ${canReorderHand ? 'is-reorderable' : ''} ${selection.includes(tile.id) ? 'selected' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} ${draggedId === tile.id ? 'is-touch-dragging' : ''}`}
-                type="button"
-                key={tile.id}
-                data-hand-tile-id={tile.id}
-                draggable={canReorderHand}
-                disabled={!humanTurn}
-                aria-pressed={selection.includes(tile.id)}
-                aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${getTileColorName(tile.color)}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
-                onClick={() => {
-                  if (ignoreNextTileClickRef.current) {
-                    ignoreNextTileClickRef.current = false;
-                    return;
-                  }
-                  if (canFinishEmptyStock) {
-                    perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio');
-                    return;
-                  }
-                  if (openingChoiceTile) {
-                    perform((current) => keepOpeningDraw(current, 0), 'conservar-robo-inicial');
-                    return;
-                  }
-                  toggleTile(tile.id);
-                }}
-                onDragStart={(event) => { if (!canReorderHand) event.preventDefault(); else setDraggedId(tile.id); }}
-                onDragEnd={() => setDraggedId(null)}
-                onDrop={(event) => { event.preventDefault(); if (canReorderHand && draggedId) reorderHand(draggedId, tile.id); setDraggedId(null); }}
-                style={{ '--tile-index': index } as React.CSSProperties}
-              ><TileFace
-                tile={tile}
-                selected={selection.includes(tile.id)}
-                className={openingChoiceTile ? 'is-preview' : recentlyChangedTileIdSet.has(tile.id) && !selection.includes(tile.id) ? 'is-recent' : ''}
-              />{openingChoiceTile && <span className="preview-action-badge" aria-hidden="true">Conservá</span>}</button>
-            );
-          })}
-        </div>
-        {draggedTile && touchDragPosition && <div
-          className="touch-drag-ghost"
-          aria-hidden="true"
-          style={{ left: touchDragPosition.x, top: touchDragPosition.y }}
-        ><TileFace tile={draggedTile} /></div>}
-      </section>
+      <PlayerArea
+        game={game}
+        playerAreaRef={playerAreaRef}
+        error={error}
+        humanTurn={humanTurn}
+        currentHandScores={currentHandScores}
+        hasPreviousRounds={hasPreviousRounds}
+        shouldShowHandControls={shouldShowHandControls}
+        playerHeaderText={playerHeaderText}
+        sortMenuOpen={sortMenuOpen}
+        handSortMode={handSortMode}
+        onToggleSortMenu={() => setSortMenuOpen((open) => !open)}
+        onHandSortModeChange={handleHandSortMode}
+        displayedHand={displayedHand}
+        selection={selection}
+        flightTileIds={flightTileIds}
+        draggedId={draggedId}
+        draggedTile={draggedTile}
+        touchDragPosition={touchDragPosition}
+        canReorderHand={canReorderHand}
+        canFinishEmptyStock={canFinishEmptyStock}
+        recentlyChangedTileIdSet={recentlyChangedTileIdSet}
+        onShowPoints={() => pointsDialogRef.current?.showModal()}
+        onNextRound={() => perform(nextRound, 'repartir-proxima-mano')}
+        onPlayAgain={startGame}
+        onFinishEmptyStock={() => perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio')}
+        onHandTileClick={handleHandTileClick}
+        onDraggedIdChange={(tileId) => setDraggedId(tileId)}
+        onReorderHand={reorderHand}
+        onPointerDown={handleTouchReorderStart}
+        onPointerMove={handleTouchReorderMove}
+        onPointerUp={finishTouchReorder}
+        onPointerCancel={cancelTouchReorder}
+      />
 
       <RulesDialog dialogRef={rulesDialogRef} />
     </main>
