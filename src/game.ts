@@ -189,10 +189,10 @@ function shuffle<T>(items: T[], random: () => number): T[] {
   return result;
 }
 
-export function createGame(target: Target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0): GameState {
+export function createGame(target: Target = 2000, random = Math.random, scores = [0, 0], round = 1, starter?: number): GameState {
   const deck = shuffle(createDeck(), random);
   const playersCount = 2;
-  const initialStarter = starter % playersCount;
+  const initialStarter = starter === undefined ? Math.floor(random() * playersCount) : starter % playersCount;
   const players: Player[] = [0, 1].map((id) => ({
     id,
     name: id === 0 ? 'Vos' : 'La computadora',

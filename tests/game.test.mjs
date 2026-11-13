@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { addToMeld, createGame, discardOpeningDrawAndRedraw, discardTile, drawFromStock, findBestMeld, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
+import { addToMeld, createGame as createGameWithRandomStarter, discardOpeningDrawAndRedraw, discardTile, drawFromStock, findBestMeld, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
 import { runComputerTurn, runComputerTurnSteps } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
+const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0) =>
+  createGameWithRandomStarter(target, random, scores, round, starter);
 const stateWithHand = (hand, melds = []) => {
   const initial = createGame(2000, () => 0.5);
   const players = [...initial.players];
@@ -222,6 +224,13 @@ describe('búsqueda de juegos', () => {
 });
 
 describe('reparto y turnos', () => {
+  it('elige al azar quién abre la primera mano, también en partidas por corte', () => {
+    assert.equal(createGameWithRandomStarter(2000, () => 0).roundStarter, 0);
+    assert.equal(createGameWithRandomStarter(2000, () => 0.99).roundStarter, 1);
+    assert.equal(createGameWithRandomStarter('cut', () => 0).currentPlayer, 0);
+    assert.equal(createGameWithRandomStarter('cut', () => 0.99).currentPlayer, 1);
+  });
+
   it('crea las 106 fichas sin duplicar identificadores', () => {
     const game = createGame(2000, () => 0.5);
     const allTiles = [...game.stock, ...game.discard, ...game.deadPiles.flat(), ...game.players.flatMap((player) => player.hand)];
