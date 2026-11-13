@@ -61,13 +61,13 @@ Para publicar en GitHub Pages, generá el build de producción con `npm run buil
 Los logs de diagnóstico están desactivados por defecto. Para habilitarlos en la consola del navegador, ejecutá:
 
 ```js
-window.__BURAKO_DEBUG__ = true
+window.burakoDebug.enableLogging()
 ```
 
 Para desactivarlos durante la sesión:
 
 ```js
-window.__BURAKO_DEBUG__ = false
+window.burakoDebug.disableLogging()
 ```
 
 Los eventos usan el prefijo `[Burako]` e incluyen el inicio y los pasos del turno de la computadora, sus decisiones, y las acciones del usuario.
@@ -75,13 +75,22 @@ Los eventos usan el prefijo `[Burako]` e incluyen el inicio y los pasos del turn
 Para mostrar el atril de la computadora durante la partida:
 
 ```js
-window.__BURAKO_REVEAL_OPPONENT_HAND__ = true
+window.burakoDebug.revealOpponentHand()
 ```
 
 Para volver a ocultarlo:
 
 ```js
-window.__BURAKO_REVEAL_OPPONENT_HAND__ = false
+window.burakoDebug.hideOpponentHand()
 ```
 
 Los errores se registran siempre con el mensaje y el estado completo de la partida.
+
+El helper también permite recorrer hasta diez turnos anteriores y rehacerlos:
+
+```js
+window.burakoDebug.undo()
+window.burakoDebug.redo()
+```
+
+Si `undo()` o `redo()` deja el turno en manos de la computadora, esta queda pausada para poder inspeccionar el estado. Ejecutá `window.burakoDebug.resumeComputerTurn()` para continuar.

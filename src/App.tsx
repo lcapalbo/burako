@@ -26,7 +26,13 @@ import {
   type Tile,
 } from './game';
 import { runComputerTurnSteps } from './computer';
-import { logGameDebug, logGameError, summarizeGameState } from './diagnostics';
+import {
+  logGameDebug,
+  logGameError,
+  setGameDebugEnabled,
+  summarizeGameState,
+  type BurakoDebugHelper,
+} from './diagnostics';
 
 const COLOR_NAMES: Record<string, string> = {
   red: 'rojo',
@@ -40,8 +46,10 @@ const COMPUTER_MOVE_DELAY_MS = 700;
 const RECENT_TILE_DURATION_MS = 1400;
 const RECENT_DISCARD_DURATION_MS = RECENT_TILE_DURATION_MS * 2;
 const TILE_FLIGHT_DURATION_MS = 560;
+const MAX_UNDO_STEPS = 10;
 type HandSortMode = 'original' | 'color' | 'number';
 type MeldDensity = 'normal' | 'compact' | 'minimum';
+type GameHistory = { states: GameState[]; cursor: number };
 type TileFlight = {
   id: number;
   batchId: number;
@@ -235,6 +243,7 @@ function ScorePairSummary({ label, scores }: { label: string; scores: [number, n
 
 export default function App() {
   const [game, setGame] = useState<GameState | null>(loadSavedGame);
+  const [revealOpponentHandForDebug, setRevealOpponentHandForDebug] = useState(false);
   const [target, setTarget] = useState<Target>(2000);
   const [selection, setSelection] = useState<string[]>([]);
   const [recentlyChangedTileIds, setRecentlyChangedTileIds] = useState<string[]>([]);
@@ -249,8 +258,6 @@ export default function App() {
     if (message) logGameError(message, state, cause);
     setErrorState(message);
   };
-  const revealOpponentHandForDebug = typeof window !== 'undefined'
-    && window.__BURAKO_REVEAL_OPPONENT_HAND__ === true;
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
   const [showAvatarNames, setShowAvatarNames] = useState(false);
@@ -263,6 +270,7 @@ export default function App() {
   const playerAreaRef = useRef<HTMLElement>(null);
   const feltTableRef = useRef<HTMLElement>(null);
   const computerTurnInProgressRef = useRef(false);
+  const pauseComputerTurnRef = useRef(false);
   const computerTimerRef = useRef<number | null>(null);
   const computerWaitResolverRef = useRef<(() => void) | null>(null);
   const computerTurnIdRef = useRef(0);
@@ -271,6 +279,13 @@ export default function App() {
   const tileFlightNodesRef = useRef(new Map<number, HTMLElement>());
   const startedTileFlightsRef = useRef(new Set<number>());
   const tileFlightTimersRef = useRef(new Map<number, number>());
+  const gameHistoryRef = useRef<GameHistory>(game ? { states: [game], cursor: 0 } : { states: [], cursor: -1 });
+  const [computerTurnResumeToken, setComputerTurnResumeToken] = useState(0);
+  const debugActionsRef = useRef<{ undo: () => boolean; redo: () => boolean; resumeComputerTurn: () => void }>({
+    undo: () => false,
+    redo: () => false,
+    resumeComputerTurn: () => {},
+  });
 
   const cancelComputerTurn = () => {
     computerTurnIdRef.current += 1;
@@ -281,6 +296,65 @@ export default function App() {
     computerTurnInProgressRef.current = false;
     setComputerTurnInProgress(false);
   };
+
+  const commitGame = (previous: GameState, next: GameState) => {
+    const history = gameHistoryRef.current;
+    const states = history.states.slice(0, history.cursor + 1);
+    const previousIsTerminal = previous.phase === 'round-over' || previous.phase === 'match-over';
+    const nextIsTerminal = next.phase === 'round-over' || next.phase === 'match-over';
+    if (!previousIsTerminal && (previous.currentPlayer !== next.currentPlayer || nextIsTerminal)) {
+      states.push(next);
+      if (states.length > MAX_UNDO_STEPS + 1) states.shift();
+    }
+    gameHistoryRef.current = { states, cursor: states.length - 1 };
+    setGame(next);
+  };
+
+  const resetGameHistory = (initialGame: GameState | null) => {
+    gameHistoryRef.current = initialGame
+      ? { states: [initialGame], cursor: 0 }
+      : { states: [], cursor: -1 };
+  };
+
+  const restoreHistory = (cursor: number): boolean => {
+    const history = gameHistoryRef.current;
+    if (!game || cursor < 0 || cursor >= history.states.length) return false;
+    const restoredGame = history.states[cursor];
+    cancelComputerTurn();
+    pauseComputerTurnRef.current = true;
+    gameHistoryRef.current = { ...history, cursor };
+    setGame(restoredGame);
+    setSelection([]);
+    setRecentlyChangedTileIds([]);
+    setRecentlyDiscardedTileIds([]);
+    setTileFlights([]);
+    setError('');
+    return true;
+  };
+
+  const undoGame = () => restoreHistory(gameHistoryRef.current.cursor - 1);
+  const redoGame = () => restoreHistory(gameHistoryRef.current.cursor + 1);
+  const resumeComputerTurn = () => {
+    pauseComputerTurnRef.current = false;
+    setComputerTurnResumeToken((token) => token + 1);
+  };
+  debugActionsRef.current = { undo: undoGame, redo: redoGame, resumeComputerTurn };
+
+  useEffect(() => {
+    const helper: BurakoDebugHelper = {
+      enableLogging: () => setGameDebugEnabled(true),
+      disableLogging: () => setGameDebugEnabled(false),
+      revealOpponentHand: () => setRevealOpponentHandForDebug(true),
+      hideOpponentHand: () => setRevealOpponentHandForDebug(false),
+      undo: () => debugActionsRef.current.undo(),
+      redo: () => debugActionsRef.current.redo(),
+      resumeComputerTurn: () => debugActionsRef.current.resumeComputerTurn(),
+    };
+    window.burakoDebug = helper;
+    return () => {
+      if (window.burakoDebug === helper) delete window.burakoDebug;
+    };
+  }, []);
 
   useEffect(() => {
     componentMountedRef.current = true;
@@ -310,7 +384,7 @@ export default function App() {
     const humanCanLiftDiscard = game.discard.length > 0
       && game.players[0].hand.length + game.discard.length >= 5;
     if (humanCanLiftDiscard) return;
-    setGame(finishEmptyStock(game, 0));
+    commitGame(game, finishEmptyStock(game, 0));
     setSelection([]);
     setError('');
   }, [computerTurnInProgress, game]);
@@ -461,7 +535,8 @@ export default function App() {
   }, [Boolean(game), meldDensity, discardDensity, selection, game?.phase, game?.discard.length, game?.players[0].hand.length]);
 
   useEffect(() => {
-    if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over' || computerTurnInProgressRef.current) return;
+    if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over'
+      || computerTurnInProgressRef.current || pauseComputerTurnRef.current) return;
     const turnStart = game;
     const turnId = ++computerTurnIdRef.current;
     logGameDebug('computer:thinking-start', { turnId, state: summarizeGameState(turnStart) });
@@ -500,7 +575,7 @@ export default function App() {
           setRecentlyChangedTileIds(getRecentlyChangedTileIds(previous, next));
           setRecentlyDiscardedTileIds(discardedTileIds);
           setRecentTileDuration(discardedTileIds.length ? RECENT_DISCARD_DURATION_MS : RECENT_TILE_DURATION_MS);
-          setGame(next);
+          commitGame(previous, next);
           setError('');
           previous = next;
           lastAppliedState = next;
@@ -522,12 +597,15 @@ export default function App() {
       }
     };
     void playTurn();
-  }, [game?.currentPlayer, game?.phase]);
+  }, [game?.currentPlayer, game?.phase, computerTurnResumeToken]);
 
   const startGame = (gameTarget: Target) => {
     logGameDebug('user:action', { action: 'nueva-partida', target: gameTarget });
     cancelComputerTurn();
-    setGame(createGame(gameTarget));
+    const nextGame = createGame(gameTarget);
+    resetGameHistory(nextGame);
+    pauseComputerTurnRef.current = false;
+    setGame(nextGame);
     setDiscardDensity('normal');
     setRecentlyChangedTileIds([]);
     setRecentlyDiscardedTileIds([]);
@@ -544,6 +622,7 @@ export default function App() {
     if (!game) return;
     try {
       const next = action(game);
+      pauseComputerTurnRef.current = false;
       const flights = getTileFlights(game, next, nextTileFlightIdRef.current, revealOpponentHandForDebug);
       nextTileFlightIdRef.current += flights.length;
       if (flights.length) setTileFlights((current) => [...current, ...flights]);
@@ -555,7 +634,7 @@ export default function App() {
       setRecentlyChangedTileIds(getRecentlyChangedTileIds(game, next));
       setRecentlyDiscardedTileIds([]);
       setRecentTileDuration(RECENT_TILE_DURATION_MS);
-      setGame(next);
+      commitGame(game, next);
       setSelection([]);
       setError('');
     } catch (issue) {
@@ -591,7 +670,7 @@ export default function App() {
     hand.splice(to, 0, tile);
     const players = [...game.players];
     players[0] = { ...players[0], hand };
-    setGame({ ...game, players });
+    commitGame(game, { ...game, players });
     setHandSortMode('original');
   };
 

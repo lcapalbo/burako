@@ -1,14 +1,29 @@
 import type { GameState } from './game';
 
+export type BurakoDebugHelper = {
+  enableLogging(): void;
+  disableLogging(): void;
+  revealOpponentHand(): void;
+  hideOpponentHand(): void;
+  undo(): boolean;
+  redo(): boolean;
+  resumeComputerTurn(): void;
+};
+
 declare global {
   interface Window {
-    __BURAKO_DEBUG__?: boolean;
-    __BURAKO_REVEAL_OPPONENT_HAND__?: boolean;
+    burakoDebug?: BurakoDebugHelper;
   }
 }
 
+let gameDebugEnabled = false;
+
+export function setGameDebugEnabled(enabled: boolean): void {
+  gameDebugEnabled = enabled;
+}
+
 export function logGameDebug(event: string, details?: unknown): void {
-  if (typeof window === 'undefined' || window.__BURAKO_DEBUG__ !== true) return;
+  if (!gameDebugEnabled) return;
   console.info(`[Burako] ${event}`, details ?? '');
 }
 
