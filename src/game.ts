@@ -56,9 +56,9 @@ export class GameRuleError extends Error {
 }
 
 const RUN_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1];
-const isWild = (tile: Tile) => tile.kind === 'joker' || tile.value === 2;
+export const isWild = (tile: Tile) => tile.kind === 'joker' || tile.value === 2;
 
-function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
+export function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
   return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
 }
 

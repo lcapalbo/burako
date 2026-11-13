@@ -827,6 +827,45 @@ describe('turnos de la computadora', () => {
     assert.ok(steps.some((step) => step.melds.some((meld) => meld.tiles.length === 4)));
   });
 
+  it('levanta el pozo cuando un comodín completa una combinación compatible', () => {
+    const five = tile('computer-wild-run-five', 'green', 5);
+    const six = tile('computer-wild-run-six', 'green', 6);
+    const joker = tile('computer-wild-run-joker', null, 0, 'joker');
+    const unrelated = [tile('computer-wild-unrelated-red-twelve', 'red', 12), tile('computer-wild-unrelated-yellow-thirteen', 'yellow', 13)];
+    const state = computerState({
+      hand: [five, unrelated[0]],
+      discard: [six, joker, unrelated[1]],
+      stock: [tile('computer-wild-stock', 'blue', 4)],
+    });
+
+    const steps = runComputerTurnSteps(state);
+    const meld = steps.flatMap((step) => step.melds).find((candidate) => candidate.tiles.some((item) => item.id === joker.id));
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.equal(meld?.kind, 'run');
+    assert.ok(meld?.tiles.some((item) => item.id === five.id));
+    assert.ok(meld?.tiles.some((item) => item.id === six.id));
+    assert.ok(meld?.tiles.every((item) => !unrelated.some((other) => other.id === item.id)));
+  });
+
+  it('no levanta el pozo si el comodín no puede hacer compatibles las fichas', () => {
+    const state = computerState({
+      hand: [tile('computer-incompatible-red-eight', 'red', 8), tile('computer-incompatible-blue-nine', 'blue', 9)],
+      discard: [
+        tile('computer-incompatible-green-seven', 'green', 7),
+        tile('computer-incompatible-joker', null, 0, 'joker'),
+        tile('computer-incompatible-yellow-twelve', 'yellow', 12),
+      ],
+      stock: [tile('computer-incompatible-stock', 'blue', 4)],
+    });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].discard.length, 3);
+    assert.equal(steps[0].stock.length, 0);
+    assert.ok(steps.every((step) => step.melds.length === 0));
+  });
+
   it('levanta un pozo de hasta diez fichas si el juego está entre las fichas superiores', () => {
     const hand = [tile('computer-top-ten-hand-1', 'blue', 4), tile('computer-top-ten-hand-2', 'red', 9)];
     const discard = [

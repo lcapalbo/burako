@@ -1,5 +1,6 @@
 import {
   addToMeld,
+  canStillFormMeld,
   chooseDiscard,
   discardTile,
   drawFromStock,
@@ -7,6 +8,7 @@ import {
   finishEmptyStock,
   getMeldKind,
   isCanasta,
+  isWild,
   keepOpeningDraw,
   layMeld,
   takeDiscardPile,
@@ -18,14 +20,6 @@ import { logGameDebug, summarizeGameState } from './diagnostics.js';
 
 const MAX_DISCARD_TILES_TO_EVALUATE = 10;
 const MAX_MELD_CANDIDATE_SIZE = 4;
-
-function isWild(tile: Tile): boolean {
-  return tile.kind === 'joker' || tile.value === 2;
-}
-
-function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
-  return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
-}
 
 function canCompleteWithDiscard(hand: Tile[], discard: Tile[]): boolean {
   const discardTiles = discard.slice(-MAX_DISCARD_TILES_TO_EVALUATE);
@@ -98,7 +92,7 @@ function canExtendMeldWithDiscard(state: GameState): boolean {
 }
 
 function mayExtendMeld(meld: GameState['melds'][number], tile: Tile): boolean {
-  if (tile.kind === 'joker' || tile.value === 2) return true;
+  if (isWild(tile)) return true;
   return meld.tiles.some((existing) => existing.kind === 'number' && (
     meld.kind === 'leg' ? existing.value === tile.value : existing.color === tile.color
   ));
