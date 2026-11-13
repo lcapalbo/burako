@@ -3,12 +3,17 @@ import type { GameState } from './game';
 declare global {
   interface Window {
     __BURAKO_DEBUG__?: boolean;
+    __BURAKO_REVEAL_OPPONENT_HAND__?: boolean;
   }
 }
 
 export function logGameDebug(event: string, details?: unknown): void {
   if (typeof window === 'undefined' || window.__BURAKO_DEBUG__ !== true) return;
   console.info(`[Burako] ${event}`, details ?? '');
+}
+
+export function logGameError(message: string, state: GameState | null, cause?: unknown): void {
+  console.error('[Burako] Error', { message, state, cause });
 }
 
 export function summarizeGameState(state: GameState) {

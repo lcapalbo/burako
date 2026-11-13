@@ -71,3 +71,17 @@ window.__BURAKO_DEBUG__ = false
 ```
 
 Los eventos usan el prefijo `[Burako]` e incluyen el inicio y los pasos del turno de la computadora, sus decisiones, y las acciones del usuario.
+
+Para mostrar el atril de la computadora durante la partida:
+
+```js
+window.__BURAKO_REVEAL_OPPONENT_HAND__ = true
+```
+
+Para volver a ocultarlo:
+
+```js
+window.__BURAKO_REVEAL_OPPONENT_HAND__ = false
+```
+
+Los errores se registran siempre con el mensaje y el estado completo de la partida.

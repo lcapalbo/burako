@@ -26,7 +26,7 @@ import {
   type Tile,
 } from './game';
 import { runComputerTurnSteps } from './computer';
-import { logGameDebug, summarizeGameState } from './diagnostics';
+import { logGameDebug, logGameError, summarizeGameState } from './diagnostics';
 
 const COLOR_NAMES: Record<string, string> = {
   red: 'rojo',
@@ -185,7 +185,7 @@ function findAnimationElement(zone: string, tileId?: string): HTMLElement | null
   return null;
 }
 
-function getTileFlights(previous: GameState, next: GameState, firstId: number): TileFlight[] {
+function getTileFlights(previous: GameState, next: GameState, firstId: number, revealOpponentHand: boolean): TileFlight[] {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return [];
 
   const previousLocations = getTileLocations(previous);
@@ -218,7 +218,7 @@ function getTileFlights(previous: GameState, next: GameState, firstId: number): 
       tile,
       from: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       toZone,
-      faceDown: destinationPlayer === 1,
+      faceDown: destinationPlayer === 1 && !revealOpponentHand,
     });
   }
   return flights;
@@ -244,7 +244,13 @@ export default function App() {
   const [computerTurnInProgress, setComputerTurnInProgress] = useState(false);
   const [meldDensity, setMeldDensity] = useState<MeldDensity>('normal');
   const [discardDensity, setDiscardDensity] = useState<MeldDensity>('normal');
-  const [error, setError] = useState('');
+  const [error, setErrorState] = useState('');
+  const setError = (message: string, state: GameState | null = game, cause?: unknown) => {
+    if (message) logGameError(message, state, cause);
+    setErrorState(message);
+  };
+  const revealOpponentHandForDebug = typeof window !== 'undefined'
+    && window.__BURAKO_REVEAL_OPPONENT_HAND__ === true;
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [handSortMode, setHandSortMode] = useState<HandSortMode>('original');
   const [showAvatarNames, setShowAvatarNames] = useState(false);
@@ -294,8 +300,8 @@ export default function App() {
     try {
       if (game) window.localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, game }));
       else window.localStorage.removeItem(SAVE_KEY);
-    } catch {
-      setError('No se pudo guardar la partida en este dispositivo.');
+    } catch (issue) {
+      setError('No se pudo guardar la partida en este dispositivo.', game, issue);
     }
   }, [game]);
 
@@ -488,7 +494,7 @@ export default function App() {
           await wait(COMPUTER_MOVE_DELAY_MS);
           if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
           const discardedTileIds = getNewDiscardedTileIds(previous, next);
-          const flights = getTileFlights(previous, next, nextTileFlightIdRef.current);
+          const flights = getTileFlights(previous, next, nextTileFlightIdRef.current, revealOpponentHandForDebug);
           nextTileFlightIdRef.current += flights.length;
           if (flights.length) setTileFlights((current) => [...current, ...flights]);
           setRecentlyChangedTileIds(getRecentlyChangedTileIds(previous, next));
@@ -502,9 +508,7 @@ export default function App() {
         }
       } catch (issue) {
         if (turnId !== computerTurnIdRef.current) return;
-        console.error('Error al completar el turno de la computadora:', issue, issue instanceof Error ? issue.stack : undefined);
-        console.error('Estado de la partida al producirse el error:\n', JSON.stringify(turnStart, null, 2));
-        setError('La computadora no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.');
+        setError('La computadora no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.', turnStart, issue);
       } finally {
         logGameDebug('computer:turn-finished', {
           turnId,
@@ -540,7 +544,7 @@ export default function App() {
     if (!game) return;
     try {
       const next = action(game);
-      const flights = getTileFlights(game, next, nextTileFlightIdRef.current);
+      const flights = getTileFlights(game, next, nextTileFlightIdRef.current, revealOpponentHandForDebug);
       nextTileFlightIdRef.current += flights.length;
       if (flights.length) setTileFlights((current) => [...current, ...flights]);
       logGameDebug('user:action', {
@@ -556,7 +560,7 @@ export default function App() {
       setError('');
     } catch (issue) {
       logGameDebug('user:action-failed', { action: actionName, message: issue instanceof Error ? issue.message : String(issue), state: summarizeGameState(game) });
-      setError(issue instanceof Error ? issue.message : 'No se pudo realizar esa jugada.');
+      setError(issue instanceof Error ? issue.message : 'No se pudo realizar esa jugada.', game, issue);
     }
   };
 
@@ -719,7 +723,8 @@ export default function App() {
   const selectedTiles = human.hand.filter((tile) => selection.includes(tile.id));
   const canLaySelectedMeld = getMeldKind(selectedTiles) !== null && canLayMeldSelection(game, selection);
   const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
-  const revealComputerHand = roundClosed && !(computer.indirectDead && !computer.playedAfterDead);
+  const revealComputerHand = revealOpponentHandForDebug
+    || (roundClosed && !(computer.indirectDead && !computer.playedAfterDead));
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
   const sortMenuOptions = [
     { mode: 'color' as const, icon: 'color', label: 'Color' },
