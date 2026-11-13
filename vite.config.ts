@@ -11,7 +11,7 @@ export default defineConfig(({ command }) => ({
       injectRegister: 'script',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Burako de mesa',
+        name: 'Burako',
         short_name: 'Burako',
         description: 'Burako para jugar en casa, contra la computadora.',
         theme_color: '#f2f4ed',

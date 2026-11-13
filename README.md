@@ -1,4 +1,4 @@
-# Burako de mesa
+# Burako
 
 Aplicación web para jugar Burako de forma local contra la computadora. Las reglas acordadas para esta mesa están en [reglas-burako.md](reglas-burako.md).
 
