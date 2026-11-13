@@ -975,7 +975,7 @@ export default function App() {
                             {shownTiles.map((tile, tileIndex) => {
                               const selectedForPreview = canAddSelection && selectedTileIds.includes(tile.id);
                               const normalOverlapInMinimum = meldDensity === 'minimum' && meld.kind === 'run'
-                                && (tileIndex === 1 || (jokerIndex >= 0 && (tileIndex === jokerIndex || tileIndex === jokerIndex + 1)));
+                                && (tileIndex === 0 || (jokerIndex >= 0 && (tileIndex === jokerIndex - 1 || tileIndex === jokerIndex + 1)));
                               return <TileFace
                                 tile={tile}
                                 key={tile.id}

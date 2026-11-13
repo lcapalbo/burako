@@ -235,7 +235,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .felt-table.is-compact-melds .meld-games .meld-tiles .tile-face strong { align-self: flex-start; margin-left: 5px; font-size: 19px; }
 .felt-table.is-compact-melds .meld-games .meld-tiles .canasta-overlay { bottom: -9px; }
 .felt-table.is-compact-melds .meld-games .preview-action-badge { bottom: -9px; }
-.felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face { width: 36px; height: 50px; flex-basis: 36px; margin: 0 -22px -20px 0; }
+.felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face { width: 36px; height: 50px; flex-basis: 36px; margin: 0 -24px -20px 0; }
 .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face.is-normal-minimum-overlap { margin-right: -13px; }
 .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face strong { align-self: flex-start; margin-left: 5px; font-size: 19px; }
 .felt-table.is-minimum-melds .meld-games .meld-tiles .canasta-overlay { bottom: -10px; }
@@ -360,7 +360,7 @@ h1 em { color: var(--coral); font-weight: 500; }
   .felt-table.is-compact-melds .meld-games .meld-tiles .tile-face strong { margin-left: 4px; font-size: 17px; }
   .felt-table.is-compact-melds .meld-games .meld-tiles .canasta-overlay { bottom: -7px; }
   .felt-table.is-compact-melds .meld-games .preview-action-badge { bottom: -7px; }
-  .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face { width: 32px; height: 45px; flex-basis: 32px; margin: 0 -18px -18px 0; }
+  .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face { width: 32px; height: 45px; flex-basis: 32px; margin: 0 -20px -18px 0; }
   .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face.is-normal-minimum-overlap { margin-right: -11px; }
   .felt-table.is-minimum-melds .meld-games .meld-tiles .tile-face strong { margin-left: 4px; font-size: 17px; }
   .felt-table.is-minimum-melds .meld-games .meld-tiles .canasta-overlay { bottom: -8px; }
