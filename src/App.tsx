@@ -864,14 +864,7 @@ export default function App() {
           aria-expanded={showAvatarNames}
           onClick={() => setShowAvatarNames((visible) => !visible)}
         >
-          <svg className="opponent-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-            <circle cx="16" cy="16" r="16" fill="currentColor" />
-            <path d="M16 5.5v3M13 5.5h6" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.6" />
-            <rect x="8" y="10" width="16" height="13" rx="4" fill="none" stroke="white" strokeWidth="1.8" />
-            <circle cx="12.5" cy="15.5" r="1.2" fill="white" />
-            <circle cx="19.5" cy="15.5" r="1.2" fill="white" />
-            <path d="M12.5 19h7" fill="none" stroke="white" strokeLinecap="round" strokeWidth="1.5" />
-          </svg>
+          <img className="opponent-avatar" src="/avatars/computer.svg" alt="" aria-hidden="true" />
           {showAvatarNames && <span className="avatar-tooltip">Computadora</span>}
         </button>
         <button
@@ -881,11 +874,7 @@ export default function App() {
           aria-expanded={showAvatarNames}
           onClick={() => setShowAvatarNames((visible) => !visible)}
         >
-          <svg className="player-avatar" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-            <circle cx="16" cy="16" r="16" fill="currentColor" />
-            <circle cx="16" cy="11.5" r="4" fill="white" />
-            <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />
-          </svg>
+          <img className="player-avatar" src="/avatars/player.svg" alt="" aria-hidden="true" />
           {showAvatarNames && <span className="avatar-tooltip">Vos</span>}
         </button>
         <div className="meld-area">
