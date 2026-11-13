@@ -1,7 +1,4 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rulesMarkdown from '../reglas-burako.md?raw';
 import {
   COLORS,
   addToMeld,
@@ -22,9 +19,14 @@ import {
   takeDiscardPile,
   type GameState,
   type Meld,
+  type RoundScore,
   type Target,
   type Tile,
 } from './game';
+import { PointsDialog } from './components/PointsDialog';
+import { RulesDialog } from './components/RulesDialog';
+import { ScorePairSummary } from './components/ScorePairSummary';
+import { getTileColorName, TileFace } from './components/TileFace';
 import { runComputerTurnSteps } from './computer';
 import {
   logGameDebug,
@@ -34,12 +36,6 @@ import {
   type BurakoDebugHelper,
 } from './diagnostics';
 
-const COLOR_NAMES: Record<string, string> = {
-  red: 'rojo',
-  blue: 'azul',
-  green: 'verde',
-  yellow: 'amarillo',
-};
 const SAVE_KEY = 'burako-local-game-v1';
 const AI_THINKING_DELAY_MS = 500;
 const COMPUTER_MOVE_DELAY_MS = 700;
@@ -155,20 +151,6 @@ function loadSavedGame(): GameState | null {
   }
 }
 
-function TileFace({ tile, selected = false, className = '' }: { tile: Tile; selected?: boolean; className?: string }) {
-  const isWildTwo = tile.kind === 'number' && tile.value === 2;
-  const label = tile.kind === 'joker'
-    ? 'comodín especial'
-    : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}${isWildTwo ? ', comodín' : ''}`;
-  return (
-    <span className={`tile-face ${tile.kind === 'joker' ? 'tile-joker' : `tile-${tile.color}`} ${isWildTwo ? 'tile-two-wild' : ''} ${selected ? 'is-selected' : ''} ${className}`} data-tile-id={tile.id} role="img" aria-label={label}>
-      {tile.kind !== 'joker' && <span className="tile-mark" aria-hidden="true" />}
-      <strong>{tile.kind === 'joker' ? '★' : tile.value}</strong>
-      {tile.kind === 'joker' && <small>COMODÍN</small>}
-    </span>
-  );
-}
-
 function getTileLocations(state: GameState): Map<string, string> {
   const locations = new Map<string, string>();
   for (const tile of state.stock) locations.set(tile.id, 'stock');
@@ -230,15 +212,6 @@ function getTileFlights(previous: GameState, next: GameState, firstId: number, r
     });
   }
   return flights;
-}
-
-function ScorePairSummary({ label, scores }: { label: string; scores: [number, number] }) {
-  return (
-    <span className="result-score-pair">
-      {label}: <span className={scores[0] >= scores[1] ? 'is-leading-score' : ''}>{scores[0].toLocaleString('es-AR')}</span> (vos)
-      {' a '} <span className={scores[1] >= scores[0] ? 'is-leading-score' : ''}>{scores[1].toLocaleString('es-AR')}</span>
-    </span>
-  );
 }
 
 export default function App() {
@@ -726,29 +699,6 @@ export default function App() {
   };
 
   const openRules = () => rulesDialogRef.current?.showModal();
-  const rulesDialog = (
-    <dialog
-      ref={rulesDialogRef}
-      className="rules-dialog"
-      aria-labelledby="rules-dialog-title"
-      onClick={(event) => { if (event.target === event.currentTarget) rulesDialogRef.current?.close(); }}
-    >
-      <div className="rules-dialog-content">
-        <header className="rules-dialog-header">
-          <div>
-            <p className="discard-dialog-eyebrow">Guía rápida</p>
-            <h2 id="rules-dialog-title">Reglas del Burako</h2>
-          </div>
-          <button className="discard-dialog-close" type="button" aria-label="Cerrar reglas" autoFocus onClick={() => rulesDialogRef.current?.close()}>×</button>
-        </header>
-        <div className="rules-dialog-scroll">
-          <article className="rules-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{rulesMarkdown}</ReactMarkdown>
-          </article>
-        </div>
-      </div>
-    </dialog>
-  );
 
   if (!game) {
     return (
@@ -791,7 +741,7 @@ export default function App() {
           <TileFace tile={{ id: 'welcome-yellow-2', color: 'yellow', value: 2, kind: 'number' }} className="tile-wild" />
         </aside>
         <footer className="welcome-footer">Sin cuenta ni publicidad · La partida se juega en tu dispositivo</footer>
-        {rulesDialog}
+        <RulesDialog dialogRef={rulesDialogRef} />
       </main>
     );
   }
@@ -849,7 +799,7 @@ export default function App() {
     setSortMenuOpen(false);
   };
   const pointsHistory = game.roundHistory ?? [];
-  const currentRoundScore = pointsHistory.length ? pointsHistory[pointsHistory.length - 1] : null;
+  const currentRoundScore: RoundScore | null = pointsHistory.length ? pointsHistory[pointsHistory.length - 1] : null;
   const previousRoundScores = currentRoundScore ? pointsHistory.slice(0, -1) : pointsHistory;
   const hasPreviousRounds = game.round > 1;
   const currentHandScores: [number, number] | null = currentRoundScore
@@ -863,10 +813,6 @@ export default function App() {
     { label: 'Fichas en juegos bajados', scores: currentRoundScore.scores.map((score) => score.meldTiles) },
     { label: 'Fichas en atril', scores: currentRoundScore.scores.map((score) => score.rackTiles) },
   ] : [];
-  const formatHandPoints = (points: number) => points > 0
-    ? `+${points.toLocaleString('es-AR')}`
-    : points.toLocaleString('es-AR');
-
   return (
     <main className="game-page" onContextMenu={(event) => event.preventDefault()}>
       <div className="tile-flight-layer" aria-hidden="true">
@@ -1082,63 +1028,14 @@ export default function App() {
         </div>
       </section>
 
-      <dialog
-        ref={pointsDialogRef}
-        className="discard-dialog points-dialog"
-        aria-labelledby="points-dialog-title"
-        onClick={(event) => { if (event.target === event.currentTarget) pointsDialogRef.current?.close(); }}
-      >
-        <div className="discard-dialog-content">
-          <header className="discard-dialog-header">
-            <div>
-              <p className="discard-dialog-eyebrow">Resumen de la partida</p>
-              <h2 id="points-dialog-title">Detalle de puntos</h2>
-            </div>
-            <button className="discard-dialog-close" type="button" aria-label="Cerrar detalle de puntos" autoFocus onClick={() => pointsDialogRef.current?.close()}>×</button>
-          </header>
-          <div className="points-table-scroll">
-            {pointsHistory.length > 0 && pointsHistory[0].round > 1 && <p className="points-history-note">El detalle de manos anteriores a esta versión no está disponible.</p>}
-            {!currentRoundScore && <p className="points-history-note">El detalle de esta mano no está disponible para esta partida guardada.</p>}
-            <table className="points-table">
-              <thead>
-                <tr><th scope="col">Detalle</th><th scope="col">Vos</th><th scope="col">Computadora</th></tr>
-              </thead>
-              <tbody>
-                {previousRoundScores.map((roundScore) => (
-                  <tr key={roundScore.round}>
-                    <th scope="row">Mano {roundScore.round}</th>
-                    <td>{formatHandPoints(roundScore.scores[0].total)}</td>
-                    <td>{formatHandPoints(roundScore.scores[1].total)}</td>
-                  </tr>
-                ))}
-                {currentRoundScore && <>
-                  {game.round > 1 && <tr className="points-section-row"><th colSpan={3}>Detalle de la mano {currentRoundScore.round}</th></tr>}
-                  {pointsRows.map((row) => (
-                    <tr key={row.label}>
-                      <th scope="row">{row.label}</th>
-                      <td>{formatHandPoints(row.scores[0])}</td>
-                      <td>{formatHandPoints(row.scores[1])}</td>
-                    </tr>
-                  ))}
-                  <tr className="points-round-total">
-                    <th scope="row">Total de la mano</th>
-                    <td>{formatHandPoints(currentRoundScore.scores[0].total)}</td>
-                    <td>{formatHandPoints(currentRoundScore.scores[1].total)}</td>
-                  </tr>
-                </>}
-                {game.round > 1 && <tr className="points-match-total">
-                  <th scope="row">Total final</th>
-                  <td>{game.scores[0].toLocaleString('es-AR')}</td>
-                  <td>{game.scores[1].toLocaleString('es-AR')}</td>
-                </tr>}
-              </tbody>
-            </table>
-          </div>
-          <footer className="discard-dialog-footer">
-            <button className="primary-action" type="button" onClick={() => pointsDialogRef.current?.close()}>Cerrar</button>
-          </footer>
-        </div>
-      </dialog>
+      <PointsDialog
+        dialogRef={pointsDialogRef}
+        game={game}
+        pointsHistory={pointsHistory}
+        currentRoundScore={currentRoundScore}
+        previousRoundScores={previousRoundScores}
+        pointsRows={pointsRows}
+      />
 
       <section ref={playerAreaRef} className="player-area" aria-label="Tu atril">
         {game.result && <section className={`result-banner ${game.phase === 'match-over' ? 'is-final' : ''}`} role="status">
@@ -1226,7 +1123,7 @@ export default function App() {
                 draggable={canReorderHand}
                 disabled={!humanTurn}
                 aria-pressed={selection.includes(tile.id)}
-                aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${COLOR_NAMES[tile.color ?? '']}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
+                aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${getTileColorName(tile.color)}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
                 onClick={() => {
                   if (ignoreNextTileClickRef.current) {
                     ignoreNextTileClickRef.current = false;
@@ -1261,7 +1158,7 @@ export default function App() {
         ><TileFace tile={draggedTile} /></div>}
       </section>
 
-      {rulesDialog}
+      <RulesDialog dialogRef={rulesDialogRef} />
     </main>
   );
 }
