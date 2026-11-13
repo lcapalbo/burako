@@ -108,7 +108,6 @@ export function PlayerArea({
           <button
             className="sort-button sort-trigger"
             type="button"
-            disabled={!humanTurn}
             aria-expanded={sortMenuOpen}
             aria-haspopup="menu"
             onClick={onToggleSortMenu}
@@ -165,10 +164,11 @@ export function PlayerArea({
               key={tile.id}
               data-hand-tile-id={tile.id}
               draggable={canReorderHand}
-              disabled={!humanTurn}
+              disabled={!humanTurn && !canReorderHand}
+              aria-disabled={!humanTurn}
               aria-pressed={selection.includes(tile.id)}
               aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${getTileColorName(tile.color)}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
-              onClick={() => onHandTileClick(tile.id, openingChoiceTile)}
+              onClick={() => { if (humanTurn) onHandTileClick(tile.id, openingChoiceTile); }}
               onDragStart={(event) => { if (!canReorderHand) event.preventDefault(); else onDraggedIdChange(tile.id); }}
               onDragEnd={() => onDraggedIdChange(null)}
               onDrop={(event) => { event.preventDefault(); if (canReorderHand && draggedId) onReorderHand(draggedId, tile.id); onDraggedIdChange(null); }}

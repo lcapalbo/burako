@@ -201,6 +201,7 @@ export default function App() {
   const feltTableRef = useRef<HTMLElement>(null);
   const computerTurnInProgressRef = useRef(false);
   const pauseComputerTurnRef = useRef(false);
+  const humanHandOrderRef = useRef<string[]>(game?.players[0].hand.map((tile) => tile.id) ?? []);
   const computerTimerRef = useRef<number | null>(null);
   const computerWaitResolverRef = useRef<(() => void) | null>(null);
   const computerTurnIdRef = useRef(0);
@@ -468,6 +469,7 @@ export default function App() {
     if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over'
       || computerTurnInProgressRef.current || pauseComputerTurnRef.current) return;
     const turnStart = game;
+    humanHandOrderRef.current = turnStart.players[0].hand.map((tile) => tile.id);
     const turnId = ++computerTurnIdRef.current;
     logGameDebug('computer:thinking-start', { turnId, state: summarizeGameState(turnStart) });
     computerTurnInProgressRef.current = true;
@@ -498,18 +500,26 @@ export default function App() {
           logGameDebug('computer:step-delay-start', { turnId, step: index + 1, stepCount: steps.length, durationMs: COMPUTER_MOVE_DELAY_MS });
           await wait(COMPUTER_MOVE_DELAY_MS);
           if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
-          const discardedTileIds = getNewDiscardedTileIds(previous, next);
-          const flights = getTileFlights(previous, next, nextTileFlightIdRef.current, revealOpponentHandForDebug);
+          const handOrder = new Map(humanHandOrderRef.current.map((tileId, position) => [tileId, position]));
+          const players = [...next.players];
+          players[0] = {
+            ...players[0],
+            hand: [...players[0].hand].sort((left, right) =>
+              (handOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (handOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER)),
+          };
+          const nextWithOrderedHand = { ...next, players };
+          const discardedTileIds = getNewDiscardedTileIds(previous, nextWithOrderedHand);
+          const flights = getTileFlights(previous, nextWithOrderedHand, nextTileFlightIdRef.current, revealOpponentHandForDebug);
           nextTileFlightIdRef.current += flights.length;
           if (flights.length) setTileFlights((current) => [...current, ...flights]);
           setRecentlyChangedTileIds(getRecentlyChangedTileIds(previous, next));
           setRecentlyDiscardedTileIds(discardedTileIds);
           setRecentTileDuration(discardedTileIds.length ? RECENT_DISCARD_DURATION_MS : RECENT_TILE_DURATION_MS);
-          commitGame(previous, next);
+          commitGame(previous, nextWithOrderedHand);
           setError('');
-          previous = next;
-          lastAppliedState = next;
-          logGameDebug('computer:step-committed', { turnId, step: index + 1, state: summarizeGameState(next) });
+          previous = nextWithOrderedHand;
+          lastAppliedState = nextWithOrderedHand;
+          logGameDebug('computer:step-committed', { turnId, step: index + 1, state: summarizeGameState(nextWithOrderedHand) });
         }
       } catch (issue) {
         if (turnId !== computerTurnIdRef.current) return;
@@ -598,6 +608,7 @@ export default function App() {
     if (from < 0 || to < 0) return;
     const [tile] = hand.splice(from, 1);
     hand.splice(to, 0, tile);
+    humanHandOrderRef.current = hand.map((item) => item.id);
     const players = [...game.players];
     players[0] = { ...players[0], hand };
     commitGame(game, { ...game, players });
@@ -681,7 +692,8 @@ export default function App() {
   const canDrawFromStock = humanTurn && game.phase === 'draw' && game.stock.length > 0;
   const canFinishEmptyStock = humanTurn && game.phase === 'draw' && game.stock.length === 0;
   const canLiftDiscard = humanTurn && game.phase === 'draw' && game.discard.length > 0 && human.hand.length + game.discard.length >= 5;
-  const canReorderHand = humanTurn && selection.length === 0 && game.phase !== 'opening-choice' && !canFinishEmptyStock;
+  const canReorderHand = !roundClosed && selection.length === 0
+    && !(humanTurn && game.phase === 'opening-choice') && !canFinishEmptyStock;
   const playerHeaderText = !humanTurn
     ? `${human.hand.length} fichas`
     : game.phase === 'draw'
