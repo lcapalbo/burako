@@ -105,6 +105,7 @@ h1 em { color: var(--coral); font-weight: 500; }
 .bottom-player-avatar { color: var(--coral); }
 .table-avatar { position: absolute; z-index: 4; display: grid; width: 52px; height: 52px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: transform .2s ease, filter .2s ease; }
 .table-avatar-top-player { top: -35px; right: 12px; }
+.pairs-table-layout .table-avatar-top-player .top-player-avatar { filter: hue-rotate(180deg) saturate(1.8) brightness(1.08); }
 .table-avatar-bottom-player { bottom: -35px; left: 12px; }
 .table-avatar.is-turn { transform: scale(1.14); filter: drop-shadow(0 0 7px rgba(255, 228, 90, .85)); }
 .table-avatar::before { position: absolute; inset: 3px; border: 2px solid transparent; border-radius: 50%; content: ""; pointer-events: none; }
@@ -117,11 +118,11 @@ h1 em { color: var(--coral); font-weight: 500; }
 .table-avatar-bottom-player .avatar-tooltip { bottom: calc(100% + 5px); left: 3px; }
 .table-avatar-bottom-player .avatar-tooltip::before { bottom: -5px; }
 .table-layout { display: grid; grid-row: 3; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); width: 100%; max-width: 1180px; min-height: 0; margin: 0 auto; }
-.pairs-table-layout { grid-template-columns: 56px minmax(0, 1fr) 56px; }
+.pairs-table-layout { grid-template-columns: 36px minmax(0, 1fr) 36px; }
 .side-player-bar { position: relative; z-index: 10; grid-row: 1; min-height: 0; overflow: visible; }
 .left-player-bar { grid-column: 1; }
 .right-player-bar { grid-column: 3; }
-.side-player-avatar { display: block; width: 30px; height: 30px; }
+.side-player-avatar { display: block; width: 38px; height: 38px; }
 .table-avatar-left-player, .table-avatar-right-player { width: 52px; height: 52px; }
 .table-avatar-left-player { top: 0; right: -17px; }
 .table-avatar-right-player { right: auto; bottom: 0; left: -17px; }
@@ -131,10 +132,10 @@ h1 em { color: var(--coral); font-weight: 500; }
 .table-avatar-right-player .avatar-tooltip::before { top: 9px; right: -5px; left: auto; transform: rotate(-45deg); }
 .side-player-rack { position: absolute; top: 42px; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; align-items: center; overflow: visible; }
 .right-player-bar .side-player-rack { top: 0; bottom: 42px; justify-content: flex-end; }
-.side-player-rack .tile-face { width: 27px; height: 38px; flex: 0 0 38px; margin-bottom: -25px; border-radius: 3px; }
-.side-player-rack .tile-face strong { font-size: 17px; }
-.side-player-rack .tile-mark { top: 2px; left: 3px; font-size: 4px; }
-.hidden-side-tile { display: block; width: 21px; height: 30px; flex: 0 0 30px; margin-bottom: -20px; border: 1px solid #c1d0c6; border-radius: 3px; background: repeating-linear-gradient(45deg, #dae7dc 0 3px, #eaf0e8 3px 6px); }
+.side-player-rack .tile-face { width: 34px; height: 48px; flex: 0 0 48px; margin-bottom: -32px; border-radius: 4px; }
+.side-player-rack .tile-face strong { font-size: 22px; }
+.side-player-rack .tile-mark { top: 3px; left: 4px; font-size: 5px; }
+.hidden-side-tile { display: block; width: 34px; height: 48px; flex: 0 0 48px; margin-bottom: -32px; border: 1px solid #c1d0c6; border-radius: 4px; background: repeating-linear-gradient(45deg, #dae7dc 0 3px, #eaf0e8 3px 6px); }
 .left-player-bar .side-player-rack .tile-face, .left-player-bar .hidden-side-tile { transform: rotate(90deg); }
 .right-player-bar .side-player-rack .tile-face, .right-player-bar .hidden-side-tile { transform: rotate(-90deg); }
 .hand-count { color: #77857d; font-size: 10px; }
@@ -373,14 +374,6 @@ h1 em { color: var(--coral); font-weight: 500; }
   .table-avatar-top-player { right: 5px; }
   .table-avatar-bottom-player { left: 5px; }
   .felt-table { gap: 4px; padding: 4px 6px; }
-  .pairs-table-layout { grid-template-columns: 42px minmax(0, 1fr) 42px; }
-  .table-avatar-left-player, .table-avatar-right-player { width: 42px; height: 42px; }
-  .table-avatar-left-player { right: -14px; }
-  .table-avatar-right-player { left: -14px; }
-  .side-player-avatar { width: 24px; height: 24px; }
-  .side-player-rack .tile-face { width: 22px; height: 31px; flex-basis: 31px; margin-bottom: -21px; }
-  .side-player-rack .tile-face strong { font-size: 14px; }
-  .hidden-side-tile { width: 18px; height: 25px; flex-basis: 25px; margin-bottom: -17px; }
   .meld-games { row-gap: 2px; }
   .felt-table.is-minimum-melds .meld-games { gap: 6px 20px; }
   .empty-table { font-size: 12px; text-align: center; }
