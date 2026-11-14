@@ -170,7 +170,7 @@ export function GameTable({
               type="button"
               aria-label={`Bajar juego de ${selectedTiles.length} fichas`}
               onClick={() => onLayMeld(selection)}
-            ><span className="meld-tiles">{(previewMeldKind === 'run' ? previewMeldTiles : sortLegTiles(previewMeldTiles)).map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}<span className="preview-action-badge" aria-hidden="true">Bajá acá</span></span></button>;
+            ><span className="meld-tiles" key={selection.join(':')}>{(previewMeldKind === 'run' ? previewMeldTiles : sortLegTiles(previewMeldTiles)).map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}<span className="preview-action-badge" aria-hidden="true">Bajá acá</span></span></button>;
             return (
               <Fragment key={team}>
                 {team === 0 && <div className="piles-row">
@@ -260,7 +260,7 @@ export function GameTable({
                             onClick={canAddSelection ? addSelection : undefined}
                             onKeyDown={canAddSelection ? handleKeyDown : undefined}
                           >
-                            <div className="meld-tiles">
+                            <div className="meld-tiles" key={canAddSelection ? selection.join(':') : undefined}>
                               {shownTiles.map((tile, tileIndex) => {
                                 const selectedForPreview = canAddSelection && selection.includes(tile.id);
                                 const normalOverlapInMinimum = meldDensity === 'minimum' && meld.kind === 'run'
