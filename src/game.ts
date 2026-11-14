@@ -1,3 +1,5 @@
+import { getAiProfileById, selectRandomAiProfile, type AiProfileId } from './aiProfiles.js';
+
 export const COLORS = ['red', 'blue', 'green', 'yellow'] as const;
 export type TileColor = (typeof COLORS)[number];
 export type Tile = {
@@ -11,6 +13,7 @@ export type Meld = { id: string; kind: MeldKind; tiles: Tile[]; team: number };
 export type Player = {
   id: number;
   name: string;
+  aiProfileId: AiProfileId | null;
   team: number;
   hand: Tile[];
   deadTaken: boolean;
@@ -185,13 +188,23 @@ function shuffle<T>(items: T[], random: () => number): T[] {
   return result;
 }
 
-export function createGame(target: Target = 2000, random = Math.random, scores = [0, 0], round = 1, starter?: number): GameState {
+export function createGame(
+  target: Target = 2000,
+  random = Math.random,
+  scores = [0, 0],
+  round = 1,
+  starter?: number,
+  aiProfileId?: AiProfileId,
+): GameState {
   const deck = shuffle(createDeck(), random);
   const playersCount = 2;
   const initialStarter = starter === undefined ? Math.floor(random() * playersCount) : starter % playersCount;
+  const aiProfile = aiProfileId ? getAiProfileById(aiProfileId) : selectRandomAiProfile(random);
+  if (!aiProfile) throw new GameRuleError('No existe ese perfil de IA.');
   const players: Player[] = [0, 1].map((id) => ({
     id,
-    name: id === 0 ? 'Vos' : 'La computadora',
+    name: id === 0 ? 'Vos' : aiProfile.name,
+    aiProfileId: id === 0 ? null : aiProfile.id,
     team: id,
     hand: deck.splice(0, 11),
     deadTaken: false,
@@ -366,6 +379,7 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
   }
   const scores = state.scores.map((score, team) => score + roundScores[team].total);
   const roundHistory = [...(state.roundHistory ?? []), { round: state.round, scores: roundScores }];
+  const opponentName = state.players.find((player) => player.team === 1)?.name ?? 'El equipo oponente';
   if (state.target === 'cut') {
     return closureWinner === null
       ? { ...state, scores, roundHistory, phase: 'match-over', winner: null, result: 'Se agotaron las fichas sin que nadie pudiera cerrar.' }
@@ -377,7 +391,7 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
           winner: closureWinner,
           result: closureWinner === 0
             ? '¡Felicitaciones, ganaste la mano!'
-            : 'Otra vez será: la computadora ganó la mano.',
+            : `Otra vez será: ${opponentName} ganó la mano.`,
         };
   }
   const targetScore = typeof state.target === 'number' ? state.target : Number.POSITIVE_INFINITY;
@@ -386,7 +400,7 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
   let result: string | null = null;
   const matchResult = (winner: number | null) => winner === 0
     ? '¡Felicitaciones, ganaste la partida!'
-    : winner === 1 ? 'Otra vez será: la computadora ganó la partida.' : 'La partida termina en empate.';
+    : winner === 1 ? `Otra vez será: ${opponentName} ganó la partida.` : 'La partida termina en empate.';
   if (reached[0] && reached[1]) {
     matchWinner = scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1;
     result = matchResult(matchWinner);
@@ -519,7 +533,7 @@ export function nextRound(state: GameState): GameState {
     };
   }
   return {
-    ...createGame(state.target, Math.random, state.scores, state.round + 1, nextStarter),
+    ...createGame(state.target, Math.random, state.scores, state.round + 1, nextStarter, state.players[1].aiProfileId ?? undefined),
     roundHistory: state.roundHistory ?? [],
   };
 }

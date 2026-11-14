@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { addToMeld, createGame as createGameWithRandomStarter, discardOpeningDrawAndRedraw, discardTile, drawFromStock, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
+import { getAiProfileById } from '../.test-build/aiProfiles.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
-const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0) =>
-  createGameWithRandomStarter(target, random, scores, round, starter);
+const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0, aiProfileId) =>
+  createGameWithRandomStarter(target, random, scores, round, starter, aiProfileId);
 const stateWithHand = (hand, melds = []) => {
   const initial = createGame(2000, () => 0.5);
   const players = [...initial.players];
@@ -535,7 +536,7 @@ describe('puntaje de la mano', () => {
     const computerWins = finishEmptyStock(exhaustedState([makeDirtyCanasta(), makeCleanCanasta(1, 'higher-computer')]), 0);
     assert.deepEqual(computerWins.scores, initial.scores.map((score, team) => score + computerWins.roundHistory[0].scores[team].total));
     assert.equal(computerWins.winner, 1);
-    assert.equal(computerWins.result, 'Otra vez será: la computadora ganó la partida.');
+    assert.equal(computerWins.result, `Otra vez será: ${initial.players[1].name} ganó la partida.`);
 
     const tiedScore = finishEmptyStock(exhaustedState([makeCleanCanasta(0, 'tie-a'), makeCleanCanasta(1, 'tie-b')]), 0);
     assert.deepEqual(tiedScore.scores, [2335, 2335]);
@@ -580,6 +581,24 @@ describe('puntaje de la mano', () => {
 });
 
 describe('nueva mano y rotación', () => {
+  it('asigna un perfil de IA registrado al crear una partida', () => {
+    const game = createGame(2000, () => 0.5);
+    const profile = getAiProfileById(game.players[1].aiProfileId);
+
+    assert.ok(profile);
+    assert.equal(game.players[1].name, profile.name);
+    assert.equal(game.players[0].aiProfileId, null);
+  });
+
+  it('conserva el perfil de IA al iniciar la siguiente mano', () => {
+    const initial = createGame(2000, () => 0.5, [120, 80], 4, 0, 'hal-9000');
+
+    const next = nextRound({ ...initial, phase: 'round-over' });
+
+    assert.equal(next.players[1].aiProfileId, 'hal-9000');
+    assert.equal(next.players[1].name, 'HAL 9000');
+  });
+
   it('reparte fichas nuevas al iniciar otra mano, sin conservar fichas de la anterior', () => {
     const initial = createGame(2000, () => 0.5, [120, 80], 4, 0);
     const oldTiles = Array.from({ length: 10 }, (_, index) => tile(`old-${index}`, 'red', index + 1));
@@ -654,7 +673,7 @@ describe('cierre por corte', () => {
     assert.deepEqual(ended.scores, ended.roundHistory[0].scores.map((score) => score.total));
   });
 
-  it('avisa cuando la computadora gana la mano', () => {
+  it('avisa cuando la IA gana la mano', () => {
     const initial = createGame('cut', () => 0.5);
     const canasta = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`cut-computer-${value}`, 'blue', value));
     const players = [...initial.players];
@@ -665,7 +684,7 @@ describe('cierre por corte', () => {
 
     assert.equal(ended.phase, 'match-over');
     assert.equal(ended.winner, 1);
-    assert.equal(ended.result, 'Otra vez será: la computadora ganó la mano.');
+    assert.equal(ended.result, `Otra vez será: ${initial.players[1].name} ganó la mano.`);
   });
 });
 

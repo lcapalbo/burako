@@ -44,7 +44,7 @@ export function PointsDialog({
           {!currentRoundScore && <p className="points-history-note">El detalle de esta mano no está disponible para esta partida guardada.</p>}
           <table className="points-table">
             <thead>
-              <tr><th scope="col">Detalle</th><th scope="col">Vos</th><th scope="col">Computadora</th></tr>
+              <tr><th scope="col">Detalle</th><th scope="col">Vos</th><th scope="col">{game.players[1].name}</th></tr>
             </thead>
             <tbody>
               {previousRoundScores.map((roundScore) => (

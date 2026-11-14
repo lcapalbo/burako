@@ -13,6 +13,7 @@ import {
   type Tile,
 } from '../game';
 import { TileFace } from './TileFace';
+import { getAiProfileById } from '../aiProfiles';
 
 export type MeldDensity = 'normal' | 'compact' | 'minimum';
 
@@ -111,7 +112,9 @@ export function GameTable({
   onLayMeld,
   onAddToMeld,
 }: GameTableProps) {
-  const computer = game.players[1];
+  const topPlayer = game.players[1];
+  const topProfile = getAiProfileById(topPlayer.aiProfileId);
+  if (!topProfile) throw new Error('El jugador superior no tiene un perfil de IA válido.');
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
     .sort(compareMelds);
@@ -126,35 +129,35 @@ export function GameTable({
 
   return (
     <>
-      <section className="opponent-bar" aria-label="Atril de la computadora">
+      <section className="top-player-bar" aria-label={`Atril de ${topPlayer.name}`}>
         {revealComputerHand
-          ? <div className="opponent-rack" data-animation-zone="hand-1" aria-label="Fichas del atril de la computadora">{computer.hand.map((tile) => <TileFace tile={tile} key={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>
-          : !roundClosed && <div className="hidden-tiles" data-animation-zone="hand-1" aria-hidden="true">{computer.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>}
+          ? <div className="top-player-rack" data-animation-zone="hand-1" aria-label={`Fichas del atril de ${topPlayer.name}`}>{topPlayer.hand.map((tile) => <TileFace tile={tile} key={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>
+          : !roundClosed && <div className="hidden-tiles" data-animation-zone="hand-1" aria-hidden="true">{topPlayer.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>}
       </section>
 
       <section
         ref={feltTableRef}
-        className={`felt-table ${meldDensity === 'compact' ? 'is-compact-melds' : ''} ${meldDensity === 'minimum' ? 'is-minimum-melds' : ''} ${discardDensity === 'compact' ? 'is-compact-discard' : ''} ${discardDensity === 'minimum' ? 'is-minimum-discard' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === 1 ? 'is-computer-turn' : 'is-human-turn'}`}
+        className={`felt-table ${meldDensity === 'compact' ? 'is-compact-melds' : ''} ${meldDensity === 'minimum' ? 'is-minimum-melds' : ''} ${discardDensity === 'compact' ? 'is-compact-discard' : ''} ${discardDensity === 'minimum' ? 'is-minimum-discard' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === topPlayer.id ? 'is-top-player-turn' : 'is-bottom-player-turn'}`}
         aria-label="Mesa de juego"
       >
         <button
-          className={`table-avatar table-avatar-computer ${!roundClosed && (game.currentPlayer === 1 || computerTurnInProgress) ? 'is-turn' : ''}`}
+          className={`table-avatar table-avatar-top-player ${!roundClosed && (game.currentPlayer === topPlayer.id || computerTurnInProgress) ? 'is-turn' : ''}`}
           type="button"
-          aria-label="Mostrar nombre de computadora"
+          aria-label={`Mostrar nombre de ${topPlayer.name}`}
           aria-expanded={showAvatarNames}
           onClick={onToggleAvatarNames}
         >
-          <img className="opponent-avatar" src="/avatars/computer.svg" alt="" aria-hidden="true" />
-          {showAvatarNames && <span className="avatar-tooltip">Computadora</span>}
+          <img className="top-player-avatar" src={topProfile.avatar} alt="" aria-hidden="true" />
+          {showAvatarNames && <span className="avatar-tooltip">{topPlayer.name}</span>}
         </button>
         <button
-          className={`table-avatar table-avatar-player ${humanTurn ? 'is-turn' : ''}`}
+          className={`table-avatar table-avatar-bottom-player ${humanTurn ? 'is-turn' : ''}`}
           type="button"
           aria-label="Mostrar nombre de jugador"
           aria-expanded={showAvatarNames}
           onClick={onToggleAvatarNames}
         >
-          <img className="player-avatar" src="/avatars/player.svg" alt="" aria-hidden="true" />
+          <img className="bottom-player-avatar" src="/avatars/player.svg" alt="" aria-hidden="true" />
           {showAvatarNames && <span className="avatar-tooltip">Vos</span>}
         </button>
         <div className="meld-area">

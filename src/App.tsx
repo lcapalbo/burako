@@ -26,6 +26,7 @@ import { RulesDialog } from './components/RulesDialog';
 import { TileFace } from './components/TileFace';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { runComputerTurnSteps } from './computer';
+import { normalizeAiPlayer } from './aiProfiles';
 import {
   logGameDebug,
   logGameError,
@@ -102,7 +103,9 @@ function loadSavedGame(): GameState | null {
     if (!saved) return null;
     const value = JSON.parse(saved) as { version?: number; game?: GameState };
     if (value.version !== 1 || !value.game || !Array.isArray(value.game.players) || value.game.players.length !== 2) return null;
-    return value.game;
+    const players = [...value.game.players];
+    players[1] = normalizeAiPlayer(players[1]);
+    return { ...value.game, players };
   } catch {
     return null;
   }
@@ -529,7 +532,7 @@ export default function App() {
         }
       } catch (issue) {
         if (turnId !== computerTurnIdRef.current) return;
-        setError('La computadora no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.', turnStart, issue);
+        setError(`${turnStart.players[1].name} no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.`, turnStart, issue);
       } finally {
         logGameDebug('computer:turn-finished', {
           turnId,
@@ -685,13 +688,13 @@ export default function App() {
   }
 
   const human = game.players[0];
-  const computer = game.players[1];
+  const topPlayer = game.players[1];
   const flightTileIds = new Set(tileFlights.map((flight) => flight.tile.id));
   const selectedTiles = human.hand.filter((tile) => selection.includes(tile.id));
   const canLaySelectedMeld = getMeldKind(selectedTiles) !== null && canLayMeldSelection(game, selection);
   const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
   const revealComputerHand = revealOpponentHandForDebug
-    || (roundClosed && !(computer.indirectDead && !computer.playedAfterDead));
+    || (roundClosed && !(topPlayer.indirectDead && !topPlayer.playedAfterDead));
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
   const humanTurn = !computerTurnInProgress && game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const openingChoice = humanTurn && game.phase === 'opening-choice';
