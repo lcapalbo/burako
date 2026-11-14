@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { createGame as createGameWithRandomStarter, getMeldKind } from '../.test-build/game.js';
+import { DEFAULT_AI_PREFERENCES } from '../.test-build/aiProfiles.js';
 import { chooseDiscard, findBestMeld, runComputerTurn, runComputerTurnSteps } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
@@ -51,6 +52,21 @@ describe('búsqueda de juegos', () => {
       assert.deepEqual(actual, expected);
     }
   });
+
+  it('prefiere piernas cuando la personalidad así lo indica', () => {
+    const hand = [
+      tile('personality-run-five', 'red', 5),
+      tile('personality-run-six', 'red', 6),
+      tile('personality-run-seven', 'red', 7),
+      tile('personality-leg-blue-five', 'blue', 5),
+      tile('personality-leg-green-five', 'green', 5),
+    ];
+    const preferences = { ...DEFAULT_AI_PREFERENCES, preferredMeldKind: 'leg', meldKindPreferenceBonus: 4 };
+
+    const best = findBestMeld(hand, () => true, preferences);
+
+    assert.equal(getMeldKind(best), 'leg');
+  });
 });
 
 describe('descarte de la computadora', () => {
@@ -64,9 +80,98 @@ describe('descarte de la computadora', () => {
     assert.equal(chooseDiscard(hand, one.id), thirteen);
     assert.throws(() => chooseDiscard([one], one.id), /No hay una ficha legal para descartar/);
   });
+
+  it('evita descartar la ficha que completaría una canasta rival si tiene esa preferencia', () => {
+    const eight = tile('opponent-canasta-eighth', 'red', 8);
+    const five = tile('opponent-canasta-safe-five', 'green', 5);
+    const meld = {
+      id: 'opponent-six-eights',
+      kind: 'leg',
+      tiles: Array.from({ length: 6 }, (_, index) => tile(`opponent-six-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 0,
+    };
+    const hand = [eight, five];
+
+    assert.equal(chooseDiscard(hand).id, eight.id);
+    assert.equal(chooseDiscard(hand, null, {
+      opponentMelds: [meld],
+      preferences: { ...DEFAULT_AI_PREFERENCES, avoidOpponentCanastaDiscards: true },
+    }).id, five.id);
+  });
 });
 
 describe('turnos de la computadora', () => {
+  it('limita el análisis del pozo a la ventana configurada', () => {
+    const hand = [
+      tile('window-green-five', 'green', 5),
+      tile('window-green-eight', 'green', 8),
+      tile('window-blue-one', 'blue', 1),
+      tile('window-red-eleven', 'red', 11),
+      tile('window-yellow-four', 'yellow', 4),
+    ];
+    const discard = [tile('window-green-six', 'green', 6), tile('window-joker', null, 0, 'joker')];
+    const state = computerState({ hand, discard, stock: [tile('window-stock', 'blue', 10)] });
+    const preferences = { ...DEFAULT_AI_PREFERENCES, discardPileWindow: 1 };
+
+    const steps = runComputerTurnSteps(state, preferences, () => 0.5);
+
+    assert.equal(steps[0].discard.length, 2);
+    assert.equal(steps[0].players[1].hand.length, 6);
+  });
+
+  it('puede retener combinaciones formadas según la probabilidad del perfil', () => {
+    const hand = [
+      tile('retain-run-three', 'red', 3),
+      tile('retain-run-four', 'red', 4),
+      tile('retain-run-five', 'red', 5),
+      tile('retain-unmatched-blue-twelve', 'blue', 12),
+      tile('retain-unmatched-yellow-ten', 'yellow', 10),
+    ];
+    const initial = computerState({ hand, phase: 'play' });
+    const preferences = { ...DEFAULT_AI_PREFERENCES, layMeldProbability: 0 };
+    const probabilisticPreferences = { ...DEFAULT_AI_PREFERENCES, layMeldProbability: 0.5 };
+
+    const steps = runComputerTurnSteps(initial, preferences, () => 0.5);
+    const laysWithProbability = runComputerTurnSteps(initial, probabilisticPreferences, () => 0.25);
+    const retainsWithProbability = runComputerTurnSteps(initial, probabilisticPreferences, () => 0.75);
+
+    assert.equal(steps.some((step) => step.melds.length > 0), false);
+    assert.equal(steps.at(-1).currentPlayer, 0);
+    assert.ok(laysWithProbability.some((step) => step.melds.length > 0));
+    assert.equal(retainsWithProbability.some((step) => step.melds.length > 0), false);
+  });
+
+  it('puede ignorar probabilísticamente el valor de extender sus juegos al evaluar el pozo', () => {
+    const meld = {
+      id: 'own-six-eights',
+      kind: 'leg',
+      tiles: Array.from({ length: 6 }, (_, index) => tile(`own-six-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 1,
+    };
+    const hand = [
+      tile('pozo-evaluation-blue-one', 'blue', 1),
+      tile('pozo-evaluation-green-four', 'green', 4),
+      tile('pozo-evaluation-yellow-nine', 'yellow', 9),
+      tile('pozo-evaluation-red-twelve', 'red', 12),
+    ];
+    const discard = [tile('pozo-evaluation-red-eight', 'red', 8)];
+    const state = computerState({ hand, melds: [meld], discard, stock: [tile('pozo-evaluation-stock', 'blue', 6)] });
+
+    const evaluatesMelds = (probability, random) => runComputerTurnSteps(state, {
+      ...DEFAULT_AI_PREFERENCES,
+      ownMeldPozoEvaluationProbability: probability,
+    }, random);
+    const skipsMelds = evaluatesMelds(0, () => 0.5);
+    const considersMelds = evaluatesMelds(1, () => 0.5);
+    const considersByChance = evaluatesMelds(0.5, () => 0.25);
+    const skipsByChance = evaluatesMelds(0.5, () => 0.75);
+
+    assert.equal(skipsMelds[0].discard.length, 1);
+    assert.equal(considersMelds[0].discard.length, 0);
+    assert.equal(considersByChance[0].discard.length, 0);
+    assert.equal(skipsByChance[0].discard.length, 1);
+  });
+
   it('roba del montón si una ficha del pozo completaría juego pero no reúne cinco fichas', () => {
     const hand = [tile('computer-green-9', 'green', 9), tile('computer-green-7', 'green', 7), tile('computer-red-7', 'red', 7)];
     const topDiscard = tile('computer-green-8-discard', 'green', 8);

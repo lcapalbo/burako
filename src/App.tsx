@@ -26,7 +26,7 @@ import { RulesDialog } from './components/RulesDialog';
 import { TileFace } from './components/TileFace';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { runComputerTurnSteps } from './computer';
-import { normalizeAiPlayer } from './aiProfiles';
+import { getAiProfileById, normalizeAiPlayer } from './aiProfiles';
 import {
   logGameDebug,
   logGameError,
@@ -502,7 +502,9 @@ export default function App() {
         logGameDebug('computer:thinking-delay-start', { turnId, durationMs: AI_THINKING_DELAY_MS });
         await wait(AI_THINKING_DELAY_MS);
         if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
-        const steps = runComputerTurnSteps(turnStart);
+        const aiProfile = getAiProfileById(turnStart.players[1].aiProfileId);
+        if (!aiProfile) throw new Error('El jugador superior no tiene un perfil de IA válido.');
+        const steps = runComputerTurnSteps(turnStart, aiProfile.preferences);
         logGameDebug('computer:plan-ready', { turnId, stepCount: steps.length });
         let previous = turnStart;
         for (const [index, next] of steps.entries()) {

@@ -12,9 +12,11 @@ import {
   tilePoints,
   GameRuleError,
   type GameState,
+  type Meld,
   type Tile,
 } from './game.js';
 import { logGameDebug, summarizeGameState } from './diagnostics.js';
+import { DEFAULT_AI_PREFERENCES, type AiPreferences } from './aiProfiles.js';
 
 const MAX_DISCARD_TILES_TO_EVALUATE = 10;
 const MAX_MELD_CANDIDATE_SIZE = 4;
@@ -23,7 +25,11 @@ function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
   return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
 }
 
-export function findBestMeld(hand: Tile[], isAllowed: (tiles: Tile[]) => boolean = () => true): Tile[] | null {
+export function findBestMeld(
+  hand: Tile[],
+  isAllowed: (tiles: Tile[]) => boolean = () => true,
+  preferences: AiPreferences = DEFAULT_AI_PREFERENCES,
+): Tile[] | null {
   let best: Tile[] | null = null;
   let bestValue = 0;
   const selected: Tile[] = [];
@@ -31,7 +37,8 @@ export function findBestMeld(hand: Tile[], isAllowed: (tiles: Tile[]) => boolean
     if (selected.length >= 3) {
       const kind = getMeldKind(selected);
       if (kind && isAllowed(selected)) {
-        const value = selected.length * 10 + (selected.length >= 7 ? 100 : 0) + (kind === 'run' ? 2 : 0);
+        const preferenceBonus = kind === preferences.preferredMeldKind ? preferences.meldKindPreferenceBonus : 0;
+        const value = selected.length * 10 + (selected.length >= 7 ? 100 : 0) + preferenceBonus;
         if (value > bestValue) {
           best = [...selected];
           bestValue = value;
@@ -50,13 +57,28 @@ export function findBestMeld(hand: Tile[], isAllowed: (tiles: Tile[]) => boolean
   return best;
 }
 
-export function chooseDiscard(hand: Tile[], excludedTileId: string | null = null): Tile {
+type ChooseDiscardOptions = {
+  opponentMelds?: Meld[];
+  preferences?: AiPreferences;
+};
+
+export function chooseDiscard(
+  hand: Tile[],
+  excludedTileId: string | null = null,
+  options: ChooseDiscardOptions = {},
+): Tile {
+  const preferences = options.preferences ?? DEFAULT_AI_PREFERENCES;
+  const opponentMelds = options.opponentMelds ?? [];
   const score = (tile: Tile) => {
     const sameValue = hand.filter((other) => other.id !== tile.id && other.kind === 'number' && other.value === tile.value).length;
     const sameRun = tile.kind === 'number'
       ? hand.filter((other) => other.id !== tile.id && other.color === tile.color && Math.abs(other.value - tile.value) <= 2).length
       : 0;
-    return (tile.kind === 'joker' ? 100 : tile.value === 2 ? 80 : 0) + sameValue * 12 + sameRun * 8 - tilePoints(tile);
+    const completesOpponentCanasta = preferences.avoidOpponentCanastaDiscards
+      && opponentMelds.some((meld) => meld.tiles.length === 6 && getMeldKind([...meld.tiles, tile]) === meld.kind);
+    return (tile.kind === 'joker' ? 100 : tile.value === 2 ? 80 : 0)
+      + sameValue * 12 + sameRun * 8 - tilePoints(tile)
+      + (completesOpponentCanasta ? 1000 : 0);
   };
   const candidates = hand.filter((tile) => tile.id !== excludedTileId);
   const discard = [...candidates].sort((a, b) => score(a) - score(b))[0];
@@ -64,8 +86,8 @@ export function chooseDiscard(hand: Tile[], excludedTileId: string | null = null
   return discard;
 }
 
-function canCompleteWithDiscard(hand: Tile[], discard: Tile[]): boolean {
-  const discardTiles = discard.slice(-MAX_DISCARD_TILES_TO_EVALUATE);
+function canCompleteWithDiscard(hand: Tile[], discard: Tile[], discardWindow: number): boolean {
+  const discardTiles = discard.slice(-discardWindow);
   const discardIds = new Set(discardTiles.map((tile) => tile.id));
   const candidates = [...hand, ...discardTiles];
   const selected: Tile[] = [];
@@ -92,11 +114,11 @@ function canCompleteWithDiscard(hand: Tile[], discard: Tile[]): boolean {
   return canComplete;
 }
 
-function canExtendMeldWithDiscard(state: GameState): boolean {
+function canExtendMeldWithDiscard(state: GameState, discardWindow: number): boolean {
   if (state.melds.some((meld) => meld.team === 1 && isCanasta(meld))) return false;
   const lifted = tryRuleAction(() => takeDiscardPile(state, 1));
   if (!lifted) return false;
-  const discardIds = new Set(state.discard.slice(-MAX_DISCARD_TILES_TO_EVALUATE).map((tile) => tile.id));
+  const discardIds = new Set(state.discard.slice(-discardWindow).map((tile) => tile.id));
   const candidates = lifted.players[1].hand;
 
   for (const meld of state.melds) {
@@ -155,7 +177,11 @@ function leavesOnlyRestrictedTile(state: GameState): boolean {
   return state.players[1].hand[0].id === state.restrictedDiscardTileId;
 }
 
-export function runComputerTurnSteps(state: GameState): GameState[] {
+export function runComputerTurnSteps(
+  state: GameState,
+  preferences: AiPreferences = DEFAULT_AI_PREFERENCES,
+  random = Math.random,
+): GameState[] {
   let next = state;
   const steps: GameState[] = [];
   logGameDebug('computer:turn-start', { state: summarizeGameState(state) });
@@ -166,9 +192,18 @@ export function runComputerTurnSteps(state: GameState): GameState[] {
   };
   const hand = next.players[1].hand;
   const canLift = next.discard.length > 0 && hand.length + next.discard.length >= 5;
-  const shouldLift = canLift && next.discard.length <= MAX_DISCARD_TILES_TO_EVALUATE && (
-    canCompleteWithDiscard(hand, next.discard) || canExtendMeldWithDiscard(next)
-  );
+  const discardWindow = Math.min(MAX_DISCARD_TILES_TO_EVALUATE, preferences.discardPileWindow);
+  const canEvaluateDiscard = next.phase === 'draw'
+    && canLift
+    && next.discard.length <= MAX_DISCARD_TILES_TO_EVALUATE;
+  const completesMeldFromDiscard = canEvaluateDiscard
+    && canCompleteWithDiscard(hand, next.discard, discardWindow);
+  const shouldEvaluateOwnMelds = canEvaluateDiscard && !completesMeldFromDiscard
+    && (preferences.ownMeldPozoEvaluationProbability >= 1
+      || (preferences.ownMeldPozoEvaluationProbability > 0
+        && random() < preferences.ownMeldPozoEvaluationProbability));
+  const shouldLift = completesMeldFromDiscard
+    || (shouldEvaluateOwnMelds && canExtendMeldWithDiscard(next, discardWindow));
 
   if (next.phase === 'draw') {
     if (next.stock.length === 0) {
@@ -217,8 +252,10 @@ export function runComputerTurnSteps(state: GameState): GameState[] {
     const best = findBestMeld(currentHand, (tiles) => {
       const candidate = tryRuleAction(() => layMeld(next, 1, tiles.map((tile) => tile.id)));
       return candidate !== null && !leavesOnlyRestrictedTile(candidate);
-    });
+    }, preferences);
     if (!best) break;
+    console.log(preferences);
+    if (preferences.layMeldProbability < 1 && random() >= preferences.layMeldProbability) break;
 
     const candidate = tryRuleAction(() => layMeld(next, 1, best.map((tile) => tile.id)));
     if (!candidate || leavesOnlyRestrictedTile(candidate)) break;
@@ -229,7 +266,10 @@ export function runComputerTurnSteps(state: GameState): GameState[] {
   }
 
   if (next.phase === 'play' && next.currentPlayer === 1 && next.players[1].hand.length > 0) {
-    const tile = chooseDiscard(next.players[1].hand, next.restrictedDiscardTileId);
+    const tile = chooseDiscard(next.players[1].hand, next.restrictedDiscardTileId, {
+      opponentMelds: next.melds.filter((meld) => meld.team !== 1),
+      preferences,
+    });
     logGameDebug('computer:discard-decision', { tileId: tile.id, color: tile.color, value: tile.value, kind: tile.kind });
     applyAction('descartar', (current) => discardTile(current, 1, tile.id));
   }
@@ -241,7 +281,11 @@ export function runComputerTurnSteps(state: GameState): GameState[] {
   return steps;
 }
 
-export function runComputerTurn(state: GameState): GameState {
-  const steps = runComputerTurnSteps(state);
+export function runComputerTurn(
+  state: GameState,
+  preferences: AiPreferences = DEFAULT_AI_PREFERENCES,
+  random = Math.random,
+): GameState {
+  const steps = runComputerTurnSteps(state, preferences, random);
   return steps.length ? steps[steps.length - 1] : state;
 }
