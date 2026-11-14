@@ -14,6 +14,10 @@ export const AI_PROFILES = [
   { id: 'r2-d2', name: 'R2-D2', avatar: '/avatars/r2d2.svg', preferences: null },
   { id: 'robotina', name: 'Robotina', avatar: '/avatars/robotina.svg', preferences: null },
   { id: 'sonny', name: 'Sonny', avatar: '/avatars/sonny_ns-5.svg', preferences: null },
+  { id: 'bot', name: 'Bot', avatar: '/avatars/bot.svg', preferences: null },
+  { id: 'computer', name: 'Computadora', avatar: '/avatars/computer.svg', preferences: null },
+  { id: 'npc', name: 'NPC', avatar: '/avatars/npc.svg', preferences: null },
+  { id: 'robot', name: 'Robot', avatar: '/avatars/robot.svg', preferences: null },
 ] as const satisfies readonly AiProfile[];
 
 export type AiProfileId = (typeof AI_PROFILES)[number]['id'];

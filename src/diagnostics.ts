@@ -3,8 +3,8 @@ import type { GameState } from './game';
 export type BurakoDebugHelper = {
   enableLogging(): void;
   disableLogging(): void;
-  revealOpponentHand(): void;
-  hideOpponentHand(): void;
+  revealHands(): void;
+  hideHands(): void;
   undo(): boolean;
   redo(): boolean;
   resumeComputerTurn(): void;

@@ -72,16 +72,16 @@ window.burakoDebug.disableLogging()
 
 Los eventos usan el prefijo `[Burako]` e incluyen el inicio y los pasos del turno de la computadora, sus decisiones, y las acciones del usuario.
 
-Para mostrar el atril de la computadora durante la partida:
+Para mostrar el atril del resto de los jugadores durante la partida:
 
 ```js
-window.burakoDebug.revealOpponentHand()
+window.burakoDebug.revealHands()
 ```
 
-Para volver a ocultarlo:
+Para volver a ocultarlos:
 
 ```js
-window.burakoDebug.hideOpponentHand()
+window.burakoDebug.hideHands()
 ```
 
 Los errores se registran siempre con el mensaje y el estado completo de la partida.

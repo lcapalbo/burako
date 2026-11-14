@@ -18,12 +18,20 @@ describe('perfiles de IA', () => {
   });
 
   it('normaliza jugadores guardados sin perfil y conserva el perfil ya asignado', () => {
+    const fallbackProfile = selectRandomAiProfile(() => 0.5);
     const legacyPlayer = normalizeAiPlayer({ name: 'La computadora' }, () => 0.5);
     const savedPlayer = normalizeAiPlayer({ name: 'Nombre anterior', aiProfileId: 'hal-9000' });
 
-    assert.equal(legacyPlayer.aiProfileId, 'multivac');
-    assert.equal(legacyPlayer.name, 'Multivac');
+    assert.equal(legacyPlayer.aiProfileId, fallbackProfile.id);
+    assert.equal(legacyPlayer.name, fallbackProfile.name);
     assert.equal(savedPlayer.aiProfileId, 'hal-9000');
     assert.equal(savedPlayer.name, 'HAL 9000');
+  });
+
+  it('incluye los avatares genéricos disponibles', () => {
+    assert.deepEqual(
+      AI_PROFILES.filter((profile) => ['bot', 'computer', 'npc', 'robot'].includes(profile.id)).map((profile) => profile.avatar),
+      ['/avatars/bot.svg', '/avatars/computer.svg', '/avatars/npc.svg', '/avatars/robot.svg'],
+    );
   });
 });
