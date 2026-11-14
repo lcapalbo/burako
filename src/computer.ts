@@ -1,10 +1,7 @@
 import {
   addToMeld,
-  canStillFormMeld,
-  chooseDiscard,
   discardTile,
   drawFromStock,
-  findBestMeld,
   finishEmptyStock,
   getMeldKind,
   isCanasta,
@@ -12,6 +9,7 @@ import {
   keepOpeningDraw,
   layMeld,
   takeDiscardPile,
+  tilePoints,
   GameRuleError,
   type GameState,
   type Tile,
@@ -20,6 +18,51 @@ import { logGameDebug, summarizeGameState } from './diagnostics.js';
 
 const MAX_DISCARD_TILES_TO_EVALUATE = 10;
 const MAX_MELD_CANDIDATE_SIZE = 4;
+
+function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
+  return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
+}
+
+export function findBestMeld(hand: Tile[], isAllowed: (tiles: Tile[]) => boolean = () => true): Tile[] | null {
+  let best: Tile[] | null = null;
+  let bestValue = 0;
+  const selected: Tile[] = [];
+  const search = (start: number) => {
+    if (selected.length >= 3) {
+      const kind = getMeldKind(selected);
+      if (kind && isAllowed(selected)) {
+        const value = selected.length * 10 + (selected.length >= 7 ? 100 : 0) + (kind === 'run' ? 2 : 0);
+        if (value > bestValue) {
+          best = [...selected];
+          bestValue = value;
+        }
+      }
+    }
+    if (selected.length === hand.length) return;
+    for (let index = start; index < hand.length; index += 1) {
+      if (!canStillFormMeld(selected, hand[index])) continue;
+      selected.push(hand[index]);
+      search(index + 1);
+      selected.pop();
+    }
+  };
+  search(0);
+  return best;
+}
+
+export function chooseDiscard(hand: Tile[], excludedTileId: string | null = null): Tile {
+  const score = (tile: Tile) => {
+    const sameValue = hand.filter((other) => other.id !== tile.id && other.kind === 'number' && other.value === tile.value).length;
+    const sameRun = tile.kind === 'number'
+      ? hand.filter((other) => other.id !== tile.id && other.color === tile.color && Math.abs(other.value - tile.value) <= 2).length
+      : 0;
+    return (tile.kind === 'joker' ? 100 : tile.value === 2 ? 80 : 0) + sameValue * 12 + sameRun * 8 - tilePoints(tile);
+  };
+  const candidates = hand.filter((tile) => tile.id !== excludedTileId);
+  const discard = [...candidates].sort((a, b) => score(a) - score(b))[0];
+  if (!discard) throw new GameRuleError('No hay una ficha legal para descartar.');
+  return discard;
+}
 
 function canCompleteWithDiscard(hand: Tile[], discard: Tile[]): boolean {
   const discardTiles = discard.slice(-MAX_DISCARD_TILES_TO_EVALUATE);

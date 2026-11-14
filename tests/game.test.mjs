@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { addToMeld, createGame as createGameWithRandomStarter, discardOpeningDrawAndRedraw, discardTile, drawFromStock, findBestMeld, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
-import { runComputerTurn, runComputerTurnSteps } from '../.test-build/computer.js';
+import { addToMeld, createGame as createGameWithRandomStarter, discardOpeningDrawAndRedraw, discardTile, drawFromStock, finishEmptyStock, getMeldKind, isCanasta, isCleanMeld, keepOpeningDraw, layMeld, nextRound, sortTiles, sortTilesByNumber, takeDiscardPile, tilePoints } from '../.test-build/game.js';
+import { chooseDiscard, findBestMeld, runComputerTurn, runComputerTurnSteps } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
 const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0) =>
@@ -220,6 +220,19 @@ describe('búsqueda de juegos', () => {
       const actual = findBestMeld(hand)?.map((item) => item.id) ?? null;
       assert.deepEqual(actual, expected);
     }
+  });
+});
+
+describe('descarte de la computadora', () => {
+  it('elige una ficha poco útil y respeta la ficha excluida', () => {
+    const one = tile('computer-discard-one', 'red', 1);
+    const thirteen = tile('computer-discard-thirteen', 'blue', 13);
+    const joker = tile('computer-discard-joker', null, 0, 'joker');
+    const hand = [one, thirteen, joker];
+
+    assert.equal(chooseDiscard(hand), one);
+    assert.equal(chooseDiscard(hand, one.id), thirteen);
+    assert.throws(() => chooseDiscard([one], one.id), /No hay una ficha legal para descartar/);
   });
 });
 
