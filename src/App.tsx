@@ -432,12 +432,18 @@ export default function App() {
             + Math.max(...lastRowRects.map((rect) => rect.right))) / 2;
           discardStack.style.setProperty('--discard-action-center-x', `${lastRowCenter - discardStack.getBoundingClientRect().left}px`);
         }
-        const rowTops = pileTiles
-          .map((tile) => tile.getBoundingClientRect().top)
-          .filter((top, index, tops) => tops.findIndex((otherTop) => Math.abs(otherTop - top) < 2) === index);
+        const rowCounts: { top: number; count: number }[] = [];
+        for (const tile of pileTiles) {
+          const top = tile.getBoundingClientRect().top;
+          const row = rowCounts.find((candidate) => Math.abs(candidate.top - top) < 2);
+          if (row) row.count += 1;
+          else rowCounts.push({ top, count: 1 });
+        }
+        rowCounts.sort((left, right) => left.top - right.top);
         setDiscardDensity((density) => {
-          if (density === 'normal' && rowTops.length > 1) return 'compact';
-          if (density === 'compact' && rowTops.length > 1) return 'minimum';
+          const secondRowIsFull = rowCounts.length > 1 && rowCounts[1].count >= rowCounts[0].count;
+          if (density === 'normal' && secondRowIsFull) return 'compact';
+          if (density === 'compact' && secondRowIsFull) return 'minimum';
           return density;
         });
       }
