@@ -6,4 +6,5 @@ Usá nombres descriptivos, preferentemente con fecha (`AAAA-MM-DD-tema.md`). No 
 
 ## Sesiones recientes
 
+- [2026-11-14: Presentación de la mesa en parejas](2026-11-14-presentacion-mesa-parejas.md)
 - [2026-11-14: Ajustes del pozo y refactor de IA](2026-11-14-ajustes-del-pozo-y-refactor-de-ia.md)
