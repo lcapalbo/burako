@@ -135,7 +135,7 @@ function findAnimationElement(zone: string, tileId?: string): HTMLElement | null
   return null;
 }
 
-function getTileFlights(previous: GameState, next: GameState, firstId: number, revealOpponentHand: boolean): TileFlight[] {
+function getTileFlights(previous: GameState, next: GameState, firstId: number, revealAllHands: boolean): TileFlight[] {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return [];
 
   const previousLocations = getTileLocations(previous);
@@ -168,7 +168,7 @@ function getTileFlights(previous: GameState, next: GameState, firstId: number, r
       tile,
       from: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       toZone,
-      faceDown: destinationPlayer === 1 && !revealOpponentHand,
+      faceDown: destinationPlayer !== null && destinationPlayer !== 0 && !revealAllHands,
     });
   }
   return flights;
@@ -176,7 +176,7 @@ function getTileFlights(previous: GameState, next: GameState, firstId: number, r
 
 export default function App() {
   const [game, setGame] = useState<GameState | null>(loadSavedGame);
-  const [revealOpponentHandForDebug, setRevealOpponentHandForDebug] = useState(false);
+  const [revealHandsForDebug, setRevealHandsForDebug] = useState(false);
   const [target, setTarget] = useState<Target>(2000);
   const [selection, setSelection] = useState<string[]>([]);
   const [recentlyChangedTileIds, setRecentlyChangedTileIds] = useState<string[]>([]);
@@ -278,8 +278,8 @@ export default function App() {
     const helper: BurakoDebugHelper = {
       enableLogging: () => setGameDebugEnabled(true),
       disableLogging: () => setGameDebugEnabled(false),
-      revealOpponentHand: () => setRevealOpponentHandForDebug(true),
-      hideOpponentHand: () => setRevealOpponentHandForDebug(false),
+      revealHands: () => setRevealHandsForDebug(true),
+      hideHands: () => setRevealHandsForDebug(false),
       undo: () => debugActionsRef.current.undo(),
       redo: () => debugActionsRef.current.redo(),
       resumeComputerTurn: () => debugActionsRef.current.resumeComputerTurn(),
@@ -518,7 +518,7 @@ export default function App() {
           };
           const nextWithOrderedHand = { ...next, players };
           const discardedTileIds = getNewDiscardedTileIds(previous, nextWithOrderedHand);
-          const flights = getTileFlights(previous, nextWithOrderedHand, nextTileFlightIdRef.current, revealOpponentHandForDebug);
+          const flights = getTileFlights(previous, nextWithOrderedHand, nextTileFlightIdRef.current, revealHandsForDebug);
           nextTileFlightIdRef.current += flights.length;
           if (flights.length) setTileFlights((current) => [...current, ...flights]);
           setRecentlyChangedTileIds(getRecentlyChangedTileIds(previous, next));
@@ -572,7 +572,7 @@ export default function App() {
     try {
       const next = action(game);
       pauseComputerTurnRef.current = false;
-      const flights = getTileFlights(game, next, nextTileFlightIdRef.current, revealOpponentHandForDebug);
+      const flights = getTileFlights(game, next, nextTileFlightIdRef.current, revealHandsForDebug);
       nextTileFlightIdRef.current += flights.length;
       if (flights.length) setTileFlights((current) => [...current, ...flights]);
       logGameDebug('user:action', {
@@ -693,7 +693,7 @@ export default function App() {
   const selectedTiles = human.hand.filter((tile) => selection.includes(tile.id));
   const canLaySelectedMeld = getMeldKind(selectedTiles) !== null && canLayMeldSelection(game, selection);
   const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
-  const revealComputerHand = revealOpponentHandForDebug
+  const revealAllHands = revealHandsForDebug
     || (roundClosed && !(topPlayer.indirectDead && !topPlayer.playedAfterDead));
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
   const humanTurn = !computerTurnInProgress && game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
@@ -799,7 +799,7 @@ export default function App() {
         feltTableRef={feltTableRef}
         computerTurnInProgress={computerTurnInProgress}
         roundClosed={roundClosed}
-        revealComputerHand={revealComputerHand}
+        revealAllHands={revealAllHands}
         humanTurn={humanTurn}
         showAvatarNames={showAvatarNames}
         onToggleAvatarNames={() => setShowAvatarNames((visible) => !visible)}

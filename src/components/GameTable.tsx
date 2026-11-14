@@ -22,7 +22,7 @@ type GameTableProps = {
   feltTableRef: RefObject<HTMLElement>;
   computerTurnInProgress: boolean;
   roundClosed: boolean;
-  revealComputerHand: boolean;
+  revealAllHands: boolean;
   humanTurn: boolean;
   showAvatarNames: boolean;
   onToggleAvatarNames: () => void;
@@ -86,7 +86,7 @@ export function GameTable({
   feltTableRef,
   computerTurnInProgress,
   roundClosed,
-  revealComputerHand,
+  revealAllHands,
   humanTurn,
   showAvatarNames,
   onToggleAvatarNames,
@@ -130,7 +130,7 @@ export function GameTable({
   return (
     <>
       <section className="top-player-bar" aria-label={`Atril de ${topPlayer.name}`}>
-        {revealComputerHand
+        {revealAllHands
           ? <div className="top-player-rack" data-animation-zone="hand-1" aria-label={`Fichas del atril de ${topPlayer.name}`}>{topPlayer.hand.map((tile) => <TileFace tile={tile} key={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>
           : !roundClosed && <div className="hidden-tiles" data-animation-zone="hand-1" aria-hidden="true">{topPlayer.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>}
       </section>
@@ -143,7 +143,7 @@ export function GameTable({
         <button
           className={`table-avatar table-avatar-top-player ${!roundClosed && (game.currentPlayer === topPlayer.id || computerTurnInProgress) ? 'is-turn' : ''}`}
           type="button"
-          aria-label={`Mostrar nombre de ${topPlayer.name}`}
+          aria-label="Mostrar nombre de jugadores"
           aria-expanded={showAvatarNames}
           onClick={onToggleAvatarNames}
         >
@@ -153,7 +153,7 @@ export function GameTable({
         <button
           className={`table-avatar table-avatar-bottom-player ${humanTurn ? 'is-turn' : ''}`}
           type="button"
-          aria-label="Mostrar nombre de jugador"
+          aria-label="Mostrar nombre de jugadores"
           aria-expanded={showAvatarNames}
           onClick={onToggleAvatarNames}
         >
