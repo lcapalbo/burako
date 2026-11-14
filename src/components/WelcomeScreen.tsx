@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import type { Target } from '../game';
+import type { GameMode, Target } from '../game';
 import { RulesDialog } from './RulesDialog';
 import { TileFace } from './TileFace';
 
@@ -13,6 +13,8 @@ const TARGET_OPTIONS = [
 type WelcomeScreenProps = {
   target: Target;
   onTargetChange: (target: Target) => void;
+  mode: GameMode;
+  onModeChange: (mode: GameMode) => void;
   onBegin: () => void;
   onOpenRules: () => void;
   rulesDialogRef: RefObject<HTMLDialogElement>;
@@ -21,6 +23,8 @@ type WelcomeScreenProps = {
 export function WelcomeScreen({
   target,
   onTargetChange,
+  mode,
+  onModeChange,
   onBegin,
   onOpenRules,
   rulesDialogRef,
@@ -49,8 +53,12 @@ export function WelcomeScreen({
       <section className="welcome-copy">
         <p className="eyebrow">La mesa está lista</p>
         <h1>Tu próximo<br /><em>burako</em> empieza acá.</h1>
-        <p className="intro">Jugá una partida contra la computadora.</p>
+        <p className="intro">Jugá contra la computadora o en parejas.</p>
         <p className="intro rules-invitation">Si sos nuevo, <button className="rules-inline-link" type="button" onClick={onOpenRules}>estas son las reglas</button>.</p>
+        <div className="target-picker mode-picker" role="group" aria-label="Modalidad de juego">
+          <button type="button" className={mode === 'individual' ? 'target-option active' : 'target-option'} aria-pressed={mode === 'individual'} onClick={() => onModeChange('individual')}>Individual</button>
+          <button type="button" className={mode === 'pairs' ? 'target-option active' : 'target-option'} aria-pressed={mode === 'pairs'} onClick={() => onModeChange('pairs')}>En parejas</button>
+        </div>
         <div className="target-picker" role="group" aria-label="Objetivo de la partida">
           {TARGET_OPTIONS.map(({ label, value }) => (
             <button key={label} type="button" className={target === value ? 'target-option active' : 'target-option'} onClick={() => onTargetChange(value)}>{label}</button>

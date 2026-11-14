@@ -1,9 +1,9 @@
 ## Preparación
 
-- Pueden jugar 2 o 4 personas. Con 4, se forman dos parejas y sus integrantes se sientan enfrentados.
+- Pueden jugar 2 o 4 personas. Con 4, se forman dos parejas y sus integrantes se sientan enfrentados. En la mesa local, el jugador se sienta abajo y su pareja arriba; el rival de la izquierda ocupa el lateral izquierdo (avatar arriba) y el de la derecha el lateral derecho (avatar abajo), con atriles verticales.
 - Se usan 104 fichas numeradas (dos copias del #1 al #13 en cuatro colores) y 2 **comodines especiales**.
 - Se mezclan las fichas boca abajo. Cada jugador recibe 11; se preparan dos **muertos** de 11 fichas cada uno. Las restantes forman el **montón** para robar.
-- El turno avanza en sentido horario y cada mano arranca con el jugador siguiente del que inició la anterior. La primera mano puede comenzar cualquiera.
+- El turno avanza en sentido horario y cada mano arranca con el jugador siguiente del que inició la anterior. La primera mano puede comenzar cualquiera; en la mesa local, se sortea entre los cuatro asientos.
 - El objetivo puede ser:
   - por **puntos**: llegar a 2.000, 3.000 o 5.000; gana quien alcance primero el objetivo, o quien más puntos tenga si ambos lo superan en la misma mano.
   - por **corte**: una partida rápida donde gana quien corta la mano primero. Si se agota el montón, hay empate.
@@ -26,7 +26,7 @@ Una combinación de 7 fichas o más es una **canasta**: **limpia** si no usa com
 ## Cómo es un turno
 
 1. **Robá** una ficha del montón o **levantá** todo el pozo de descartes (para esto, entre las fichas del pozo y las de tu atril debés tener al menos 5). Solo al inicio de la mano, el jugador que la abre levantando una ficha del montón, tiene opción de descartarla al pozo y levantar una segunda ficha del montón para jugar.
-2. **Bajá** combinaciones válidas o agregá fichas a combinaciones tuyas o de tu pareja.
+2. **Bajá** combinaciones válidas o agregá fichas a combinaciones de tu equipo. Cualquiera de los integrantes de una pareja puede agregar a los juegos bajados por el otro.
 3. **Descartá** una ficha boca arriba en el pozo. Si habías comenzado tu turno levantando un pozo de una sola ficha, no puedes descartar la misma.
 
 ## Muerto y cierre de mano
@@ -59,3 +59,8 @@ Una combinación de 7 fichas o más es una **canasta**: **limpia** si no usa com
 (*) Si tomás el muerto de forma indirecta, sumás 100 puntos solo si jugás de nuevo antes del cierre. Si no, restás 100 puntos como si no hubieses tomado el muerto, e ignorás las fichas de tu atril (no restan sus puntajes).
 
 La pareja suma los puntos de sus fichas bajadas solo si tiene al menos una canasta. Si no tiene ninguna, resta los puntos de todas sus fichas bajadas y de las que quedaron en sus atriles.
+
+## Información que usa la IA en parejas
+
+- Cada IA evalúa su propia mano y los juegos bajados que todos pueden ver; no consulta la mano oculta de su pareja.
+- Al decidir qué descartar, una IA puede considerar los juegos de cualquiera de los dos rivales y evitar una ficha que les permita completar o limpiar una canasta.

@@ -87,3 +87,20 @@ export function normalizeAiPlayer<T extends { name: string; aiProfileId?: string
   const profile = getAiProfileById(player.aiProfileId) ?? selectRandomAiProfile(random);
   return { ...player, name: profile.name, aiProfileId: profile.id };
 }
+
+export function normalizeAiPlayers<T extends { name: string; aiProfileId?: string | null }>(
+  players: readonly T[],
+  random = Math.random,
+): (T & { aiProfileId: AiProfileId | null })[] {
+  const used = new Set<AiProfileId>();
+  return players.map((player, index) => {
+    if (index === 0) return { ...player, aiProfileId: null };
+    const savedProfile = getAiProfileById(player.aiProfileId);
+    const profile = savedProfile && !used.has(savedProfile.id)
+      ? savedProfile
+      : selectUniqueAiProfiles(1, random, [...used])[0];
+    if (!profile) throw new Error('No hay suficientes perfiles de IA para esta partida.');
+    used.add(profile.id);
+    return { ...player, name: profile.name, aiProfileId: profile.id };
+  });
+}

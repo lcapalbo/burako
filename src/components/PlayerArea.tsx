@@ -86,11 +86,19 @@ export function PlayerArea({
         <strong>{game.result}</strong>
         {(game.phase === 'match-over' || (game.target !== 'cut' && game.phase === 'round-over')) && <span className="result-score-summary">
           {currentHandScores
-            ? <ScorePairSummary label="Puntos" scores={currentHandScores} />
+            ? <ScorePairSummary
+                label="Puntos"
+                scores={currentHandScores}
+                teamLabels={game.mode === 'pairs' ? ['tu equipo', 'equipo oponente'] : ['vos', game.players[1].name]}
+              />
             : <>Puntaje de la mano no disponible para esta partida guardada.</>}
           {hasPreviousRounds && <>
             {' · '}
-            <ScorePairSummary label="Partida" scores={[game.scores[0], game.scores[1]]} />
+            <ScorePairSummary
+              label="Partida"
+              scores={[game.scores[0], game.scores[1]]}
+              teamLabels={game.mode === 'pairs' ? ['tu equipo', 'equipo oponente'] : ['vos', game.players[1].name]}
+            />
           </>}
         </span>}
         <div className="result-actions">

@@ -5,6 +5,7 @@ import {
   finishEmptyStock,
   getMeldKind,
   isCanasta,
+  isCleanMeld,
   isWild,
   keepOpeningDraw,
   layMeld,
@@ -74,11 +75,15 @@ export function chooseDiscard(
     const sameRun = tile.kind === 'number'
       ? hand.filter((other) => other.id !== tile.id && other.color === tile.color && Math.abs(other.value - tile.value) <= 2).length
       : 0;
-    const completesOpponentCanasta = preferences.avoidOpponentCanastaDiscards
-      && opponentMelds.some((meld) => meld.tiles.length === 6 && getMeldKind([...meld.tiles, tile]) === meld.kind);
+    const helpsOpponentCanasta = preferences.avoidOpponentCanastaDiscards && opponentMelds.some((meld) => {
+      const extendedTiles = [...meld.tiles, tile];
+      if (getMeldKind(extendedTiles) !== meld.kind) return false;
+      return meld.tiles.length === 6
+        || (isCanasta(meld) && !isCleanMeld(meld) && isCleanMeld({ ...meld, tiles: extendedTiles }));
+    });
     return (tile.kind === 'joker' ? 100 : tile.value === 2 ? 80 : 0)
       + sameValue * 12 + sameRun * 8 - tilePoints(tile)
-      + (completesOpponentCanasta ? 1000 : 0);
+      + (helpsOpponentCanasta ? 1000 : 0);
   };
   const candidates = hand.filter((tile) => tile.id !== excludedTileId);
   const discard = [...candidates].sort((a, b) => score(a) - score(b))[0];
@@ -114,15 +119,16 @@ function canCompleteWithDiscard(hand: Tile[], discard: Tile[], discardWindow: nu
   return canComplete;
 }
 
-function canExtendMeldWithDiscard(state: GameState, discardWindow: number): boolean {
-  if (state.melds.some((meld) => meld.team === 1 && isCanasta(meld))) return false;
-  const lifted = tryRuleAction(() => takeDiscardPile(state, 1));
+function canExtendMeldWithDiscard(state: GameState, playerId: number, discardWindow: number): boolean {
+  const team = state.players[playerId].team;
+  if (state.melds.some((meld) => meld.team === team && isCanasta(meld))) return false;
+  const lifted = tryRuleAction(() => takeDiscardPile(state, playerId));
   if (!lifted) return false;
   const discardIds = new Set(state.discard.slice(-discardWindow).map((tile) => tile.id));
-  const candidates = lifted.players[1].hand;
+  const candidates = lifted.players[playerId].hand;
 
   for (const meld of state.melds) {
-    if (meld.team !== 1) continue;
+    if (meld.team !== team) continue;
     const targetLength = meld.tiles.length < 6 ? 6 : 7;
     const needed = targetLength - meld.tiles.length;
     const selected: Tile[] = [];
@@ -133,7 +139,7 @@ function canExtendMeldWithDiscard(state: GameState, discardWindow: number): bool
         if (
           selected.some((tile) => discardIds.has(tile.id)) &&
           getMeldKind([...meld.tiles, ...selected]) === meld.kind &&
-          tryRuleAction(() => addToMeld(lifted, 1, meld.id, selected.map((tile) => tile.id)))
+          tryRuleAction(() => addToMeld(lifted, playerId, meld.id, selected.map((tile) => tile.id)))
         ) {
           canExtend = true;
         }
@@ -172,16 +178,20 @@ function tryRuleAction(action: () => GameState): GameState | null {
   }
 }
 
-function leavesOnlyRestrictedTile(state: GameState): boolean {
-  if (state.phase !== 'play' || state.currentPlayer !== 1 || state.players[1].hand.length !== 1) return false;
-  return state.players[1].hand[0].id === state.restrictedDiscardTileId;
+function leavesOnlyRestrictedTile(state: GameState, playerId: number): boolean {
+  if (state.phase !== 'play' || state.currentPlayer !== playerId || state.players[playerId].hand.length !== 1) return false;
+  return state.players[playerId].hand[0].id === state.restrictedDiscardTileId;
 }
 
 export function runComputerTurnSteps(
   state: GameState,
   preferences: AiPreferences = DEFAULT_AI_PREFERENCES,
   random = Math.random,
+  playerId = state.currentPlayer,
 ): GameState[] {
+  if (!state.players[playerId]?.aiProfileId || state.currentPlayer !== playerId) return [];
+  const player = state.players[playerId];
+  const team = player.team;
   let next = state;
   const steps: GameState[] = [];
   logGameDebug('computer:turn-start', { state: summarizeGameState(state) });
@@ -190,7 +200,7 @@ export function runComputerTurnSteps(
     steps.push(next);
     logGameDebug('computer:step-applied', { action: description, state: summarizeGameState(next) });
   };
-  const hand = next.players[1].hand;
+  const hand = next.players[playerId].hand;
   const canLift = next.discard.length > 0 && hand.length + next.discard.length >= 5;
   const discardWindow = Math.min(MAX_DISCARD_TILES_TO_EVALUATE, preferences.discardPileWindow);
   const canEvaluateDiscard = next.phase === 'draw'
@@ -203,16 +213,16 @@ export function runComputerTurnSteps(
       || (preferences.ownMeldPozoEvaluationProbability > 0
         && random() < preferences.ownMeldPozoEvaluationProbability));
   const shouldLift = completesMeldFromDiscard
-    || (shouldEvaluateOwnMelds && canExtendMeldWithDiscard(next, discardWindow));
+    || (shouldEvaluateOwnMelds     && canExtendMeldWithDiscard(next, playerId, discardWindow));
 
   if (next.phase === 'draw') {
     if (next.stock.length === 0) {
-      if (shouldLift) applyAction('levantar-pozo', (current) => takeDiscardPile(current, 1));
-      else applyAction('terminar-mano-por-monton-vacio', (current) => finishEmptyStock(current, 1));
+      if (shouldLift) applyAction('levantar-pozo', (current) => takeDiscardPile(current, playerId));
+      else applyAction('terminar-mano-por-monton-vacio', (current) => finishEmptyStock(current, playerId));
     } else if (shouldLift) {
-      applyAction('levantar-pozo', (current) => takeDiscardPile(current, 1));
+      applyAction('levantar-pozo', (current) => takeDiscardPile(current, playerId));
     } else {
-      applyAction('robar-del-monton', (current) => drawFromStock(current, 1));
+      applyAction('robar-del-monton', (current) => drawFromStock(current, playerId));
     }
     logGameDebug('computer:draw-decision', {
       shouldLift,
@@ -222,22 +232,22 @@ export function runComputerTurnSteps(
     });
   }
 
-  if (next.phase === 'opening-choice' && next.currentPlayer === 1) {
+  if (next.phase === 'opening-choice' && next.currentPlayer === playerId) {
     logGameDebug('computer:opening-decision', { action: 'conservar-ficha-inicial' });
-    applyAction('conservar-ficha-inicial', (current) => keepOpeningDraw(current, 1));
+    applyAction('conservar-ficha-inicial', (current) => keepOpeningDraw(current, playerId));
   }
 
-  while (next.phase === 'play' && next.currentPlayer === 1) {
-    const currentHand = next.players[1].hand;
+  while (next.phase === 'play' && next.currentPlayer === playerId) {
+    const currentHand = next.players[playerId].hand;
     let extended = false;
 
     for (const meld of next.melds) {
-      if (meld.team !== 1) continue;
+      if (meld.team !== team) continue;
       for (const tile of currentHand) {
         if (!mayExtendMeld(meld, tile)) continue;
         if (getMeldKind([...meld.tiles, tile]) !== meld.kind) continue;
-        const candidate = tryRuleAction(() => addToMeld(next, 1, meld.id, [tile.id]));
-        if (!candidate || leavesOnlyRestrictedTile(candidate)) continue;
+        const candidate = tryRuleAction(() => addToMeld(next, playerId, meld.id, [tile.id]));
+        if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) continue;
         next = candidate;
         steps.push(next);
         logGameDebug('computer:meld-decision', { action: 'agregar-a-juego', meldId: meld.id, tileIds: [tile.id] });
@@ -250,32 +260,31 @@ export function runComputerTurnSteps(
     if (extended) continue;
 
     const best = findBestMeld(currentHand, (tiles) => {
-      const candidate = tryRuleAction(() => layMeld(next, 1, tiles.map((tile) => tile.id)));
-      return candidate !== null && !leavesOnlyRestrictedTile(candidate);
+      const candidate = tryRuleAction(() => layMeld(next, playerId, tiles.map((tile) => tile.id)));
+      return candidate !== null && !leavesOnlyRestrictedTile(candidate, playerId);
     }, preferences);
     if (!best) break;
-    console.log(preferences);
     if (preferences.layMeldProbability < 1 && random() >= preferences.layMeldProbability) break;
 
-    const candidate = tryRuleAction(() => layMeld(next, 1, best.map((tile) => tile.id)));
-    if (!candidate || leavesOnlyRestrictedTile(candidate)) break;
+    const candidate = tryRuleAction(() => layMeld(next, playerId, best.map((tile) => tile.id)));
+    if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) break;
     next = candidate;
     steps.push(next);
     logGameDebug('computer:meld-decision', { action: 'bajar-juego', tileIds: best.map((tile) => tile.id) });
     logGameDebug('computer:step-applied', { action: 'bajar-juego', state: summarizeGameState(next) });
   }
 
-  if (next.phase === 'play' && next.currentPlayer === 1 && next.players[1].hand.length > 0) {
-    const tile = chooseDiscard(next.players[1].hand, next.restrictedDiscardTileId, {
-      opponentMelds: next.melds.filter((meld) => meld.team !== 1),
+  if (next.phase === 'play' && next.currentPlayer === playerId && next.players[playerId].hand.length > 0) {
+    const tile = chooseDiscard(next.players[playerId].hand, next.restrictedDiscardTileId, {
+      opponentMelds: next.melds.filter((meld) => meld.team !== team),
       preferences,
     });
     logGameDebug('computer:discard-decision', { tileId: tile.id, color: tile.color, value: tile.value, kind: tile.kind });
-    applyAction('descartar', (current) => discardTile(current, 1, tile.id));
+    applyAction('descartar', (current) => discardTile(current, playerId, tile.id));
   }
   logGameDebug('computer:turn-plan-complete', {
     stepCount: steps.length,
-    noProgress: steps.length === 0 && state.currentPlayer === 1 && state.phase !== 'round-over' && state.phase !== 'match-over',
+    noProgress: steps.length === 0 && state.currentPlayer === playerId && state.phase !== 'round-over' && state.phase !== 'match-over',
     state: summarizeGameState(next),
   });
   return steps;
@@ -285,7 +294,8 @@ export function runComputerTurn(
   state: GameState,
   preferences: AiPreferences = DEFAULT_AI_PREFERENCES,
   random = Math.random,
+  playerId = state.currentPlayer,
 ): GameState {
-  const steps = runComputerTurnSteps(state, preferences, random);
+  const steps = runComputerTurnSteps(state, preferences, random, playerId);
   return steps.length ? steps[steps.length - 1] : state;
 }

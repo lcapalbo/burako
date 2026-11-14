@@ -14,6 +14,7 @@ import {
   sortTiles,
   sortTilesByNumber,
   takeDiscardPile,
+  type GameMode,
   type GameState,
   type RoundScore,
   type Target,
@@ -26,7 +27,7 @@ import { RulesDialog } from './components/RulesDialog';
 import { TileFace } from './components/TileFace';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { runComputerTurnSteps } from './computer';
-import { getAiProfileById, normalizeAiPlayer } from './aiProfiles';
+import { getAiProfileById, normalizeAiPlayers } from './aiProfiles';
 import {
   logGameDebug,
   logGameError,
@@ -101,11 +102,14 @@ function loadSavedGame(): GameState | null {
   try {
     const saved = window.localStorage.getItem(SAVE_KEY);
     if (!saved) return null;
-    const value = JSON.parse(saved) as { version?: number; game?: GameState };
-    if (value.version !== 1 || !value.game || !Array.isArray(value.game.players) || value.game.players.length !== 2) return null;
-    const players = [...value.game.players];
-    players[1] = normalizeAiPlayer(players[1]);
-    return { ...value.game, players };
+    const value = JSON.parse(saved) as { version?: number; game?: GameState & { mode?: GameMode } };
+    if (value.version !== 1 || !value.game || !Array.isArray(value.game.players)
+      || (value.game.players.length !== 2 && value.game.players.length !== 4)) return null;
+    const mode = value.game.mode ?? (value.game.players.length === 4 ? 'pairs' : 'individual');
+    if (mode !== 'individual' && mode !== 'pairs') return null;
+    if ((mode === 'pairs') !== (value.game.players.length === 4)) return null;
+    const players = normalizeAiPlayers(value.game.players);
+    return { ...value.game, mode, players };
   } catch {
     return null;
   }
@@ -176,6 +180,7 @@ function getTileFlights(previous: GameState, next: GameState, firstId: number, r
 
 export default function App() {
   const [game, setGame] = useState<GameState | null>(loadSavedGame);
+  const [gameMode, setGameMode] = useState<GameMode>('individual');
   const [revealHandsForDebug, setRevealHandsForDebug] = useState(false);
   const [target, setTarget] = useState<Target>(2000);
   const [selection, setSelection] = useState<string[]>([]);
@@ -475,9 +480,10 @@ export default function App() {
   }, [Boolean(game), meldDensity, discardDensity, selection, game?.phase, game?.discard.length, game?.players[0].hand.length]);
 
   useEffect(() => {
-    if (!game || game.currentPlayer !== 1 || game.phase === 'match-over' || game.phase === 'round-over'
+    if (!game || game.currentPlayer === 0 || game.phase === 'match-over' || game.phase === 'round-over'
       || computerTurnInProgressRef.current || pauseComputerTurnRef.current) return;
     const turnStart = game;
+    const aiPlayer = turnStart.players[turnStart.currentPlayer];
     humanHandOrderRef.current = turnStart.players[0].hand.map((tile) => tile.id);
     const turnId = ++computerTurnIdRef.current;
     logGameDebug('computer:thinking-start', { turnId, state: summarizeGameState(turnStart) });
@@ -502,9 +508,9 @@ export default function App() {
         logGameDebug('computer:thinking-delay-start', { turnId, durationMs: AI_THINKING_DELAY_MS });
         await wait(AI_THINKING_DELAY_MS);
         if (!componentMountedRef.current || turnId !== computerTurnIdRef.current) return;
-        const aiProfile = getAiProfileById(turnStart.players[1].aiProfileId);
-        if (!aiProfile) throw new Error('El jugador superior no tiene un perfil de IA válido.');
-        const steps = runComputerTurnSteps(turnStart, aiProfile.preferences);
+        const aiProfile = getAiProfileById(aiPlayer.aiProfileId);
+        if (!aiProfile) throw new Error(`El jugador ${aiPlayer.name} no tiene un perfil de IA válido.`);
+        const steps = runComputerTurnSteps(turnStart, aiProfile.preferences, Math.random, aiPlayer.id);
         logGameDebug('computer:plan-ready', { turnId, stepCount: steps.length });
         let previous = turnStart;
         for (const [index, next] of steps.entries()) {
@@ -534,7 +540,7 @@ export default function App() {
         }
       } catch (issue) {
         if (turnId !== computerTurnIdRef.current) return;
-        setError(`${turnStart.players[1].name} no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.`, turnStart, issue);
+        setError(`${aiPlayer.name} no pudo completar su turno por un problema técnico. Esto puede deberse a datos corruptos de la partida o a que retomaste una partida de una versión anterior del juego. Lo sentimos. Presioná «Salir» y comenzá una partida nueva para seguir jugando.`, turnStart, issue);
       } finally {
         logGameDebug('computer:turn-finished', {
           turnId,
@@ -548,12 +554,12 @@ export default function App() {
       }
     };
     void playTurn();
-  }, [game?.currentPlayer, game?.phase, computerTurnResumeToken]);
+  }, [game?.currentPlayer, game?.phase, computerTurnInProgress, computerTurnResumeToken]);
 
-  const startGame = (gameTarget: Target) => {
-    logGameDebug('user:action', { action: 'nueva-partida', target: gameTarget });
+  const startGame = (gameTarget: Target, mode: GameMode = gameMode) => {
+    logGameDebug('user:action', { action: 'nueva-partida', target: gameTarget, mode });
     cancelComputerTurn();
-    const nextGame = createGame(gameTarget);
+    const nextGame = createGame(gameTarget, Math.random, [0, 0], 1, undefined, undefined, mode);
     resetGameHistory(nextGame);
     pauseComputerTurnRef.current = false;
     setGame(nextGame);
@@ -563,6 +569,7 @@ export default function App() {
     setTileFlights([]);
     setRecentTileDuration(RECENT_TILE_DURATION_MS);
     setHandSortMode('original');
+    setGameMode(mode);
     setSelection([]);
     setError('');
   };
@@ -683,6 +690,8 @@ export default function App() {
     return <WelcomeScreen
       target={target}
       onTargetChange={setTarget}
+      mode={gameMode}
+      onModeChange={setGameMode}
       onBegin={begin}
       onOpenRules={openRules}
       rulesDialogRef={rulesDialogRef}
@@ -690,13 +699,11 @@ export default function App() {
   }
 
   const human = game.players[0];
-  const topPlayer = game.players[1];
   const flightTileIds = new Set(tileFlights.map((flight) => flight.tile.id));
   const selectedTiles = human.hand.filter((tile) => selection.includes(tile.id));
   const canLaySelectedMeld = getMeldKind(selectedTiles) !== null && canLayMeldSelection(game, selection);
   const roundClosed = game.phase === 'round-over' || game.phase === 'match-over';
-  const revealAllHands = revealHandsForDebug
-    || (roundClosed && !(topPlayer.indirectDead && !topPlayer.playedAfterDead));
+  const revealAllHands = revealHandsForDebug;
   const displayedHand = sortHandForDisplay(human.hand, handSortMode);
   const humanTurn = !computerTurnInProgress && game.currentPlayer === 0 && (game.phase === 'draw' || game.phase === 'opening-choice' || game.phase === 'play');
   const openingChoice = humanTurn && game.phase === 'opening-choice';
@@ -720,6 +727,9 @@ export default function App() {
       : game.phase === 'opening-choice'
         ? 'Conservá o descartá tu primera ficha'
         : 'Seleccioná fichas. Tocá las vistas previas para mover';
+  const scoreLabels = game.mode === 'pairs'
+    ? ['tu equipo', 'equipo oponente']
+    : ['vos', game.players[1].name];
   const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1 && selection[0] !== game.restrictedDiscardTileId;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
   const shouldShowHandControls = !roundClosed && human.hand.length > 0;
@@ -788,8 +798,8 @@ export default function App() {
         </a>
         <div className="match-meta">
           <div className="match-meta-details">{game.target !== 'cut' && <><span>Mano {game.round}</span><span className="meta-divider" /></>}{formatTargetLabel(game.target)}</div>
-          {game.target !== 'cut' && (game.scores[0] !== 0 || game.scores[1] !== 0) && <span className="match-score" aria-label={`Puntaje: ${game.scores[0].toLocaleString('es-AR')} (vos) a ${game.scores[1].toLocaleString('es-AR')}`}>
-            Puntaje: {game.scores[0].toLocaleString('es-AR')} (vos) a {game.scores[1].toLocaleString('es-AR')}
+          {game.target !== 'cut' && (game.scores[0] !== 0 || game.scores[1] !== 0) && <span className="match-score" aria-label={`Puntaje: ${game.scores[0].toLocaleString('es-AR')} (${scoreLabels[0]}) a ${game.scores[1].toLocaleString('es-AR')} (${scoreLabels[1]})`}>
+              Puntaje: {game.scores[0].toLocaleString('es-AR')} ({scoreLabels[0]}) a {game.scores[1].toLocaleString('es-AR')} ({scoreLabels[1]})
           </span>}
         </div>
         <a className="quiet-button game-rules-link" href="#reglas" onClick={(event) => { event.preventDefault(); openRules(); }}>Reglas</a>
@@ -799,7 +809,6 @@ export default function App() {
       <GameTable
         game={game}
         feltTableRef={feltTableRef}
-        computerTurnInProgress={computerTurnInProgress}
         roundClosed={roundClosed}
         revealAllHands={revealAllHands}
         humanTurn={humanTurn}
@@ -861,7 +870,7 @@ export default function App() {
         recentlyChangedTileIdSet={recentlyChangedTileIdSet}
         onShowPoints={() => pointsDialogRef.current?.showModal()}
         onNextRound={() => perform(nextRound, 'repartir-proxima-mano')}
-        onPlayAgain={startGame}
+        onPlayAgain={(gameTarget) => startGame(gameTarget, game.mode)}
         onFinishEmptyStock={() => perform((current) => finishEmptyStock(current, 0), 'terminar-mano-por-monton-vacio')}
         onHandTileClick={handleHandTileClick}
         onDraggedIdChange={(tileId) => setDraggedId(tileId)}

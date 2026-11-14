@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { AI_PROFILES, normalizeAiPlayer, selectRandomAiProfile, selectUniqueAiProfiles } from '../.test-build/aiProfiles.js';
+import { AI_PROFILES, normalizeAiPlayer, normalizeAiPlayers, selectRandomAiProfile, selectUniqueAiProfiles } from '../.test-build/aiProfiles.js';
 
 describe('perfiles de IA', () => {
   it('selecciona perfiles de manera determinista y sin repetirlos', () => {
@@ -26,6 +26,20 @@ describe('perfiles de IA', () => {
     assert.equal(legacyPlayer.name, fallbackProfile.name);
     assert.equal(savedPlayer.aiProfileId, 'hal-9000');
     assert.equal(savedPlayer.name, 'HAL 9000');
+  });
+
+  it('normaliza perfiles guardados para que no se repitan dentro de la partida', () => {
+    const players = normalizeAiPlayers([
+      { name: 'Vos', aiProfileId: null },
+      { name: 'HAL anterior', aiProfileId: 'hal-9000' },
+      { name: 'HAL duplicado', aiProfileId: 'hal-9000' },
+      { name: 'IA vieja' },
+    ], () => 0);
+
+    assert.equal(players[0].aiProfileId, null);
+    assert.equal(players[1].aiProfileId, 'hal-9000');
+    assert.equal(new Set(players.slice(1).map((player) => player.aiProfileId)).size, 3);
+    assert.equal(players[1].name, 'HAL 9000');
   });
 
   it('incluye los avatares genéricos disponibles', () => {

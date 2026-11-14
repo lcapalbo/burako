@@ -98,9 +98,55 @@ describe('descarte de la computadora', () => {
       preferences: { ...DEFAULT_AI_PREFERENCES, avoidOpponentCanastaDiscards: true },
     }).id, five.id);
   });
+
+  it('evita descartar la ficha que limpiaría una canasta de cualquiera de los rivales', () => {
+    const naturalThree = tile('opponent-purify-three', 'red', 3);
+    const joker = tile('opponent-purify-joker', null, 0, 'joker');
+    const meld = {
+      id: 'opponent-dirty-canasta',
+      kind: 'run',
+      tiles: [2, 4, 5, 6, 7, 8, 9].map((value) => tile(`opponent-dirty-${value}`, 'red', value)),
+      team: 1,
+    };
+
+    assert.equal(chooseDiscard([naturalThree, joker]).id, naturalThree.id);
+    assert.equal(chooseDiscard([naturalThree, joker], null, {
+      opponentMelds: [meld],
+      preferences: { ...DEFAULT_AI_PREFERENCES, avoidOpponentCanastaDiscards: true },
+    }).id, joker.id);
+  });
 });
 
 describe('turnos de la computadora', () => {
+  it('permite a la IA de la pareja agregar a un juego del equipo sin ver la mano de su compañero', () => {
+    const initial = createGameWithRandomStarter(2000, () => 0.5, [0, 0], 1, 2, undefined, 'pairs');
+    const added = tile('partner-ai-run-three', 'red', 3);
+    const leftover = tile('partner-ai-leftover', 'blue', 12);
+    const meld = {
+      id: 'partner-ai-run',
+      kind: 'run',
+      tiles: [4, 5, 6].map((value) => tile(`partner-ai-run-${value}`, 'red', value)),
+      team: 0,
+    };
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand: [tile('hidden-partner-card', 'yellow', 10)] };
+    players[2] = { ...players[2], hand: [added, leftover, tile('partner-ai-spare', 'green', 1)] };
+    const state = {
+      ...initial,
+      players,
+      melds: [meld],
+      deadPiles: [[], []],
+      phase: 'play',
+      currentPlayer: 2,
+    };
+
+    const steps = runComputerTurnSteps(state, DEFAULT_AI_PREFERENCES, () => 0.5, 2);
+
+    assert.equal(steps[0].melds[0].tiles.length, 4);
+    assert.equal(steps[0].players[0].hand[0].id, 'hidden-partner-card');
+    assert.equal(steps.at(-1).currentPlayer, 3);
+  });
+
   it('limita el análisis del pozo a la ventana configurada', () => {
     const hand = [
       tile('window-green-five', 'green', 5),

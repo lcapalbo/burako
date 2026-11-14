@@ -1,4 +1,4 @@
-import { getAiProfileById, selectRandomAiProfile, type AiProfileId } from './aiProfiles.js';
+import { getAiProfileById, selectUniqueAiProfiles, type AiProfileId } from './aiProfiles.js';
 
 export const COLORS = ['red', 'blue', 'green', 'yellow'] as const;
 export type TileColor = (typeof COLORS)[number];
@@ -20,6 +20,7 @@ export type Player = {
   indirectDead: boolean;
   playedAfterDead: boolean;
 };
+export type GameMode = 'individual' | 'pairs';
 export type HandScoreBreakdown = {
   cleanCanastas: number;
   dirtyCanastas: number;
@@ -32,6 +33,7 @@ export type HandScoreBreakdown = {
 export type RoundScore = { round: number; scores: [HandScoreBreakdown, HandScoreBreakdown] };
 export type Target = 'cut' | 2000 | 3000 | 5000;
 export type GameState = {
+  mode: GameMode;
   stock: Tile[];
   discard: Tile[];
   deadPiles: Tile[][];
@@ -195,23 +197,42 @@ export function createGame(
   round = 1,
   starter?: number,
   aiProfileId?: AiProfileId,
+  mode: GameMode = 'individual',
+  aiProfileIds?: readonly AiProfileId[],
 ): GameState {
   const deck = shuffle(createDeck(), random);
-  const playersCount = 2;
+  const playersCount = mode === 'pairs' ? 4 : 2;
   const initialStarter = starter === undefined ? Math.floor(random() * playersCount) : starter % playersCount;
-  const aiProfile = aiProfileId ? getAiProfileById(aiProfileId) : selectRandomAiProfile(random);
-  if (!aiProfile) throw new GameRuleError('No existe ese perfil de IA.');
-  const players: Player[] = [0, 1].map((id) => ({
+  let aiProfiles: ReturnType<typeof selectUniqueAiProfiles>;
+  if (aiProfileIds) {
+    if (aiProfileIds.length !== playersCount - 1 || new Set(aiProfileIds).size !== aiProfileIds.length) {
+      throw new GameRuleError('Los perfiles de IA deben ser válidos y distintos para cada asiento.');
+    }
+    aiProfiles = aiProfileIds.map((id) => {
+      const profile = getAiProfileById(id);
+      if (!profile) throw new GameRuleError('No existe ese perfil de IA.');
+      return profile;
+    });
+  } else if (aiProfileId && mode === 'individual') {
+    const aiProfile = getAiProfileById(aiProfileId);
+    if (!aiProfile) throw new GameRuleError('No existe ese perfil de IA.');
+    aiProfiles = [aiProfile];
+  } else {
+    if (aiProfileId) throw new GameRuleError('En parejas, indicá los tres perfiles de IA.');
+    aiProfiles = selectUniqueAiProfiles(playersCount - 1, random);
+  }
+  const players: Player[] = Array.from({ length: playersCount }, (_, id) => ({
     id,
-    name: id === 0 ? 'Vos' : aiProfile.name,
-    aiProfileId: id === 0 ? null : aiProfile.id,
-    team: id,
+    name: id === 0 ? 'Vos' : aiProfiles[id - 1].name,
+    aiProfileId: id === 0 ? null : aiProfiles[id - 1].id,
+    team: mode === 'pairs' ? id % 2 : id,
     hand: deck.splice(0, 11),
     deadTaken: false,
     indirectDead: false,
     playedAfterDead: false,
   }));
   return {
+    mode,
     stock: deck.slice(22),
     discard: [],
     deadPiles: [deck.slice(0, 11), deck.slice(11, 22)],
@@ -380,6 +401,7 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
   const scores = state.scores.map((score, team) => score + roundScores[team].total);
   const roundHistory = [...(state.roundHistory ?? []), { round: state.round, scores: roundScores }];
   const opponentName = state.players.find((player) => player.team === 1)?.name ?? 'El equipo oponente';
+  const winningTeam = closureWinner === null ? null : state.players[closureWinner].team;
   if (state.target === 'cut') {
     return closureWinner === null
       ? { ...state, scores, roundHistory, phase: 'match-over', winner: null, result: 'Se agotaron las fichas sin que nadie pudiera cerrar.' }
@@ -388,10 +410,10 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
           scores,
           roundHistory,
           phase: 'match-over',
-          winner: closureWinner,
-          result: closureWinner === 0
+          winner: winningTeam,
+          result: winningTeam === 0
             ? '¡Felicitaciones, ganaste la mano!'
-            : `Otra vez será: ${opponentName} ganó la mano.`,
+            : `${state.mode === 'pairs' ? 'El equipo rival' : `Otra vez será: ${opponentName}`} ganó la mano.`,
         };
   }
   const targetScore = typeof state.target === 'number' ? state.target : Number.POSITIVE_INFINITY;
@@ -400,7 +422,9 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
   let result: string | null = null;
   const matchResult = (winner: number | null) => winner === 0
     ? '¡Felicitaciones, ganaste la partida!'
-    : winner === 1 ? `Otra vez será: ${opponentName} ganó la partida.` : 'La partida termina en empate.';
+    : winner === 1
+      ? `${state.mode === 'pairs' ? 'El equipo rival' : `Otra vez será: ${opponentName}`} ganó la partida.`
+      : 'La partida termina en empate.';
   if (reached[0] && reached[1]) {
     matchWinner = scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1;
     result = matchResult(matchWinner);
@@ -511,29 +535,17 @@ export function finishEmptyStock(state: GameState, playerId: number): GameState 
 export function nextRound(state: GameState): GameState {
   if (state.phase !== 'round-over') throw new GameRuleError('La partida no está lista para una nueva mano.');
   const nextStarter = (state.roundStarter + 1) % state.players.length;
-  if (state.players.length !== 2) {
-    return {
-      ...state,
-      phase: 'draw',
-      currentPlayer: nextStarter,
-      roundStarter: nextStarter,
-      turnNumber: 0,
-      openingDrawTileId: null,
-      restrictedDiscardTileId: null,
-      melds: [],
-      discard: [],
-      players: state.players.map((player) => ({
-        ...player,
-        hand: [...player.hand],
-        deadTaken: false,
-        indirectDead: false,
-        playedAfterDead: false,
-      })),
-      deadPiles: state.deadPiles.map((pile) => [...pile]),
-    };
-  }
   return {
-    ...createGame(state.target, Math.random, state.scores, state.round + 1, nextStarter, state.players[1].aiProfileId ?? undefined),
+    ...createGame(
+      state.target,
+      Math.random,
+      state.scores,
+      state.round + 1,
+      nextStarter,
+      undefined,
+      state.mode ?? (state.players.length === 4 ? 'pairs' : 'individual'),
+      state.players.slice(1).map((player) => player.aiProfileId).filter((id): id is AiProfileId => id !== null),
+    ),
     roundHistory: state.roundHistory ?? [],
   };
 }

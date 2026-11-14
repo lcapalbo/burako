@@ -16,3 +16,4 @@ Mantener la lógica de dominio en `src/game.ts`, sin dependencia de React, y pro
 - Los cambios en reglas o transiciones de estado deben incluir pruebas enfocadas en `tests/`.
 - Las pruebas se ejecutan con `npm test`.
 - La interfaz debe invocar las operaciones del motor en vez de duplicar sus reglas.
+- En parejas, cada IA decide con su propia mano y los juegos expuestos de ambos equipos; nunca usa la mano oculta de su compañero. Los juegos bajados y el puntaje sí pertenecen al equipo.

@@ -20,7 +20,6 @@ export type MeldDensity = 'normal' | 'compact' | 'minimum';
 type GameTableProps = {
   game: GameState;
   feltTableRef: RefObject<HTMLElement>;
-  computerTurnInProgress: boolean;
   roundClosed: boolean;
   revealAllHands: boolean;
   humanTurn: boolean;
@@ -84,7 +83,6 @@ function previewMeldAddition(state: GameState, meldId: string, tileIds: string[]
 export function GameTable({
   game,
   feltTableRef,
-  computerTurnInProgress,
   roundClosed,
   revealAllHands,
   humanTurn,
@@ -112,9 +110,45 @@ export function GameTable({
   onLayMeld,
   onAddToMeld,
 }: GameTableProps) {
-  const topPlayer = game.players[1];
-  const topProfile = getAiProfileById(topPlayer.aiProfileId);
-  if (!topProfile) throw new Error('El jugador superior no tiene un perfil de IA válido.');
+  const topPlayer = game.players[game.mode === 'pairs' ? 2 : 1];
+  const leftPlayer = game.mode === 'pairs' ? game.players[1] : null;
+  const rightPlayer = game.mode === 'pairs' ? game.players[3] : null;
+  const getProfile = (player: GameState['players'][number]) => {
+    const profile = getAiProfileById(player.aiProfileId);
+    if (!profile) throw new Error(`El jugador ${player.name} no tiene un perfil de IA válido.`);
+    return profile;
+  };
+  const topProfile = getProfile(topPlayer);
+  const canRevealPlayer = (player: GameState['players'][number]) => revealAllHands
+    || (roundClosed && !(player.indirectDead && !player.playedAfterDead));
+  const renderSidePlayer = (player: GameState['players'][number], position: 'left' | 'right') => {
+    const profile = getProfile(player);
+    return (
+      <section className={`side-player-bar ${position}-player-bar`} aria-label={`Atril de ${player.name}`}>
+        <button
+          className={`table-avatar table-avatar-${position}-player ${!roundClosed && game.currentPlayer === player.id ? 'is-turn' : ''}`}
+          type="button"
+          aria-label="Mostrar nombre de jugadores"
+          aria-expanded={showAvatarNames}
+          onClick={onToggleAvatarNames}
+        >
+          <img className="side-player-avatar" src={profile.avatar} alt="" aria-hidden="true" />
+          {showAvatarNames && <span className="avatar-tooltip">{player.name}</span>}
+        </button>
+        <div className="side-player-rack" data-animation-zone={`hand-${player.id}`} aria-label={`Fichas del atril de ${player.name}`}>
+          {canRevealPlayer(player)
+            ? player.hand.map((tile) => <TileFace tile={tile} key={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)
+            : player.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={`hidden-side-tile ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''}`} />)}
+        </div>
+      </section>
+    );
+  };
+  const activePlayer = game.players[game.currentPlayer];
+  const turnClass = activePlayer.id === topPlayer.id
+    ? 'is-top-player-turn'
+    : activePlayer.id === 0
+      ? 'is-bottom-player-turn'
+      : activePlayer.id === 1 ? 'is-left-player-turn' : 'is-right-player-turn';
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
     .sort(compareMelds);
@@ -130,18 +164,18 @@ export function GameTable({
   return (
     <>
       <section className="top-player-bar" aria-label={`Atril de ${topPlayer.name}`}>
-        {revealAllHands
-          ? <div className="top-player-rack" data-animation-zone="hand-1" aria-label={`Fichas del atril de ${topPlayer.name}`}>{topPlayer.hand.map((tile) => <TileFace tile={tile} key={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>
-          : !roundClosed && <div className="hidden-tiles" data-animation-zone="hand-1" aria-hidden="true">{topPlayer.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>}
+        {canRevealPlayer(topPlayer)
+          ? <div className="top-player-rack" data-animation-zone={`hand-${topPlayer.id}`} aria-label={`Fichas del atril de ${topPlayer.name}`}>{topPlayer.hand.map((tile) => <TileFace tile={tile} key={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>
+          : <div className="hidden-tiles" data-animation-zone={`hand-${topPlayer.id}`} aria-hidden="true">{topPlayer.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>}
       </section>
 
       <section
         ref={feltTableRef}
-        className={`felt-table ${meldDensity === 'compact' ? 'is-compact-melds' : ''} ${meldDensity === 'minimum' ? 'is-minimum-melds' : ''} ${discardDensity === 'compact' ? 'is-compact-discard' : ''} ${discardDensity === 'minimum' ? 'is-minimum-discard' : ''} ${game.phase === 'round-over' || game.phase === 'match-over' ? '' : computerTurnInProgress || game.currentPlayer === topPlayer.id ? 'is-top-player-turn' : 'is-bottom-player-turn'}`}
+        className={`felt-table ${game.mode === 'pairs' ? 'is-pairs-table' : ''} ${meldDensity === 'compact' ? 'is-compact-melds' : ''} ${meldDensity === 'minimum' ? 'is-minimum-melds' : ''} ${discardDensity === 'compact' ? 'is-compact-discard' : ''} ${discardDensity === 'minimum' ? 'is-minimum-discard' : ''} ${roundClosed ? '' : turnClass}`}
         aria-label="Mesa de juego"
       >
         <button
-          className={`table-avatar table-avatar-top-player ${!roundClosed && (game.currentPlayer === topPlayer.id || computerTurnInProgress) ? 'is-turn' : ''}`}
+          className={`table-avatar table-avatar-top-player ${!roundClosed && game.currentPlayer === topPlayer.id ? 'is-turn' : ''}`}
           type="button"
           aria-label="Mostrar nombre de jugadores"
           aria-expanded={showAvatarNames}
@@ -163,8 +197,10 @@ export function GameTable({
         <div className="meld-area">
           {([1, 0] as const).map((team) => {
             const teamMelds = meldsForTeam(team);
-            const deadTaken = game.players.find((player) => player.team === team)?.deadTaken ?? false;
-            const teamName = team === 1 ? 'Mesa oponente' : 'Tu mesa';
+            const deadTaken = game.players.some((player) => player.team === team && player.deadTaken);
+            const teamName = game.mode === 'pairs'
+              ? team === 1 ? 'Equipo oponente' : 'Tu equipo'
+              : team === 1 ? 'Mesa oponente' : 'Tu mesa';
             const canLaySelection = team === 0 && humanTurn && game.phase === 'play' && canLaySelectedMeld;
             const previewMeld = canLaySelection ? layMeld(game, 0, selection).melds.slice(-1)[0] ?? null : null;
             const previewMeldKind = previewMeld?.kind ?? null;
@@ -184,6 +220,7 @@ export function GameTable({
             ><span className="meld-tiles" key={selection.join(':')}>{(previewMeldKind === 'run' ? previewMeldTiles : sortLegTiles(previewMeldTiles)).map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}<span className="preview-action-badge" aria-hidden="true">Bajá acá</span></span></button>;
             return (
               <Fragment key={team}>
+                  {team === 1 && game.mode === 'pairs' && leftPlayer && renderSidePlayer(leftPlayer, 'left')}
                 {team === 0 && <div className="piles-row">
                   <button
                     className="stock-pile pile-action"
@@ -286,6 +323,7 @@ export function GameTable({
                       </Fragment>
                     ))}{canLaySelection && previewMeldIndex === teamMelds.length && newMeldPreview}</div>}
                 </section>
+                {team === 0 && game.mode === 'pairs' && rightPlayer && renderSidePlayer(rightPlayer, 'right')}
               </Fragment>
             );
           })}

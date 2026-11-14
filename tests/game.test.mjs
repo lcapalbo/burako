@@ -4,8 +4,8 @@ import { addToMeld, createGame as createGameWithRandomStarter, discardOpeningDra
 import { getAiProfileById } from '../.test-build/aiProfiles.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
-const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0, aiProfileId) =>
-  createGameWithRandomStarter(target, random, scores, round, starter, aiProfileId);
+const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0, aiProfileId, mode = 'individual') =>
+  createGameWithRandomStarter(target, random, scores, round, starter, aiProfileId, mode);
 const stateWithHand = (hand, melds = []) => {
   const initial = createGame(2000, () => 0.5);
   const players = [...initial.players];
@@ -599,6 +599,20 @@ describe('nueva mano y rotación', () => {
     assert.equal(next.players[1].name, 'HAL 9000');
   });
 
+  it('crea parejas con cuatro asientos, dos equipos y perfiles de IA distintos', () => {
+    const game = createGameWithRandomStarter(2000, () => 0.5, [0, 0], 1, undefined, undefined, 'pairs');
+    const profileIds = game.players.slice(1).map((player) => player.aiProfileId);
+
+    assert.equal(game.mode, 'pairs');
+    assert.deepEqual(game.players.map((player) => player.team), [0, 1, 0, 1]);
+    assert.equal(new Set(profileIds).size, 3);
+    assert.ok(profileIds.every((id) => getAiProfileById(id)));
+    assert.deepEqual(game.players.map((player) => player.hand.length), [11, 11, 11, 11]);
+    assert.deepEqual(game.deadPiles.map((pile) => pile.length), [11, 11]);
+    assert.equal(game.stock.length, 40);
+    assert.equal(game.currentPlayer, 2);
+  });
+
   it('reparte fichas nuevas al iniciar otra mano, sin conservar fichas de la anterior', () => {
     const initial = createGame(2000, () => 0.5, [120, 80], 4, 0);
     const oldTiles = Array.from({ length: 10 }, (_, index) => tile(`old-${index}`, 'red', index + 1));
@@ -640,18 +654,83 @@ describe('nueva mano y rotación', () => {
     assert.equal(next.currentPlayer, 1);
   });
 
-  it('rotan el inicio de mano según la cantidad real de jugadores', () => {
-    const initial = createGame(2000, () => 0.5, [0, 0], 1, 2);
-    const players = [
-      { ...initial.players[0], id: 0, team: 0, name: 'A' },
-      { ...initial.players[1], id: 1, team: 1, name: 'B' },
-      { ...initial.players[1], id: 2, team: 0, name: 'C' },
-      { ...initial.players[1], id: 3, team: 1, name: 'D' },
-    ];
-    const state = { ...initial, players, phase: 'round-over', roundStarter: 2, currentPlayer: 2, scores: [10, 10, 10, 10] };
-    const next = nextRound(state);
+  it('rota al siguiente asiento y conserva los perfiles únicos entre manos en parejas', () => {
+    const initial = createGame(2000, () => 0.5, [10, 20], 1, 2, undefined, 'pairs');
+    const profileIds = initial.players.slice(1).map((player) => player.aiProfileId);
+    const next = nextRound({ ...initial, phase: 'round-over' });
+
+    assert.equal(next.mode, 'pairs');
+    assert.deepEqual(next.players.slice(1).map((player) => player.aiProfileId), profileIds);
+    assert.deepEqual(next.players.map((player) => player.team), [0, 1, 0, 1]);
+    assert.deepEqual(next.scores, [10, 20]);
+    assert.deepEqual(next.players.map((player) => player.hand.length), [11, 11, 11, 11]);
     assert.equal(next.roundStarter, 3);
     assert.equal(next.currentPlayer, 3);
+  });
+});
+
+describe('parejas', () => {
+  it('reconoce al compañero que cierra como ganador del equipo', () => {
+    const initial = createGame('cut', () => 0.5, [0, 0], 1, 0, undefined, 'pairs');
+    const canasta = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`partner-close-${value}`, 'red', value));
+    const players = [...initial.players];
+    players[2] = { ...players[2], hand: canasta, deadTaken: true };
+    const state = {
+      ...initial,
+      players,
+      currentPlayer: 2,
+      deadPiles: [[], []],
+      phase: 'play',
+    };
+
+    const ended = layMeld(state, 2, canasta.map((item) => item.id));
+
+    assert.equal(ended.phase, 'match-over');
+    assert.equal(ended.winner, 0);
+    assert.equal(ended.roundHistory[0].scores[0].closure, 100);
+  });
+
+  it('permite a cualquier compañero agregar fichas a los juegos de su equipo', () => {
+    const initial = createGame(2000, () => 0.5, [0, 0], 1, 0, undefined, 'pairs');
+    const meldTiles = [4, 5, 6].map((value) => tile(`partner-run-${value}`, 'red', value));
+    const added = tile('partner-run-three', 'red', 3);
+    const players = [...initial.players];
+    players[0] = { ...players[0], hand: [] };
+    const leftover = tile('partner-run-leftover', 'blue', 12);
+    players[2] = { ...players[2], hand: [added, leftover] };
+    const state = {
+      ...initial,
+      players,
+      melds: [{ id: 'partner-run', kind: 'run', tiles: meldTiles, team: 0 }],
+      currentPlayer: 2,
+      phase: 'play',
+      deadPiles: [[], []],
+    };
+
+    const next = addToMeld(state, 2, 'partner-run', [added.id]);
+
+    assert.deepEqual(next.melds[0].tiles.map((item) => item.id), [added.id, ...meldTiles.map((item) => item.id)]);
+    assert.deepEqual(next.players[2].hand, [leftover]);
+  });
+
+  it('suma por equipo las fichas de los dos atriles al contar puntos', () => {
+    const initial = createGame(2000, () => 0.5, [0, 0], 1, 0, undefined, 'pairs');
+    const canasta = { id: 'team-canasta', kind: 'run', tiles: [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`team-${value}`, 'red', value)), team: 0 };
+    const players = initial.players.map((player) => ({ ...player, hand: [tile(`rack-${player.id}`, 'blue', player.id + 3)] }));
+    const ended = finishEmptyStock({
+      ...initial,
+      players,
+      melds: [canasta],
+      stock: [],
+      deadPiles: [[], []],
+      phase: 'draw',
+    }, 0);
+
+    assert.equal(ended.roundHistory[0].scores[0].rackTiles, -10);
+    assert.equal(ended.roundHistory[0].scores[1].rackTiles, -10);
+    assert.equal(ended.roundHistory[0].scores[0].meldTiles, 45);
+    assert.equal(ended.scores[0], 135);
+    assert.equal(ended.scores[1], -110);
   });
 });
 
