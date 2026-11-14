@@ -164,8 +164,8 @@ export function PlayerArea({
               key={tile.id}
               data-hand-tile-id={tile.id}
               draggable={canReorderHand}
-              disabled={!humanTurn && !canReorderHand}
-              aria-disabled={!humanTurn}
+              disabled={(!humanTurn && !canReorderHand) || (game.phase === 'opening-choice' && !openingChoiceTile)}
+              aria-disabled={!humanTurn || (game.phase === 'opening-choice' && !openingChoiceTile)}
               aria-pressed={selection.includes(tile.id)}
               aria-label={`${tile.kind === 'joker' ? 'Comodín' : `${tile.value} ${getTileColorName(tile.color)}`}${selection.includes(tile.id) ? ', seleccionada' : ''}`}
               onClick={() => { if (humanTurn) onHandTileClick(tile.id, openingChoiceTile); }}

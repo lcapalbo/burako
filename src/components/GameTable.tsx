@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import type { RefObject } from 'react';
+import type { MouseEvent, RefObject } from 'react';
 import {
   addToMeld,
   COLORS,
@@ -115,6 +115,14 @@ export function GameTable({
   const meldsForTeam = (team: number) => game.melds
     .filter((meld) => meld.team === team)
     .sort(compareMelds);
+  const handleDiscardPileClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (openingChoice
+      && event.detail !== 0
+      && !(event.target instanceof Element && event.target.closest('.discard-preview-tile'))) return;
+    if (openingChoice) onDiscardOpeningDrawAndRedraw();
+    else if (canDiscard) onDiscardTile(selection[0]);
+    else onTakeDiscardPile();
+  };
 
   return (
     <>
@@ -197,11 +205,7 @@ export function GameTable({
                         disabled={!canUseDiscardPile && !openingChoice}
                         aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : canDiscard ? 'Descartar ficha seleccionada en el pozo' : `Levantar todo el pozo (${game.discard.length} fichas)`}
                         title={openingChoice ? 'Descartar la ficha inicial y robar otra' : canDiscard ? 'Descartar ficha seleccionada' : 'Levantar todo el pozo'}
-                        onClick={() => openingChoice
-                          ? onDiscardOpeningDrawAndRedraw()
-                          : canDiscard
-                            ? onDiscardTile(selection[0])
-                            : onTakeDiscardPile()}
+                        onClick={handleDiscardPileClick}
                       >
                         {game.discard.map((tile, index) => {
                           const tileFace = <TileFace tile={tile} className={`${recentlyChangedTileIdSet.has(tile.id) ? recentlyDiscardedTileIdSet.has(tile.id) ? 'is-recent is-recent-discard' : 'is-recent' : ''} ${flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''}`} />;
@@ -216,9 +220,7 @@ export function GameTable({
                         {discardPreviewTile && <span className="preview-action-badge discard-action-badge" aria-hidden="true">Descartá</span>}
                       </button>
                     ) : canDiscard || openingChoice
-                      ? <button className={`empty-discard pile-action ${discardPreviewTile ? 'has-discard-preview' : ''}`} data-animation-zone="discard" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={() => openingChoice
-                        ? onDiscardOpeningDrawAndRedraw()
-                        : onDiscardTile(selection[0])}>{discardPreviewTile ? <span className="discard-preview-tile"><TileFace tile={discardPreviewTile} className="is-preview" /><span className="preview-action-badge" aria-hidden="true">Descartá</span></span> : 'Pozo vacío'}</button>
+                      ? <button className={`empty-discard pile-action ${discardPreviewTile ? 'has-discard-preview' : ''}`} data-animation-zone="discard" type="button" aria-label={openingChoice ? 'Descartar la ficha inicial y robar otra del montón' : 'Descartar ficha seleccionada en el pozo vacío'} title={openingChoice ? 'Descartar la ficha inicial y robar otra' : 'Descartar ficha seleccionada'} onClick={handleDiscardPileClick}>{discardPreviewTile ? <span className="discard-preview-tile"><TileFace tile={discardPreviewTile} className="is-preview" /><span className="preview-action-badge" aria-hidden="true">Descartá</span></span> : 'Pozo vacío'}</button>
                       : <span className="empty-discard">Pozo vacío</span>}
                   </div>
                 </div>}
