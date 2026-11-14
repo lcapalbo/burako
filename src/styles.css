@@ -116,20 +116,27 @@ h1 em { color: var(--coral); font-weight: 500; }
 .table-avatar-top-player .avatar-tooltip::before { top: -5px; right: 16px; left: auto; transform: rotate(225deg); }
 .table-avatar-bottom-player .avatar-tooltip { bottom: calc(100% + 5px); left: 3px; }
 .table-avatar-bottom-player .avatar-tooltip::before { bottom: -5px; }
-.side-player-bar { position: relative; z-index: 3; display: flex; grid-row: 1 / 4; flex-direction: column; align-items: center; min-height: 0; padding: 2px 0; overflow: hidden; }
+.table-layout { display: grid; grid-row: 3; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); width: 100%; max-width: 1180px; min-height: 0; margin: 0 auto; }
+.pairs-table-layout { grid-template-columns: 56px minmax(0, 1fr) 56px; }
+.side-player-bar { position: relative; z-index: 10; grid-row: 1; min-height: 0; overflow: visible; }
 .left-player-bar { grid-column: 1; }
-.right-player-bar { grid-column: 3; flex-direction: column-reverse; }
+.right-player-bar { grid-column: 3; }
 .side-player-avatar { display: block; width: 30px; height: 30px; }
-.table-avatar-left-player, .table-avatar-right-player { position: relative; top: auto; right: auto; bottom: auto; left: auto; width: 38px; height: 38px; flex: 0 0 38px; }
+.table-avatar-left-player, .table-avatar-right-player { width: 52px; height: 52px; }
+.table-avatar-left-player { top: 0; right: -17px; }
+.table-avatar-right-player { right: auto; bottom: 0; left: -17px; }
 .table-avatar-left-player .avatar-tooltip { top: 3px; left: calc(100% + 4px); }
 .table-avatar-left-player .avatar-tooltip::before { top: 9px; left: -5px; transform: rotate(135deg); }
 .table-avatar-right-player .avatar-tooltip { top: 3px; right: calc(100% + 4px); }
 .table-avatar-right-player .avatar-tooltip::before { top: 9px; right: -5px; left: auto; transform: rotate(-45deg); }
-.side-player-rack { display: flex; width: 100%; min-height: 0; flex: 1 1 auto; flex-direction: column; align-items: center; overflow: hidden; }
+.side-player-rack { position: absolute; top: 42px; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; align-items: center; overflow: visible; }
+.right-player-bar .side-player-rack { top: 0; bottom: 42px; justify-content: flex-end; }
 .side-player-rack .tile-face { width: 27px; height: 38px; flex: 0 0 38px; margin-bottom: -25px; border-radius: 3px; }
 .side-player-rack .tile-face strong { font-size: 17px; }
 .side-player-rack .tile-mark { top: 2px; left: 3px; font-size: 4px; }
 .hidden-side-tile { display: block; width: 21px; height: 30px; flex: 0 0 30px; margin-bottom: -20px; border: 1px solid #c1d0c6; border-radius: 3px; background: repeating-linear-gradient(45deg, #dae7dc 0 3px, #eaf0e8 3px 6px); }
+.left-player-bar .side-player-rack .tile-face, .left-player-bar .hidden-side-tile { transform: rotate(90deg); }
+.right-player-bar .side-player-rack .tile-face, .right-player-bar .hidden-side-tile { transform: rotate(-90deg); }
 .hand-count { color: #77857d; font-size: 10px; }
 .player-header-meta { display: flex; align-items: center; gap: 9px; }
 .sort-menu-container { position: relative; }
@@ -149,7 +156,8 @@ h1 em { color: var(--coral); font-weight: 500; }
 .top-player-rack .tile-face strong { font-size: 22px; }
 .top-player-rack .tile-mark { top: 3px; left: 4px; font-size: 5px; }
 .top-player-rack .tile-joker small { font-size: 4px; }
-.felt-table { position: relative; display: grid; grid-row: 3; grid-template-rows: minmax(0, 1fr) max-content minmax(0, 1fr); gap: 4px; width: 100%; min-height: 0; max-width: 1180px; margin: 0 auto; padding: 4px clamp(7px, 1.5vw, 16px); border-radius: 8px; color: #f4f4e9; background: #17684f; box-shadow: inset 0 0 0 1px rgba(255,255,255,.13), 0 10px 24px rgba(29, 59, 43, .12); }
+.felt-table { position: relative; display: grid; grid-column: 1; grid-row: 1; grid-template-rows: minmax(0, 1fr) max-content minmax(0, 1fr); gap: 4px; width: 100%; min-height: 0; max-width: none; margin: 0; padding: 4px clamp(7px, 1.5vw, 16px); border-radius: 8px; color: #f4f4e9; background: #17684f; box-shadow: inset 0 0 0 1px rgba(255,255,255,.13), 0 10px 24px rgba(29, 59, 43, .12); }
+.pairs-table-layout > .felt-table { grid-column: 2; }
 .felt-table::after { position: absolute; z-index: 2; inset: 0; border-radius: inherit; content: ""; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
 .felt-table.is-top-player-turn::after { background: linear-gradient(to bottom, rgba(220, 232, 138, .28), transparent 18px); box-shadow: inset 0 1px 0 rgba(220, 232, 138, .7); opacity: 1; }
 .felt-table.is-bottom-player-turn::after { background: linear-gradient(to top, rgba(220, 232, 138, .28), transparent 18px); box-shadow: inset 0 -1px 0 rgba(220, 232, 138, .7); opacity: 1; }
@@ -225,8 +233,6 @@ h1 em { color: var(--coral); font-weight: 500; }
 .rules-markdown td:last-child, .rules-markdown th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .rules-markdown strong { color: #203d31; }
 .meld-area { display: contents; }
-.felt-table.is-pairs-table { grid-template-columns: 42px minmax(0, 1fr) 42px; }
-.felt-table.is-pairs-table > .meld-team, .felt-table.is-pairs-table > .piles-row { grid-column: 2; }
 .empty-table { align-self: center; margin: 10px 0; color: rgba(230, 239, 226, .64); font-family: Georgia, serif; font-size: 14px; font-style: italic; }
 .meld-team { min-width: 0; min-height: 0; padding-right: clamp(10px, 1.2vw, 16px); }
 .meld-team-header { display: flex; align-items: baseline; justify-content: flex-start; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 0px; }
@@ -367,8 +373,10 @@ h1 em { color: var(--coral); font-weight: 500; }
   .table-avatar-top-player { right: 5px; }
   .table-avatar-bottom-player { left: 5px; }
   .felt-table { gap: 4px; padding: 4px 6px; }
-  .felt-table.is-pairs-table { grid-template-columns: 31px minmax(0, 1fr) 31px; }
-  .table-avatar-left-player, .table-avatar-right-player { width: 28px; height: 28px; flex-basis: 28px; }
+  .pairs-table-layout { grid-template-columns: 42px minmax(0, 1fr) 42px; }
+  .table-avatar-left-player, .table-avatar-right-player { width: 42px; height: 42px; }
+  .table-avatar-left-player { right: -14px; }
+  .table-avatar-right-player { left: -14px; }
   .side-player-avatar { width: 24px; height: 24px; }
   .side-player-rack .tile-face { width: 22px; height: 31px; flex-basis: 31px; margin-bottom: -21px; }
   .side-player-rack .tile-face strong { font-size: 14px; }

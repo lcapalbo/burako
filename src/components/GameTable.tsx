@@ -169,11 +169,13 @@ export function GameTable({
           : <div className="hidden-tiles" data-animation-zone={`hand-${topPlayer.id}`} aria-hidden="true">{topPlayer.hand.map((tile) => <span key={tile.id} data-tile-id={tile.id} className={flightTileIds.has(tile.id) ? 'is-flight-arrival' : ''} />)}</div>}
       </section>
 
-      <section
-        ref={feltTableRef}
-        className={`felt-table ${game.mode === 'pairs' ? 'is-pairs-table' : ''} ${meldDensity === 'compact' ? 'is-compact-melds' : ''} ${meldDensity === 'minimum' ? 'is-minimum-melds' : ''} ${discardDensity === 'compact' ? 'is-compact-discard' : ''} ${discardDensity === 'minimum' ? 'is-minimum-discard' : ''} ${roundClosed ? '' : turnClass}`}
-        aria-label="Mesa de juego"
-      >
+      <div className={`table-layout ${game.mode === 'pairs' ? 'pairs-table-layout' : ''}`}>
+        {leftPlayer && renderSidePlayer(leftPlayer, 'left')}
+        <section
+          ref={feltTableRef}
+          className={`felt-table ${meldDensity === 'compact' ? 'is-compact-melds' : ''} ${meldDensity === 'minimum' ? 'is-minimum-melds' : ''} ${discardDensity === 'compact' ? 'is-compact-discard' : ''} ${discardDensity === 'minimum' ? 'is-minimum-discard' : ''} ${roundClosed ? '' : turnClass}`}
+          aria-label="Mesa de juego"
+        >
         <button
           className={`table-avatar table-avatar-top-player ${!roundClosed && game.currentPlayer === topPlayer.id ? 'is-turn' : ''}`}
           type="button"
@@ -220,7 +222,6 @@ export function GameTable({
             ><span className="meld-tiles" key={selection.join(':')}>{(previewMeldKind === 'run' ? previewMeldTiles : sortLegTiles(previewMeldTiles)).map((tile) => <TileFace tile={tile} key={tile.id} className="is-preview" />)}<span className="preview-action-badge" aria-hidden="true">Bajá acá</span></span></button>;
             return (
               <Fragment key={team}>
-                  {team === 1 && game.mode === 'pairs' && leftPlayer && renderSidePlayer(leftPlayer, 'left')}
                 {team === 0 && <div className="piles-row">
                   <button
                     className="stock-pile pile-action"
@@ -323,12 +324,13 @@ export function GameTable({
                       </Fragment>
                     ))}{canLaySelection && previewMeldIndex === teamMelds.length && newMeldPreview}</div>}
                 </section>
-                {team === 0 && game.mode === 'pairs' && rightPlayer && renderSidePlayer(rightPlayer, 'right')}
               </Fragment>
             );
           })}
         </div>
-      </section>
+        </section>
+        {rightPlayer && renderSidePlayer(rightPlayer, 'right')}
+      </div>
     </>
   );
 }
