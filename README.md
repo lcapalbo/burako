@@ -40,6 +40,16 @@ Para comprobar los tipos y generar el build de producción:
 npm run build
 ```
 
+Para previsualizar ese build y probar la PWA localmente:
+
+```sh
+npm run preview
+```
+
+Abrí `http://localhost:4173/burako/` en el mismo equipo (si Vite elige otro puerto, usá el que indique la consola). Usar `localhost` permite que el navegador registre el service worker en HTTP; una dirección de red local como `http://192.168.x.x` requiere HTTPS para habilitarlo. Esperá a que el worker se active y guarde los recursos antes de detener el servidor para probar el uso sin conexión.
+
+En Firefox, podés comprobar el estado del worker desde las herramientas de desarrollador, en la solapa **Aplicación**. Verificá que aparezca registrado y activo antes de probar sin conexión.
+
 La partida se guarda localmente en el navegador; el proyecto no requiere backend ni cuenta de usuario.
 
 ## Instalar como aplicación

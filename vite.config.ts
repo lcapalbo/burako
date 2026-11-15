@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/burako/' : '/',
+export default defineConfig(({ command, mode }) => ({
+  base: command === 'build' || mode === 'production' ? '/burako/' : '/',
   plugins: [
     react(),
     VitePWA({
