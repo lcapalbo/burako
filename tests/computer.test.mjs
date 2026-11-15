@@ -5,10 +5,10 @@ import { DEFAULT_AI_PREFERENCES } from '../.test-build/aiProfiles.js';
 import { chooseDiscard, findBestMeld, runComputerTurn, runComputerTurnSteps } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
-const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0) =>
-  createGameWithRandomStarter(target, random, scores, round, starter);
-const computerState = ({ hand, melds = [], stock = [], discard = [], deadTaken = false, deadPiles = [[], []], opponentHand, opponentDeadTaken = false, phase = 'draw', restrictedDiscardTileId = null }) => {
-  const initial = createGame(2000, () => 0.5);
+const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0, mode = 'individual') =>
+  createGameWithRandomStarter(target, random, scores, round, starter, undefined, mode);
+const computerState = ({ hand, melds = [], stock = [], discard = [], deadTaken = false, deadPiles = [[], []], opponentHand, opponentDeadTaken = false, phase = 'draw', restrictedDiscardTileId = null, mode = 'individual' }) => {
+  const initial = createGame(2000, () => 0.5, [0, 0], 1, 0, mode);
   const players = [...initial.players];
   players[1] = { ...players[1], hand, deadTaken };
   players[0] = { ...players[0], hand: opponentHand ?? players[0].hand, deadTaken: opponentDeadTaken };
@@ -21,7 +21,7 @@ const exhaustiveBestMeld = (hand) => {
   const search = (start) => {
     if (selected.length >= 3) {
       const kind = getMeldKind(selected);
-      const value = kind ? selected.length * 10 + (selected.length >= 7 ? 100 : 0) + (kind === 'run' ? 2 : 0) : 0;
+      const value = kind ? selected.length * 10 + (selected.length >= 7 ? 100 : 0) + 2 : 0;
       if (value > bestValue) {
         best = [...selected];
         bestValue = value;
@@ -415,6 +415,26 @@ describe('turnos de la computadora', () => {
     assert.equal(retainsWithProbability.some((step) => step.melds.length > 0), false);
   });
 
+  it('usa la probabilidad de bajar juegos específica para parejas', () => {
+    const hand = [
+      tile('pair-lay-run-three', 'red', 3),
+      tile('pair-lay-run-four', 'red', 4),
+      tile('pair-lay-run-five', 'red', 5),
+      tile('pair-lay-unmatched-blue-twelve', 'blue', 12),
+      tile('pair-lay-unmatched-yellow-ten', 'yellow', 10),
+    ];
+    const preferences = {
+      ...DEFAULT_AI_PREFERENCES,
+      layMeldProbability: 0,
+      layMeldProbabilityForPairs: 1,
+    };
+    const individualSteps = runComputerTurnSteps(computerState({ hand, phase: 'play' }), preferences, () => 0.5);
+    const pairSteps = runComputerTurnSteps(computerState({ hand, phase: 'play', mode: 'pairs' }), preferences, () => 0.5);
+
+    assert.equal(individualSteps.some((step) => step.melds.length > 0), false);
+    assert.ok(pairSteps.some((step) => step.melds.length > 0));
+  });
+
   it('puede ignorar probabilísticamente el valor de extender sus juegos al evaluar el pozo', () => {
     const meld = {
       id: 'own-six-eights',
@@ -733,6 +753,138 @@ describe('turnos de la computadora', () => {
     assert.ok(jokerSteps.at(-1).players[1].hand.some((item) => item.id === joker.id));
     assert.equal(twoSteps.some((step) => step.melds.length > 0), false);
     assert.ok(twos.every((two) => twoSteps.at(-1).players[1].hand.some((item) => item.id === two.id)));
+  });
+
+  it('en parejas baja escaleras con #2 comodín solo si está en una posición permitida', () => {
+    const makeState = (values, mode = 'pairs') => {
+      const runTiles = values.map((value, index) => value === null
+        ? tile(`pair-wild-joker-${values.join('-')}-${index}`, null, 0, 'joker')
+        : tile(`pair-wild-run-${values.join('-')}-${index}`, value === 2 ? 'blue' : 'red', value));
+      return {
+        runTiles,
+        state: computerState({
+          hand: [
+            ...runTiles,
+            tile(`pair-wild-unmatched-blue-${values.join('-')}`, 'blue', 11),
+            tile(`pair-wild-unmatched-yellow-${values.join('-')}`, 'yellow', 12),
+          ],
+          phase: 'play',
+          mode,
+        }),
+      };
+    };
+    const containsFullRun = (steps, runTiles) => steps.some((step) => step.melds.some((meld) =>
+      runTiles.every((runTile) => meld.tiles.some((item) => item.id === runTile.id))));
+    const allowedSequences = [[5, 2, 7], [2, 5, 6], [4, 5, 2, 7]];
+
+    for (const sequence of allowedSequences) {
+      const { runTiles, state } = makeState(sequence);
+      const steps = runComputerTurnSteps(state);
+      assert.equal(containsFullRun(steps, runTiles), true);
+    }
+
+    for (const sequence of [[4, 5, 6, 2], [2, 4, 5, 6]]) {
+      const { runTiles, state } = makeState(sequence);
+      const steps = runComputerTurnSteps(state);
+      assert.equal(containsFullRun(steps, runTiles), false, `No debe bajar la escalera ${sequence.join('-')}`);
+    }
+
+    for (const sequence of [[5, null, 7], [null, 5, 6], [4, 5, null, 7]]) {
+      const { runTiles, state } = makeState(sequence);
+      const steps = runComputerTurnSteps(state);
+      assert.equal(containsFullRun(steps, runTiles), true);
+    }
+
+    for (const sequence of [[4, 5, 6, null], [null, 5, 6, 7]]) {
+      const { runTiles, state } = makeState(sequence);
+      const steps = runComputerTurnSteps(state);
+      assert.equal(containsFullRun(steps, runTiles), false);
+    }
+
+    const individual = runComputerTurnSteps(makeState([5, 2, 7], 'individual').state);
+    assert.equal(individual.some((step) => step.melds.length > 0), false);
+  });
+
+  it('en parejas agrega un comodín a juegos limpios largos si el rival levantó el muerto, y prefiere la escalera', () => {
+    const joker = tile('pair-support-joker', null, 0, 'joker');
+    const leg = {
+      id: 'pair-support-leg',
+      kind: 'leg',
+      tiles: ['red', 'blue', 'green', 'yellow', 'red'].map((color, index) => tile(`pair-support-leg-${index}`, color, 8)),
+      team: 1,
+    };
+    const run = {
+      id: 'pair-support-run',
+      kind: 'run',
+      tiles: [4, 5, 6, 7, 8].map((value) => tile(`pair-support-run-${value}`, 'red', value)),
+      team: 1,
+    };
+    const state = computerState({
+      hand: [joker, tile('pair-support-unmatched-blue', 'blue', 11), tile('pair-support-unmatched-green', 'green', 12)],
+      melds: [leg, run],
+      opponentDeadTaken: true,
+      phase: 'play',
+      mode: 'pairs',
+    });
+
+    const steps = runComputerTurnSteps(state);
+    const jokerMeld = steps.flatMap((step) => step.melds).find((meld) => meld.tiles.some((item) => item.id === joker.id));
+
+    assert.ok(jokerMeld);
+    assert.equal(jokerMeld.id, run.id);
+    assert.ok(steps.some((step) => step.melds.some((meld) => meld.id === leg.id && meld.tiles.length === 5)));
+
+    const two = tile('pair-support-two', 'blue', 2);
+    const twoSteps = runComputerTurnSteps(computerState({
+      hand: [two, tile('pair-support-two-blue', 'blue', 11), tile('pair-support-two-green', 'green', 12)],
+      melds: [leg, run],
+      opponentDeadTaken: true,
+      phase: 'play',
+      mode: 'pairs',
+    }));
+    const twoMeld = twoSteps.flatMap((step) => step.melds).find((meld) => meld.tiles.some((item) => item.id === two.id));
+    assert.ok(twoMeld);
+    assert.equal(twoMeld.id, run.id);
+
+    const twoWithOnlyLegSteps = runComputerTurnSteps(computerState({
+      hand: [two, tile('pair-support-only-leg-blue', 'blue', 11), tile('pair-support-only-leg-green', 'green', 12)],
+      melds: [leg],
+      opponentDeadTaken: true,
+      phase: 'play',
+      mode: 'pairs',
+    }));
+    const twoLegMeld = twoWithOnlyLegSteps.flatMap((step) => step.melds).find((meld) => meld.tiles.some((item) => item.id === two.id));
+    assert.ok(twoLegMeld);
+    assert.equal(twoLegMeld.id, leg.id);
+
+    const withoutDeadTaken = runComputerTurnSteps(computerState({
+      hand: [joker, tile('pair-support-no-dead-blue', 'blue', 11), tile('pair-support-no-dead-green', 'green', 12)],
+      melds: [run],
+      phase: 'play',
+      mode: 'pairs',
+    }));
+    assert.equal(withoutDeadTaken.some((step) => step.melds.some((meld) => meld.tiles.some((item) => item.id === joker.id))), false);
+  });
+
+  it('permite completar una canasta limpia de seis fichas con un comodín en parejas', () => {
+    const joker = tile('pair-canasta-joker', null, 0, 'joker');
+    const run = {
+      id: 'pair-six-run',
+      kind: 'run',
+      tiles: [3, 4, 5, 6, 7, 8].map((value) => tile(`pair-six-run-${value}`, 'red', value)),
+      team: 1,
+    };
+    const state = computerState({
+      hand: [joker, tile('pair-six-unmatched-blue', 'blue', 11), tile('pair-six-unmatched-green', 'green', 12)],
+      melds: [run],
+      opponentDeadTaken: true,
+      phase: 'play',
+      mode: 'pairs',
+    });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.ok(steps.some((step) => step.melds.some((meld) => meld.id === run.id && meld.tiles.length === 7)));
   });
 
   it('baja un juego con comodín para tomar directamente el muerto', () => {

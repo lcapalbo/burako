@@ -21,6 +21,7 @@ import { DEFAULT_AI_PREFERENCES, type AiPreferences } from './aiProfiles.js';
 
 const MAX_DISCARD_TILES_TO_EVALUATE = 20;
 const MAX_MELD_CANDIDATE_SIZE = 4;
+const RUN_SEQUENCE_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1];
 
 function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
   return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
@@ -38,7 +39,9 @@ export function findBestMeld(
     if (selected.length >= 3) {
       const kind = getMeldKind(selected);
       if (kind && isAllowed(selected)) {
-        const preferenceBonus = kind === preferences.preferredMeldKind ? preferences.meldKindPreferenceBonus : 0;
+        const preferenceBonus = preferences.preferredMeldKind === 'none' || kind === preferences.preferredMeldKind
+          ? preferences.meldKindPreferenceBonus
+          : 0;
         const value = selected.length * 10 + (selected.length >= 7 ? 100 : 0) + preferenceBonus;
         if (value > bestValue) {
           best = [...selected];
@@ -300,6 +303,57 @@ function wildActionTakesDead(state: GameState, candidate: GameState, playerId: n
   return !teamHadTakenDead && teamHasTakenDead;
 }
 
+function getRunWildcardIndex(meld: Meld): number | null {
+  const runColor = meld.tiles.find((tile) => tile.kind === 'number' && tile.value !== 2)?.color;
+  if (meld.kind !== 'run' || !runColor) return null;
+
+  for (let start = 0; start <= RUN_SEQUENCE_VALUES.length - meld.tiles.length; start += 1) {
+    let wildcardIndex: number | null = null;
+    let valid = true;
+    for (let index = 0; index < meld.tiles.length; index += 1) {
+      const tile = meld.tiles[index];
+      if (tile.kind === 'number' && tile.color === runColor && tile.value === RUN_SEQUENCE_VALUES[start + index]) continue;
+      if (!isWild(tile) || wildcardIndex !== null) {
+        valid = false;
+        break;
+      }
+      wildcardIndex = index;
+    }
+    if (valid) return wildcardIndex;
+  }
+  return null;
+}
+
+function canSupportCanastaWithWild(state: GameState, meld: Meld, tile: Tile, playerId: number): boolean {
+  const team = state.players[playerId].team;
+  return state.mode === 'pairs'
+    && isWild(tile)
+    && meld.team === team
+    && isCleanMeld(meld)
+    && (meld.tiles.length === 5 || meld.tiles.length === 6)
+    && !state.melds.some((ownMeld) => ownMeld.team === team && isCanasta(ownMeld))
+    && state.players.some((player) => player.team !== team && player.deadTaken);
+}
+
+function canLayPairsRunWithWild(state: GameState, candidate: GameState): boolean {
+  if (state.mode !== 'pairs') return false;
+  const meld = candidate.melds[candidate.melds.length - 1];
+  if (!meld || meld.kind !== 'run') return false;
+  const wildcardIndex = getRunWildcardIndex(meld);
+  return wildcardIndex !== null
+    && (meld.tiles.length === 3 || (wildcardIndex > 0 && wildcardIndex < meld.tiles.length - 1));
+}
+
+function canKeepPairsRunWithWild(state: GameState, candidate: GameState, meldId: string): boolean {
+  if (state.mode !== 'pairs') return true;
+  const meld = candidate.melds.find((candidateMeld) => candidateMeld.id === meldId);
+  if (!meld || meld.kind !== 'run') return true;
+  const wildcardIndex = getRunWildcardIndex(meld);
+  return wildcardIndex === null
+    || meld.tiles.length === 3
+    || (wildcardIndex > 0 && wildcardIndex < meld.tiles.length - 1);
+}
+
 function tryRuleAction(action: () => GameState): GameState | null {
   try {
     return action();
@@ -378,16 +432,37 @@ export function runComputerTurnSteps(
     const currentHand = next.players[playerId].hand;
     let extended = false;
 
-    for (const meld of next.melds) {
-      if (meld.team !== team) continue;
-      for (const tile of currentHand) {
+    const ownMelds = next.melds.filter((meld) => meld.team === team);
+    const canSupportMeld = (meld: Meld) => currentHand.some((tile) =>
+      canSupportCanastaWithWild(next, meld, tile, playerId)
+      && mayExtendMeld(meld, tile)
+      && getMeldKind([...meld.tiles, tile]) === meld.kind);
+    const meldsToExtend = ownMelds.some(canSupportMeld)
+      ? [...ownMelds].sort((a, b) => {
+        const supportsA = canSupportMeld(a);
+        const supportsB = canSupportMeld(b);
+        const supportDifference = Number(supportsB) - Number(supportsA);
+        if (supportDifference !== 0) return supportDifference;
+        if (!supportsA || !supportsB) return 0;
+        return Number(b.kind === 'run') - Number(a.kind === 'run');
+      })
+      : ownMelds;
+
+    for (const meld of meldsToExtend) {
+      const meldHand = canSupportMeld(meld)
+        ? [...currentHand].sort((a, b) => Number(canSupportCanastaWithWild(next, meld, b, playerId)) - Number(canSupportCanastaWithWild(next, meld, a, playerId)))
+        : currentHand;
+      for (const tile of meldHand) {
         if (!mayExtendMeld(meld, tile)) continue;
         if (getMeldKind([...meld.tiles, tile]) !== meld.kind) continue;
         const candidate = tryRuleAction(() => addToMeld(next, playerId, meld.id, [tile.id]));
         if (
           !candidate
           || leavesOnlyRestrictedTile(candidate, playerId)
+          || (!canSupportCanastaWithWild(next, meld, tile, playerId)
+            && !canKeepPairsRunWithWild(next, candidate, meld.id))
           || (isWild(tile)
+            && !canSupportCanastaWithWild(next, meld, tile, playerId)
             && !wildActionClosesRound(candidate, playerId)
             && !wildActionTakesDead(next, candidate, playerId))
         ) continue;
@@ -408,10 +483,14 @@ export function runComputerTurnSteps(
         && !leavesOnlyRestrictedTile(candidate, playerId)
         && (!tiles.some(isWild)
           || wildActionClosesRound(candidate, playerId)
-          || wildActionTakesDead(next, candidate, playerId));
+          || wildActionTakesDead(next, candidate, playerId)
+          || canLayPairsRunWithWild(next, candidate));
     }, preferences);
     if (!best) break;
-    if (preferences.layMeldProbability < 1 && random() >= preferences.layMeldProbability) break;
+    const layMeldProbability = next.mode === 'pairs'
+      ? preferences.layMeldProbabilityForPairs
+      : preferences.layMeldProbability;
+    if (layMeldProbability < 1 && random() >= layMeldProbability) break;
 
     const candidate = tryRuleAction(() => layMeld(next, playerId, best.map((tile) => tile.id)));
     if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) break;
