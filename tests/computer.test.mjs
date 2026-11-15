@@ -1245,6 +1245,75 @@ describe('turnos de la computadora', () => {
     assert.equal(next.melds[0].tiles.length, 7);
   });
 
+  it('encadena juegos naturales para cortar aunque el perfil retenga juegos largos', () => {
+    const canasta = {
+      id: 'computer-natural-chain-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) =>
+        tile(`computer-natural-chain-canasta-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 12)),
+      team: 1,
+    };
+    const state = computerState({
+      hand: [
+        ...[3, 4, 5, 6, 7].map((value) => tile(`computer-natural-chain-run-${value}`, 'red', value)),
+        tile('computer-natural-chain-leg-yellow', 'yellow', 8),
+        tile('computer-natural-chain-leg-blue', 'blue', 8),
+        tile('computer-natural-chain-leg-green', 'green', 8),
+      ],
+      melds: [canasta],
+      deadTaken: true,
+      phase: 'play',
+    });
+    const daneelProfile = AI_PROFILES.find((profile) => profile.id === 'daneel-olivaw');
+    const daneelState = {
+      ...state,
+      players: state.players.map((player) => player.id === 1 ? { ...player, aiProfileId: 'daneel-olivaw' } : player),
+    };
+
+    const next = runComputerTurn(daneelState, daneelProfile.preferences, () => 0.99);
+
+    assert.equal(next.phase, 'round-over');
+    assert.ok(next.melds.some((meld) => meld.tiles.length === 5 && meld.tiles.some((item) => item.id === 'computer-natural-chain-run-3')));
+    assert.ok(next.melds.some((meld) => meld.kind === 'leg' && meld.tiles.length === 3));
+    assert.equal(next.players[1].hand.length, 0);
+  });
+
+  it('encadena juegos con comodín para cortar aunque el perfil retenga juegos largos', () => {
+    const canasta = {
+      id: 'computer-wild-chain-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) =>
+        tile(`computer-wild-chain-canasta-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 12)),
+      team: 1,
+    };
+    const joker = tile('computer-wild-chain-joker', null, 0, 'joker');
+    const state = computerState({
+      hand: [
+        joker,
+        ...[4, 5, 6, 7].map((value) => tile(`computer-wild-chain-run-${value}`, 'red', value)),
+        tile('computer-wild-chain-leg-yellow', 'yellow', 8),
+        tile('computer-wild-chain-leg-blue', 'blue', 8),
+        tile('computer-wild-chain-leg-green', 'green', 8),
+      ],
+      melds: [canasta],
+      deadTaken: true,
+      phase: 'play',
+    });
+    const daneelProfile = AI_PROFILES.find((profile) => profile.id === 'daneel-olivaw');
+    const daneelState = {
+      ...state,
+      players: state.players.map((player) => player.id === 1 ? { ...player, aiProfileId: 'daneel-olivaw' } : player),
+    };
+
+    const next = runComputerTurn(daneelState, daneelProfile.preferences, () => 0.99);
+
+    assert.equal(next.phase, 'round-over');
+    assert.ok(next.melds.some((meld) =>
+      meld.kind === 'run' && meld.tiles.length === 5 && meld.tiles.some((item) => item.id === joker.id)));
+    assert.ok(next.melds.some((meld) => meld.kind === 'leg' && meld.tiles.length === 3));
+    assert.equal(next.players[1].hand.length, 0);
+  });
+
   it('permite bajar un juego con comodín cuando la jugada cierra', () => {
     const joker = tile('computer-meld-cut-joker', null, 0, 'joker');
     const canasta = {

@@ -27,11 +27,11 @@ function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
   return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
 }
 
-function canMeldHandCompletely(hand: Tile[]): boolean {
+function canMeldHandCompletely(hand: Tile[], requireCanasta = false): boolean {
   const results = new Map<string, boolean>();
-  const canMeldRemaining = (remaining: Tile[]): boolean => {
-    if (remaining.length === 0) return true;
-    const key = remaining.map((tile) => tile.id).sort().join('|');
+  const canMeldRemaining = (remaining: Tile[], hasCanasta: boolean): boolean => {
+    if (remaining.length === 0) return !requireCanasta || hasCanasta;
+    const key = `${hasCanasta ? 1 : 0}|${remaining.map((tile) => tile.id).sort().join('|')}`;
     const cached = results.get(key);
     if (cached !== undefined) return cached;
 
@@ -39,7 +39,10 @@ function canMeldHandCompletely(hand: Tile[]): boolean {
     const search = (start: number): boolean => {
       if (selected.length >= 3 && getMeldKind(selected)) {
         const selectedIds = new Set(selected.map((tile) => tile.id));
-        if (canMeldRemaining(remaining.filter((tile) => !selectedIds.has(tile.id)))) return true;
+        if (canMeldRemaining(
+          remaining.filter((tile) => !selectedIds.has(tile.id)),
+          hasCanasta || selected.length >= 7,
+        )) return true;
       }
       for (let index = start; index < remaining.length; index += 1) {
         const tile = remaining[index];
@@ -57,7 +60,7 @@ function canMeldHandCompletely(hand: Tile[]): boolean {
     return canFinish;
   };
 
-  return canMeldRemaining(hand);
+  return canMeldRemaining(hand, false);
 }
 
 export function findBestMeld(
@@ -381,6 +384,20 @@ function canTakeDeadAfterMeldSequence(state: GameState, candidate: GameState, pl
   return canMeldHandCompletely(candidate.players[playerId].hand);
 }
 
+function canCloseAfterMeldSequence(state: GameState, playerId: number): boolean {
+  const player = state.players[playerId];
+  const team = player.team;
+  const teamHasTakenDead = state.players.some((member) => member.team === team && member.deadTaken);
+  if (!teamHasTakenDead && state.deadPiles[team]?.length) return false;
+
+  const needsCanasta = !state.melds.some((meld) => meld.team === team && isCanasta(meld));
+  const canPlayOut = (hand: Tile[]) => canMeldHandCompletely(hand, needsCanasta);
+  if (canPlayOut(player.hand)) return true;
+  return player.hand.some((tile) =>
+    tile.id !== state.restrictedDiscardTileId &&
+    canPlayOut(player.hand.filter((handTile) => handTile.id !== tile.id)));
+}
+
 function getRunWildcardPosition(meld: Meld): { index: number; start: number } | null {
   const runColor = meld.tiles.find((tile) => tile.kind === 'number' && tile.value !== 2)?.color;
   if (meld.kind !== 'run' || !runColor) return null;
@@ -600,6 +617,8 @@ export function runComputerTurnSteps(
     if (extendMelds(ownMelds.filter((meld) => !isCanasta(meld)))) continue;
 
     const hasGuaranteedDeadTakingSequence = canTakeDeadAfterMeldSequence(next, next, playerId);
+    const hasGuaranteedRoundClosingSequence = canCloseAfterMeldSequence(next, playerId);
+    const hasGuaranteedMeldSequence = hasGuaranteedDeadTakingSequence || hasGuaranteedRoundClosingSequence;
     const isAllowedMeld = (tiles: Tile[]) => {
       const candidate = tryRuleAction(() => layMeld(next, playerId, tiles.map((tile) => tile.id)));
       return candidate !== null
@@ -609,14 +628,19 @@ export function runComputerTurnSteps(
           || candidate.phase === 'match-over'
           || wildActionTakesDead(next, candidate, playerId)
           || canTakeDeadAfterMeldSequence(next, candidate, playerId))
+        && (!hasGuaranteedRoundClosingSequence
+          || candidate.phase === 'round-over'
+          || candidate.phase === 'match-over'
+          || canCloseAfterMeldSequence(candidate, playerId))
         && (!tiles.some(isWild)
           || meldActionClosesRound(candidate, playerId)
           || wildActionTakesDead(next, candidate, playerId)
           || canTakeDeadAfterMeldSequence(next, candidate, playerId)
+          || canCloseAfterMeldSequence(candidate, playerId)
           || canLayPairsRunWithWild(next, candidate));
     };
     if (
-      !hasGuaranteedDeadTakingSequence
+      !hasGuaranteedMeldSequence
       && retainedForManipulation === null
       && next.mode === 'individual'
       && preferences.manipulateOpponentOnSinglePlay
@@ -647,7 +671,7 @@ export function runComputerTurnSteps(
       if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) break;
       const closesRound = meldActionClosesRound(candidate, playerId);
       if (
-        !hasGuaranteedDeadTakingSequence
+        !hasGuaranteedMeldSequence
         && !closesRound
         && layMeldProbability < 1
         && random() >= layMeldProbability
