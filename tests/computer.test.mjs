@@ -90,6 +90,24 @@ describe('descarte de la computadora', () => {
     assert.equal(chooseDiscard([blueThirteen, blueOne, greenThirteen, redFive]).id, redFive.id);
   });
 
+  it('prefiere descartar fichas naturales antes que comodines y descarta si solo tiene comodines', () => {
+    const natural = tile('computer-discard-natural', 'red', 13);
+    const specialJoker = tile('computer-discard-special-joker', null, 0, 'joker');
+    const otherSpecialJoker = tile('computer-discard-other-special-joker', null, 0, 'joker');
+
+    assert.equal(chooseDiscard([natural, specialJoker]).id, natural.id);
+    assert.ok([specialJoker.id, otherSpecialJoker.id].includes(
+      chooseDiscard([specialJoker, otherSpecialJoker]).id,
+    ));
+  });
+
+  it('prefiere descartar un #2 antes que un comodín especial', () => {
+    const two = tile('computer-discard-wild-two', 'red', 2);
+    const specialJoker = tile('computer-discard-preferred-special-joker', null, 0, 'joker');
+
+    assert.equal(chooseDiscard([two, specialJoker]).id, two.id);
+  });
+
   it('evita descartar la ficha que completaría una canasta rival si tiene esa preferencia', () => {
     const eight = tile('opponent-canasta-eighth', 'red', 8);
     const five = tile('opponent-canasta-safe-five', 'green', 5);

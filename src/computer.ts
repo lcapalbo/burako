@@ -85,7 +85,7 @@ export function chooseDiscard(
       return meld.tiles.length === 6
         || (isCanasta(meld) && !isCleanMeld(meld) && isCleanMeld({ ...meld, tiles: extendedTiles }));
     });
-    return (tile.kind === 'joker' ? 100 : tile.value === 2 ? 80 : 0)
+    return (tile.kind === 'joker' ? 120 : tile.value === 2 ? 80 : 0)
       + sameValue * 12 + sameRun * 12 - tilePoints(tile)
       + (helpsOpponentCanasta ? 1000 : 0);
   };
