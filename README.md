@@ -104,3 +104,14 @@ window.burakoDebug.redo()
 ```
 
 Si `undo()` o `redo()` deja el turno en manos de la computadora, esta queda pausada para poder inspeccionar el estado. Ejecutá `window.burakoDebug.resumeComputerTurn()` para continuar.
+
+También podés guardar escenarios con un nombre, listarlos y restaurarlos para repetir pruebas:
+
+```js
+window.burakoDebug.saveGame('pozo-largo')
+window.burakoDebug.listSavedGames()
+window.burakoDebug.restoreGame('pozo-largo')
+window.burakoDebug.deleteSavedGame('pozo-largo')
+```
+
+Guardar otra vez con el mismo nombre reemplaza ese escenario; usar otro nombre conserva los anteriores. Restaurar no modifica el escenario guardado, así que podés volver a cargarlo después de jugar. `deleteSavedGame(nombre)` elimina el escenario indicado y devuelve `true` si existía o `false` si no se encontró. Estos escenarios usan un almacenamiento de depuración separado del guardado automático normal.

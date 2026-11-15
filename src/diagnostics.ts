@@ -8,6 +8,10 @@ export type BurakoDebugHelper = {
   undo(): boolean;
   redo(): boolean;
   resumeComputerTurn(): void;
+  saveGame(name: string): void;
+  restoreGame(name: string): boolean;
+  deleteSavedGame(name: string): boolean;
+  listSavedGames(): string[];
 };
 
 declare global {

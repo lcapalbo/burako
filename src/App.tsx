@@ -37,6 +37,7 @@ import {
 } from './diagnostics';
 
 const SAVE_KEY = 'burako-local-game-v1';
+const DEBUG_GAMES_KEY = 'burako-debug-games-v1';
 const AI_THINKING_DELAY_MS = 500;
 const COMPUTER_MOVE_DELAY_MS = 700;
 const RECENT_TILE_DURATION_MS = 1400;
@@ -44,6 +45,7 @@ const RECENT_DISCARD_DURATION_MS = RECENT_TILE_DURATION_MS * 2;
 const TILE_FLIGHT_DURATION_MS = 560;
 const MAX_UNDO_STEPS = 10;
 type GameHistory = { states: GameState[]; cursor: number };
+type DebugGameCollection = { version: 1; games: Record<string, GameState> };
 type TileFlight = {
   id: number;
   batchId: number;
@@ -113,6 +115,32 @@ function loadSavedGame(): GameState | null {
   } catch {
     return null;
   }
+}
+
+function getDebugGameName(name: string): string {
+  const normalizedName = name.trim();
+  if (!normalizedName) throw new RangeError('El nombre de la partida de depuración no puede estar vacío.');
+  return normalizedName;
+}
+
+function readDebugGames(): DebugGameCollection {
+  const saved = window.localStorage.getItem(DEBUG_GAMES_KEY);
+  if (!saved) return { version: 1, games: {} };
+
+  let value: unknown;
+  try {
+    value = JSON.parse(saved);
+  } catch {
+    throw new Error('El almacenamiento de partidas de depuración está dañado.');
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('El almacenamiento de partidas de depuración tiene un formato inválido.');
+  }
+  const collection = value as { version?: unknown; games?: unknown };
+  if (collection.version !== 1 || !collection.games || typeof collection.games !== 'object' || Array.isArray(collection.games)) {
+    throw new Error('El almacenamiento de partidas de depuración tiene un formato o versión inválidos.');
+  }
+  return collection as DebugGameCollection;
 }
 
 function getTileLocations(state: GameState): Map<string, string> {
@@ -220,10 +248,22 @@ export default function App() {
   const tileFlightTimersRef = useRef(new Map<number, number>());
   const gameHistoryRef = useRef<GameHistory>(game ? { states: [game], cursor: 0 } : { states: [], cursor: -1 });
   const [computerTurnResumeToken, setComputerTurnResumeToken] = useState(0);
-  const debugActionsRef = useRef<{ undo: () => boolean; redo: () => boolean; resumeComputerTurn: () => void }>({
+  const debugActionsRef = useRef<{
+    undo: () => boolean;
+    redo: () => boolean;
+    resumeComputerTurn: () => void;
+    saveGame: (name: string) => void;
+    restoreGame: (name: string) => boolean;
+    deleteSavedGame: (name: string) => boolean;
+    listSavedGames: () => string[];
+  }>({
     undo: () => false,
     redo: () => false,
     resumeComputerTurn: () => {},
+    saveGame: () => {},
+    restoreGame: () => false,
+    deleteSavedGame: () => false,
+    listSavedGames: () => [],
   });
 
   const cancelComputerTurn = () => {
@@ -277,7 +317,61 @@ export default function App() {
     pauseComputerTurnRef.current = false;
     setComputerTurnResumeToken((token) => token + 1);
   };
-  debugActionsRef.current = { undo: undoGame, redo: redoGame, resumeComputerTurn };
+  const saveDebugGame = (name: string) => {
+    const normalizedName = getDebugGameName(name);
+    if (!game) throw new Error('No hay una partida activa para guardar.');
+    const collection = readDebugGames();
+    const games = Object.assign(Object.create(null), collection.games) as Record<string, GameState>;
+    games[normalizedName] = game;
+    collection.games = games;
+    window.localStorage.setItem(DEBUG_GAMES_KEY, JSON.stringify(collection));
+  };
+  const restoreDebugGame = (name: string): boolean => {
+    const normalizedName = getDebugGameName(name);
+    const games = readDebugGames().games;
+    if (!Object.prototype.hasOwnProperty.call(games, normalizedName)) return false;
+    const savedGame = games[normalizedName];
+    if (!savedGame || !Array.isArray(savedGame.players)
+      || (savedGame.players.length !== 2 && savedGame.players.length !== 4)
+      || !Array.isArray(savedGame.players[0]?.hand)) {
+      throw new Error(`El escenario de depuración «${normalizedName}» tiene un formato inválido.`);
+    }
+    cancelComputerTurn();
+    pauseComputerTurnRef.current = false;
+    resetGameHistory(savedGame);
+    humanHandOrderRef.current = savedGame.players[0].hand.map((tile) => tile.id);
+    setGameMode(savedGame.mode ?? (savedGame.players.length === 4 ? 'pairs' : 'individual'));
+    setGame(savedGame);
+    setSelection([]);
+    setRecentlyChangedTileIds([]);
+    setRecentlyDiscardedTileIds([]);
+    setTileFlights([]);
+    setRecentTileDuration(RECENT_TILE_DURATION_MS);
+    setHandSortMode('original');
+    setSortMenuOpen(false);
+    setError('');
+    return true;
+  };
+  const deleteSavedDebugGame = (name: string): boolean => {
+    const normalizedName = getDebugGameName(name);
+    const collection = readDebugGames();
+    if (!Object.prototype.hasOwnProperty.call(collection.games, normalizedName)) return false;
+    const games = Object.assign(Object.create(null), collection.games) as Record<string, GameState>;
+    delete games[normalizedName];
+    collection.games = games;
+    window.localStorage.setItem(DEBUG_GAMES_KEY, JSON.stringify(collection));
+    return true;
+  };
+  const listDebugGames = () => Object.keys(readDebugGames().games);
+  debugActionsRef.current = {
+    undo: undoGame,
+    redo: redoGame,
+    resumeComputerTurn,
+    saveGame: saveDebugGame,
+    restoreGame: restoreDebugGame,
+    deleteSavedGame: deleteSavedDebugGame,
+    listSavedGames: listDebugGames,
+  };
 
   useEffect(() => {
     const helper: BurakoDebugHelper = {
@@ -288,6 +382,10 @@ export default function App() {
       undo: () => debugActionsRef.current.undo(),
       redo: () => debugActionsRef.current.redo(),
       resumeComputerTurn: () => debugActionsRef.current.resumeComputerTurn(),
+      saveGame: (name) => debugActionsRef.current.saveGame(name),
+      restoreGame: (name) => debugActionsRef.current.restoreGame(name),
+      deleteSavedGame: (name) => debugActionsRef.current.deleteSavedGame(name),
+      listSavedGames: () => debugActionsRef.current.listSavedGames(),
     };
     window.burakoDebug = helper;
     return () => {
