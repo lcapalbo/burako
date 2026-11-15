@@ -303,7 +303,7 @@ function wildActionTakesDead(state: GameState, candidate: GameState, playerId: n
   return !teamHadTakenDead && teamHasTakenDead;
 }
 
-function getRunWildcardIndex(meld: Meld): number | null {
+function getRunWildcardPosition(meld: Meld): { index: number; start: number } | null {
   const runColor = meld.tiles.find((tile) => tile.kind === 'number' && tile.value !== 2)?.color;
   if (meld.kind !== 'run' || !runColor) return null;
 
@@ -319,9 +319,38 @@ function getRunWildcardIndex(meld: Meld): number | null {
       }
       wildcardIndex = index;
     }
-    if (valid) return wildcardIndex;
+    if (valid && wildcardIndex !== null) return { index: wildcardIndex, start };
   }
   return null;
+}
+
+function getRunWildcardIndex(meld: Meld): number | null {
+  return getRunWildcardPosition(meld)?.index ?? null;
+}
+
+function canHelpPurifyRunCanasta(meld: Meld, tile: Tile): boolean {
+  if (!isCanasta(meld) || meld.kind !== 'run') return false;
+  const runColor = meld.tiles.find((tile) => tile.kind === 'number' && tile.value !== 2)?.color;
+  const wildcardTwoIndex = meld.tiles.findIndex((meldTile) =>
+    meldTile.kind === 'number' && meldTile.value === 2 && meldTile.color === runColor);
+  const wildcardPosition = getRunWildcardPosition(meld);
+  if (
+    runColor === null
+    || runColor === undefined
+    || wildcardTwoIndex < 0
+    || wildcardPosition?.index !== wildcardTwoIndex
+    || wildcardPosition.index !== 0
+    || RUN_SEQUENCE_VALUES[wildcardPosition.start] < 6
+  ) return false;
+
+  return tile.kind === 'number'
+    && tile.color === runColor
+    && tile.value === RUN_SEQUENCE_VALUES[wildcardPosition.start];
+}
+
+function canPurifyCanastaByExtending(meld: Meld, candidate: GameState, meldId: string): boolean {
+  const updatedMeld = candidate.melds.find((candidateMeld) => candidateMeld.id === meldId);
+  return Boolean(updatedMeld && !isCleanMeld(meld) && isCleanMeld(updatedMeld));
 }
 
 function canSupportCanastaWithWild(state: GameState, meld: Meld, tile: Tile, playerId: number): boolean {
@@ -430,52 +459,63 @@ export function runComputerTurnSteps(
 
   while (next.phase === 'play' && next.currentPlayer === playerId) {
     const currentHand = next.players[playerId].hand;
-    let extended = false;
-
     const ownMelds = next.melds.filter((meld) => meld.team === team);
-    const canSupportMeld = (meld: Meld) => currentHand.some((tile) =>
-      canSupportCanastaWithWild(next, meld, tile, playerId)
-      && mayExtendMeld(meld, tile)
-      && getMeldKind([...meld.tiles, tile]) === meld.kind);
-    const meldsToExtend = ownMelds.some(canSupportMeld)
-      ? [...ownMelds].sort((a, b) => {
-        const supportsA = canSupportMeld(a);
-        const supportsB = canSupportMeld(b);
-        const supportDifference = Number(supportsB) - Number(supportsA);
-        if (supportDifference !== 0) return supportDifference;
-        if (!supportsA || !supportsB) return 0;
-        return Number(b.kind === 'run') - Number(a.kind === 'run');
-      })
-      : ownMelds;
+    const extendMelds = (
+      meldsToTry: Meld[],
+      isPreferredExtension: (meld: Meld, tile: Tile, candidate: GameState) => boolean = () => true,
+    ): boolean => {
+      const canSupportMeld = (meld: Meld) => currentHand.some((tile) =>
+        canSupportCanastaWithWild(next, meld, tile, playerId)
+        && mayExtendMeld(meld, tile)
+        && getMeldKind([...meld.tiles, tile]) === meld.kind);
+      const orderedMelds = meldsToTry.some(canSupportMeld)
+        ? [...meldsToTry].sort((a, b) => {
+          const supportsA = canSupportMeld(a);
+          const supportsB = canSupportMeld(b);
+          const supportDifference = Number(supportsB) - Number(supportsA);
+          if (supportDifference !== 0) return supportDifference;
+          if (!supportsA || !supportsB) return 0;
+          return Number(b.kind === 'run') - Number(a.kind === 'run');
+        })
+        : meldsToTry;
 
-    for (const meld of meldsToExtend) {
-      const meldHand = canSupportMeld(meld)
-        ? [...currentHand].sort((a, b) => Number(canSupportCanastaWithWild(next, meld, b, playerId)) - Number(canSupportCanastaWithWild(next, meld, a, playerId)))
-        : currentHand;
-      for (const tile of meldHand) {
-        if (!mayExtendMeld(meld, tile)) continue;
-        if (getMeldKind([...meld.tiles, tile]) !== meld.kind) continue;
-        const candidate = tryRuleAction(() => addToMeld(next, playerId, meld.id, [tile.id]));
-        if (
-          !candidate
-          || leavesOnlyRestrictedTile(candidate, playerId)
-          || (!canSupportCanastaWithWild(next, meld, tile, playerId)
-            && !canKeepPairsRunWithWild(next, candidate, meld.id))
-          || (isWild(tile)
-            && !canSupportCanastaWithWild(next, meld, tile, playerId)
-            && !wildActionClosesRound(candidate, playerId)
-            && !wildActionTakesDead(next, candidate, playerId))
-        ) continue;
-        next = candidate;
-        steps.push(next);
-        logGameDebug('computer:meld-decision', { action: 'agregar-a-juego', meldId: meld.id, tileIds: [tile.id] });
-        logGameDebug('computer:step-applied', { action: 'agregar-a-juego', state: summarizeGameState(next) });
-        extended = true;
-        break;
+      for (const meld of orderedMelds) {
+        const meldHand = canSupportMeld(meld)
+          ? [...currentHand].sort((a, b) => Number(canSupportCanastaWithWild(next, meld, b, playerId)) - Number(canSupportCanastaWithWild(next, meld, a, playerId)))
+          : currentHand;
+        for (const tile of meldHand) {
+          if (!mayExtendMeld(meld, tile)) continue;
+          if (getMeldKind([...meld.tiles, tile]) !== meld.kind) continue;
+          const candidate = tryRuleAction(() => addToMeld(next, playerId, meld.id, [tile.id]));
+          if (
+            !candidate
+            || leavesOnlyRestrictedTile(candidate, playerId)
+            || (isCanasta(meld) && !isPreferredExtension(meld, tile, candidate))
+            || (!canSupportCanastaWithWild(next, meld, tile, playerId)
+              && !canKeepPairsRunWithWild(next, candidate, meld.id))
+            || (isWild(tile)
+              && !canSupportCanastaWithWild(next, meld, tile, playerId)
+              && !wildActionClosesRound(candidate, playerId)
+              && !wildActionTakesDead(next, candidate, playerId))
+          ) continue;
+          next = candidate;
+          steps.push(next);
+          logGameDebug('computer:meld-decision', { action: 'agregar-a-juego', meldId: meld.id, tileIds: [tile.id] });
+          logGameDebug('computer:step-applied', { action: 'agregar-a-juego', state: summarizeGameState(next) });
+          return true;
+        }
       }
-      if (extended) break;
-    }
-    if (extended) continue;
+      return false;
+    };
+
+    if (extendMelds(
+      ownMelds.filter(isCanasta),
+      (meld, tile, candidate) =>
+        canPurifyCanastaByExtending(meld, candidate, meld.id)
+        || canHelpPurifyRunCanasta(meld, tile),
+    )) continue;
+
+    if (extendMelds(ownMelds.filter((meld) => !isCanasta(meld)))) continue;
 
     const best = findBestMeld(currentHand, (tiles) => {
       const candidate = tryRuleAction(() => layMeld(next, playerId, tiles.map((tile) => tile.id)));
@@ -486,18 +526,23 @@ export function runComputerTurnSteps(
           || wildActionTakesDead(next, candidate, playerId)
           || canLayPairsRunWithWild(next, candidate));
     }, preferences);
-    if (!best) break;
-    const layMeldProbability = next.mode === 'pairs'
-      ? preferences.layMeldProbabilityForPairs
-      : preferences.layMeldProbability;
-    if (layMeldProbability < 1 && random() >= layMeldProbability) break;
+    if (best) {
+      const layMeldProbability = next.mode === 'pairs'
+        ? preferences.layMeldProbabilityForPairs
+        : preferences.layMeldProbability;
+      if (layMeldProbability < 1 && random() >= layMeldProbability) break;
 
-    const candidate = tryRuleAction(() => layMeld(next, playerId, best.map((tile) => tile.id)));
-    if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) break;
-    next = candidate;
-    steps.push(next);
-    logGameDebug('computer:meld-decision', { action: 'bajar-juego', tileIds: best.map((tile) => tile.id) });
-    logGameDebug('computer:step-applied', { action: 'bajar-juego', state: summarizeGameState(next) });
+      const candidate = tryRuleAction(() => layMeld(next, playerId, best.map((tile) => tile.id)));
+      if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) break;
+      next = candidate;
+      steps.push(next);
+      logGameDebug('computer:meld-decision', { action: 'bajar-juego', tileIds: best.map((tile) => tile.id) });
+      logGameDebug('computer:step-applied', { action: 'bajar-juego', state: summarizeGameState(next) });
+      continue;
+    }
+
+    if (extendMelds(ownMelds.filter((meld) => isCanasta(meld)))) continue;
+    break;
   }
 
   if (next.phase === 'play' && next.currentPlayer === playerId && next.players[playerId].hand.length > 0) {

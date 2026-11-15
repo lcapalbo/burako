@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { createGame as createGameWithRandomStarter, getMeldKind } from '../.test-build/game.js';
+import { createGame as createGameWithRandomStarter, getMeldKind, isCleanMeld } from '../.test-build/game.js';
 import { DEFAULT_AI_PREFERENCES } from '../.test-build/aiProfiles.js';
 import { chooseDiscard, findBestMeld, runComputerTurn, runComputerTurnSteps } from '../.test-build/computer.js';
 
@@ -667,6 +667,128 @@ describe('turnos de la computadora', () => {
     assert.equal(next.currentPlayer, 0);
     assert.equal(next.discard[0].id === restricted.id, false);
     assert.ok(next.players[1].hand.some((item) => item.id === restricted.id));
+  });
+
+  it('prefiere formar otro juego o extender un juego chico antes que agrandar una canasta', () => {
+    const canasta = {
+      id: 'computer-prefer-new-run',
+      kind: 'run',
+      tiles: [1, 2, 3, 4, 5, 6, 7].map((value) => tile(`computer-prefer-new-${value}`, 'red', value)),
+      team: 1,
+    };
+    const newRunTiles = [8, 9, 10].map((value) => tile(`computer-prefer-new-hand-${value}`, 'red', value));
+    const newRunState = computerState({
+      hand: [...newRunTiles, tile('computer-prefer-new-unmatched', 'blue', 12)],
+      melds: [canasta],
+      phase: 'play',
+    });
+
+    const newRunResult = runComputerTurn(newRunState, { ...DEFAULT_AI_PREFERENCES, layMeldProbability: 1 });
+    assert.equal(newRunResult.melds[0].tiles.length, 7);
+    assert.ok(newRunResult.melds.some((meld) =>
+      newRunTiles.every((runTile) => meld.tiles.some((item) => item.id === runTile.id))));
+
+    const smallRun = {
+      id: 'computer-prefer-small-run',
+      kind: 'run',
+      tiles: [9, 10, 11, 12, 13].map((value) => tile(`computer-prefer-small-${value}`, 'red', value)),
+      team: 1,
+    };
+    const eight = tile('computer-prefer-small-eight', 'red', 8);
+    const smallRunResult = runComputerTurn(computerState({
+      hand: [eight, tile('computer-prefer-small-unmatched-blue', 'blue', 4), tile('computer-prefer-small-unmatched-green', 'green', 12)],
+      melds: [canasta, smallRun],
+      phase: 'play',
+    }));
+
+    assert.equal(smallRunResult.melds.find((meld) => meld.id === canasta.id).tiles.length, 7);
+    assert.equal(smallRunResult.melds.find((meld) => meld.id === smallRun.id).tiles.length, 6);
+    assert.ok(smallRunResult.melds.find((meld) => meld.id === smallRun.id).tiles.some((item) => item.id === eight.id));
+  });
+
+  it('permite agrandar una canasta para purificarla', () => {
+    const dirtyRun = {
+      id: 'computer-purify-canasta',
+      kind: 'run',
+      tiles: [tile('computer-purify-two', 'red', 2), ...[4, 5, 6, 7, 8, 9].map((value) =>
+        tile(`computer-purify-existing-${value}`, 'red', value))],
+      team: 1,
+    };
+    const three = tile('computer-purify-three', 'red', 3);
+    const purified = runComputerTurn(computerState({
+      hand: [three, tile('computer-purify-unmatched-blue', 'blue', 11), tile('computer-purify-unmatched-green', 'green', 12)],
+      melds: [dirtyRun],
+      phase: 'play',
+    }));
+
+    assert.equal(purified.melds[0].tiles.length, 8);
+    assert.ok(purified.melds[0].tiles.some((item) => item.id === three.id));
+    assert.equal(isCleanMeld(purified.melds[0]), true);
+  });
+
+  it('permite agrandar una canasta de escalera si no hay otra opción de juego', () => {
+    const wildcardRun = {
+      id: 'computer-help-purify-canasta',
+      kind: 'run',
+      tiles: [tile('computer-help-purify-two', 'red', 2), ...[7, 8, 9, 10, 11, 12].map((value) =>
+        tile(`computer-help-purify-existing-${value}`, 'red', value))],
+      team: 1,
+    };
+    const thirteen = tile('computer-help-purify-thirteen', 'red', 13);
+    const helped = runComputerTurn(computerState({
+      hand: [thirteen, tile('computer-help-purify-unmatched-blue', 'blue', 4), tile('computer-help-purify-unmatched-green', 'green', 5)],
+      melds: [wildcardRun],
+      phase: 'play',
+    }));
+    assert.ok(helped.melds[0].tiles.some((item) => item.id === thirteen.id));
+  });
+
+  it('permite agrandar una canasta de escalera para ayudar a purificarla', () => {
+    const usefulRun = {
+      id: 'computer-useful-purify-canasta',
+      kind: 'run',
+      tiles: [tile('computer-useful-purify-two', 'red', 2), ...[7, 8, 9, 10, 11, 12, 13].map((value) =>
+        tile(`computer-useful-purify-existing-${value}`, 'red', value))],
+      team: 1,
+    };
+    const six = tile('computer-useful-purify-six-red', 'red', 6);
+    const sixLeg = {
+      id: 'computer-useful-purify-six-leg',
+      kind: 'leg',
+      tiles: ['blue', 'green', 'yellow'].map((color) => tile(`computer-useful-purify-leg-${color}`, color, 6)),
+      team: 1,
+    };
+    const preferRun = runComputerTurn(computerState({
+      hand: [six, tile('computer-useful-purify-unmatched-blue', 'blue', 4), tile('computer-useful-purify-unmatched-green', 'green', 5)],
+      melds: [usefulRun, sixLeg],
+      phase: 'play',
+    }));
+    assert.ok(preferRun.melds.find((meld) => meld.id === usefulRun.id).tiles.some((item) => item.id === six.id));
+    assert.ok(preferRun.melds.find((meld) => meld.id === sixLeg.id).tiles.every((item) => item.id !== six.id));
+  });
+
+  it('prefiere extender otro juego si una canasta de escalera no tiene forma de purificarse', () => {
+    const impossibleToCleanRun = {
+      id: 'computer-impossible-purify-canasta',
+      kind: 'run',
+      tiles: [tile('computer-impossible-purify-two-blue', 'blue', 2), ...[4, 5, 6, 7, 8, 9, 10].map((value) =>
+        tile(`computer-impossible-purify-existing-${value}`, 'red', value))],
+      team: 1,
+    };
+    const impossibleThree = tile('computer-impossible-purify-three-red', 'red', 3);
+    const threeLeg = {
+      id: 'computer-impossible-purify-three-leg',
+      kind: 'leg',
+      tiles: ['blue', 'green', 'yellow'].map((color) => tile(`computer-impossible-purify-leg-${color}`, color, 3)),
+      team: 1,
+    };
+    const preferLeg = runComputerTurn(computerState({
+      hand: [impossibleThree, tile('computer-impossible-purify-unmatched-blue', 'blue', 11), tile('computer-impossible-purify-unmatched-green', 'green', 12)],
+      melds: [impossibleToCleanRun, threeLeg],
+      phase: 'play',
+    }));
+    assert.ok(preferLeg.melds.find((meld) => meld.id === threeLeg.id).tiles.some((item) => item.id === impossibleThree.id));
+    assert.ok(preferLeg.melds.find((meld) => meld.id === impossibleToCleanRun.id).tiles.every((item) => item.id !== impossibleThree.id));
   });
 
   it('termina la mano cuando el montón está vacío y no hay cinco fichas para levantar', () => {
