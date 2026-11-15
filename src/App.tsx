@@ -602,6 +602,7 @@ export default function App() {
   };
 
   const toggleTile = (id: string) => {
+    if (!game || game.currentPlayer !== 0 || game.phase !== 'play' || computerTurnInProgress) return;
     const newTile = human.hand.find((tile) => tile.id === id);
     setSelection((selected) => {
       if (selected.includes(id)) return selected.filter((item) => item !== id);
@@ -771,6 +772,7 @@ export default function App() {
       perform((current) => keepOpeningDraw(current, 0), 'conservar-robo-inicial');
       return;
     }
+    if (game.phase !== 'play') return;
     toggleTile(tileId);
   };
   return (
