@@ -13,6 +13,7 @@ const SORT_MENU_OPTIONS = [
 
 type PlayerAreaProps = {
   game: GameState;
+  playerScoreLabel: string;
   playerAreaRef: RefObject<HTMLElement>;
   error: string;
   humanTurn: boolean;
@@ -48,6 +49,7 @@ type PlayerAreaProps = {
 
 export function PlayerArea({
   game,
+  playerScoreLabel,
   playerAreaRef,
   error,
   humanTurn,
@@ -89,15 +91,15 @@ export function PlayerArea({
             ? <ScorePairSummary
                 label="Puntos"
                 scores={currentHandScores}
-                teamLabels={game.mode === 'pairs' ? ['tu equipo', 'equipo oponente'] : ['vos', game.players[1].name]}
+                playerLabel={playerScoreLabel}
               />
-            : <>Puntaje de la mano no disponible para esta partida guardada.</>}
+            : <>Puntos de la mano no disponibles para esta partida guardada.</>}
           {hasPreviousRounds && <>
             {' · '}
             <ScorePairSummary
               label="Partida"
               scores={[game.scores[0], game.scores[1]]}
-              teamLabels={game.mode === 'pairs' ? ['tu equipo', 'equipo oponente'] : ['vos', game.players[1].name]}
+              playerLabel={playerScoreLabel}
             />
           </>}
         </span>}

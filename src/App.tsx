@@ -730,9 +730,7 @@ export default function App() {
       : game.phase === 'opening-choice'
         ? 'Conservá o descartá tu primera ficha'
         : 'Seleccioná fichas. Tocá las vistas previas para mover';
-  const scoreLabels = game.mode === 'pairs'
-    ? ['tu equipo', 'equipo oponente']
-    : ['vos', game.players[1].name];
+  const playerScoreLabel = game.mode === 'pairs' ? 'tu equipo' : 'vos';
   const canDiscard = humanTurn && game.phase === 'play' && selection.length === 1 && selection[0] !== game.restrictedDiscardTileId;
   const canUseDiscardPile = canDiscard || canLiftDiscard;
   const shouldShowHandControls = !roundClosed && human.hand.length > 0;
@@ -802,8 +800,8 @@ export default function App() {
         </a>
         <div className="match-meta">
           <div className="match-meta-details">{game.target !== 'cut' && <><span>Mano {game.round}</span><span className="meta-divider" /></>}{formatTargetLabel(game.target)}</div>
-          {game.target !== 'cut' && (game.scores[0] !== 0 || game.scores[1] !== 0) && <span className="match-score" aria-label={`Puntaje: ${game.scores[0].toLocaleString('es-AR')} (${scoreLabels[0]}) a ${game.scores[1].toLocaleString('es-AR')} (${scoreLabels[1]})`}>
-              Puntaje: {game.scores[0].toLocaleString('es-AR')} ({scoreLabels[0]}) a {game.scores[1].toLocaleString('es-AR')} ({scoreLabels[1]})
+          {game.target !== 'cut' && (game.scores[0] !== 0 || game.scores[1] !== 0) && <span className="match-score" aria-label={`Puntos: ${game.scores[0].toLocaleString('es-AR')} (${playerScoreLabel}) a ${game.scores[1].toLocaleString('es-AR')}`}>
+              Puntos: {game.scores[0].toLocaleString('es-AR')} ({playerScoreLabel}) a {game.scores[1].toLocaleString('es-AR')}
           </span>}
         </div>
         <a className="quiet-button game-rules-link" href="#reglas" onClick={(event) => { event.preventDefault(); openRules(); }}>Reglas</a>
@@ -852,6 +850,7 @@ export default function App() {
 
       <PlayerArea
         game={game}
+        playerScoreLabel={playerScoreLabel}
         playerAreaRef={playerAreaRef}
         error={error}
         humanTurn={humanTurn}
