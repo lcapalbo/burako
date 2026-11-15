@@ -1356,4 +1356,97 @@ describe('turnos de la computadora', () => {
     assert.equal(next.melds[0].tiles.length, 7);
     assert.ok(next.melds[0].tiles.some((item) => item.id === joker.id));
   });
+
+  it('permite levantar el pozo para completar canasta, bajar juegos y cortar mano', () => {
+    const melds = [
+      {
+        id: 'robotina-scenario-leg-four',
+        kind: 'leg',
+        tiles: ['red', 'green', 'yellow'].map((color) => tile(`robotina-scenario-four-${color}`, color, 4)),
+        team: 1,
+      },
+      {
+        id: 'robotina-scenario-yellow-run',
+        kind: 'run',
+        tiles: [
+          tile('robotina-scenario-yellow-seven', 'yellow', 7),
+          tile('robotina-scenario-red-two-wild', 'red', 2),
+          ...[9, 10, 11, 12].map((value) => tile(`robotina-scenario-yellow-${value}`, 'yellow', value)),
+        ],
+        team: 1,
+      },
+      {
+        id: 'robotina-scenario-red-run',
+        kind: 'run',
+        tiles: [
+          tile('robotina-scenario-red-eight', 'red', 8),
+          tile('robotina-scenario-yellow-two-wild', 'yellow', 2),
+          tile('robotina-scenario-red-ten', 'red', 10),
+        ],
+        team: 1,
+      },
+      {
+        id: 'robotina-scenario-green-run',
+        kind: 'run',
+        tiles: [6, 7, 8, 9].map((value) => tile(`robotina-scenario-green-${value}`, 'green', value)),
+        team: 1,
+      },
+      {
+        id: 'robotina-scenario-leg-twelve',
+        kind: 'leg',
+        tiles: [
+          tile('robotina-scenario-blue-twelve-one', 'blue', 12),
+          tile('robotina-scenario-blue-twelve-two', 'blue', 12),
+          tile('robotina-scenario-red-twelve-one', 'red', 12),
+          tile('robotina-scenario-red-twelve-two', 'red', 12),
+        ],
+        team: 1,
+      },
+    ];
+    const state = computerState({
+      hand: [
+        tile('robotina-scenario-joker', null, 0, 'joker'),
+        tile('robotina-scenario-green-one', 'green', 1),
+        tile('robotina-scenario-red-two', 'red', 2),
+        tile('robotina-scenario-red-thirteen', 'red', 13),
+        tile('robotina-scenario-green-thirteen', 'green', 13),
+        tile('robotina-scenario-green-three', 'green', 3),
+      ],
+      melds,
+      discard: [
+        tile('robotina-scenario-yellow-twelve', 'yellow', 12),
+        tile('robotina-scenario-yellow-three', 'yellow', 3),
+        tile('robotina-scenario-yellow-eight', 'yellow', 8),
+      ],
+      stock: [tile('robotina-scenario-stock', 'red', 5)],
+      deadTaken: true,
+      phase: 'draw',
+    });
+    const robotinaProfile = AI_PROFILES.find((profile) => profile.id === 'robotina');
+    const robotinaState = {
+      ...state,
+      players: state.players.map((player) => player.id === 1 ? { ...player, aiProfileId: 'robotina' } : player),
+    };
+
+    const steps = runComputerTurnSteps(robotinaState, robotinaProfile.preferences, () => 0.99);
+    const next = steps.at(-1);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.equal(next.phase, 'round-over');
+    assert.equal(next.players[1].hand.length, 0);
+    assert.equal(next.discard.length, 1);
+    assert.equal(next.melds.find((meld) => meld.id === 'robotina-scenario-yellow-run').tiles.length, 7);
+    assert.equal(next.melds.find((meld) => meld.id === 'robotina-scenario-leg-twelve').tiles.length, 5);
+    assert.ok(next.melds.some((meld) =>
+      meld.team === 1 && meld.kind === 'leg'
+        && meld.tiles.some((item) => item.id === 'robotina-scenario-red-thirteen')
+        && meld.tiles.some((item) => item.id === 'robotina-scenario-green-thirteen')
+        && meld.tiles.some((item) => item.id === 'robotina-scenario-joker')));
+    assert.ok(next.melds.some((meld) =>
+      meld.team === 1
+        && meld.tiles.some((item) => item.id === 'robotina-scenario-red-two')
+        && meld.tiles.some((item) => item.id === 'robotina-scenario-green-three')
+        && (meld.tiles.some((item) => item.id === 'robotina-scenario-green-one')
+          || meld.tiles.some((item) => item.id === 'robotina-scenario-yellow-three'))));
+  });
 });
