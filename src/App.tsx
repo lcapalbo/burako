@@ -563,6 +563,7 @@ export default function App() {
     resetGameHistory(nextGame);
     pauseComputerTurnRef.current = false;
     setGame(nextGame);
+    setShowAvatarNames(false);
     setDiscardDensity('normal');
     setRecentlyChangedTileIds([]);
     setRecentlyDiscardedTileIds([]);
@@ -581,6 +582,7 @@ export default function App() {
     try {
       const next = action(game);
       pauseComputerTurnRef.current = false;
+      if (next.round !== game.round) setShowAvatarNames(false);
       const flights = getTileFlights(game, next, nextTileFlightIdRef.current, revealHandsForDebug);
       nextTileFlightIdRef.current += flights.length;
       if (flights.length) setTileFlights((current) => [...current, ...flights]);
