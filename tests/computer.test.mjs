@@ -435,6 +435,82 @@ describe('turnos de la computadora', () => {
     assert.ok(pairSteps.some((step) => step.melds.length > 0));
   });
 
+  it('retiene una escalera larga al bajar otro juego si el perfil manipula en partidas individuales', () => {
+    const longRun = Array.from({ length: 6 }, (_, index) => tile(`manipulate-green-${index + 5}`, 'green', index + 5));
+    const otherRun = [5, 6, 7].map((value) => tile(`manipulate-red-${value}`, 'red', value));
+    const hand = [...longRun, ...otherRun];
+    const preferences = {
+      ...DEFAULT_AI_PREFERENCES,
+      layMeldProbability: 1,
+      manipulateOpponentOnSinglePlay: true,
+    };
+
+    const steps = runComputerTurnSteps(computerState({ hand, phase: 'play' }), preferences);
+    const laidMelds = steps.flatMap((step) => step.melds);
+
+    assert.ok(laidMelds.some((meld) => meld.tiles.some((item) => item.id === otherRun[0].id)));
+    assert.equal(laidMelds.some((meld) => meld.tiles.some((item) => item.id === longRun[0].id)), false);
+  });
+
+  it('también puede retener una escalera larga y bajar una pierna alternativa', () => {
+    const longRun = [4, 5, 6, 7, 8].map((value) => tile(`manipulate-yellow-${value}`, 'yellow', value));
+    const otherLeg = ['red', 'blue', 'green'].map((color) => tile(`manipulate-${color}-nine`, color, 9));
+    const hand = [...longRun, ...otherLeg];
+    const preferences = {
+      ...DEFAULT_AI_PREFERENCES,
+      layMeldProbability: 1,
+      manipulateOpponentOnSinglePlay: true,
+    };
+
+    const steps = runComputerTurnSteps(computerState({ hand, phase: 'play' }), preferences);
+    const laidMelds = steps.flatMap((step) => step.melds);
+
+    assert.ok(laidMelds.some((meld) => meld.kind === 'leg' && meld.tiles.some((item) => item.id === otherLeg[0].id)));
+    assert.equal(laidMelds.some((meld) => meld.tiles.some((item) => item.id === longRun[0].id)), false);
+  });
+
+  it('retiene una pierna larga al bajar otra pierna y una escalera', () => {
+    const longLeg = [
+      ...['red', 'blue', 'green', 'yellow'].map((color) => tile(`manipulate-long-leg-${color}`, color, 13)),
+      tile('manipulate-long-leg-joker', null, 0, 'joker'),
+    ];
+    const otherLeg = ['red', 'blue', 'yellow'].map((color) => tile(`manipulate-short-leg-${color}`, color, 4));
+    const otherRun = [5, 6, 7].map((value) => tile(`manipulate-short-run-${value}`, 'green', value));
+    const preferences = {
+      ...DEFAULT_AI_PREFERENCES,
+      layMeldProbability: 1,
+      manipulateOpponentOnSinglePlay: true,
+    };
+
+    const steps = runComputerTurnSteps(
+      computerState({ hand: [...longLeg, ...otherLeg, ...otherRun], phase: 'play' }),
+      preferences,
+    );
+    const laidMelds = steps.at(-1).melds;
+
+    assert.equal(laidMelds.length, 2);
+    assert.ok(laidMelds.some((meld) => meld.kind === 'leg' && meld.tiles.some((item) => item.id === otherLeg[0].id)));
+    assert.ok(laidMelds.some((meld) => meld.kind === 'run' && meld.tiles.some((item) => item.id === otherRun[0].id)));
+    assert.equal(laidMelds.some((meld) => meld.tiles.some((item) => item.id === longLeg[0].id)), false);
+  });
+
+  it('no retiene juegos largos si el perfil no lo permite o juega en parejas', () => {
+    const longRun = Array.from({ length: 6 }, (_, index) => tile(`no-manipulate-green-${index + 5}`, 'green', index + 5));
+    const otherRun = [5, 6, 7].map((value) => tile(`no-manipulate-red-${value}`, 'red', value));
+    const hand = [...longRun, ...otherRun];
+    const preferences = { ...DEFAULT_AI_PREFERENCES, layMeldProbability: 1 };
+    const withoutPreference = runComputerTurnSteps(computerState({ hand, phase: 'play' }), preferences);
+    const inPairs = runComputerTurnSteps(
+      computerState({ hand, phase: 'play', mode: 'pairs' }),
+      { ...preferences, manipulateOpponentOnSinglePlay: true },
+    );
+
+    for (const steps of [withoutPreference, inPairs]) {
+      const firstMeld = steps.find((step) => step.melds.length > 0)?.melds[0];
+      assert.ok(firstMeld?.tiles.some((item) => item.id === longRun[0].id));
+    }
+  });
+
   it('puede ignorar probabilísticamente el valor de extender sus juegos al evaluar el pozo', () => {
     const meld = {
       id: 'own-six-eights',

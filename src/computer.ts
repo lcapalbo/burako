@@ -61,6 +61,42 @@ export function findBestMeld(
   return best;
 }
 
+function findMeldToRetain(
+  hand: Tile[],
+  isValidMeld: (tiles: Tile[]) => boolean,
+  isAllowedToLay: (tiles: Tile[]) => boolean,
+  preferences: AiPreferences,
+): Tile[] | null {
+  let best: Tile[] | null = null;
+  let bestValue = 0;
+  const selected: Tile[] = [];
+  const search = (start: number) => {
+    if (selected.length >= 5 && getMeldKind(selected) && isValidMeld(selected)) {
+      const retainedIds = new Set(selected.map((tile) => tile.id));
+      const otherMeld = findBestMeld(hand.filter((tile) => !retainedIds.has(tile.id)), isAllowedToLay, preferences);
+      if (otherMeld) {
+        const kind = getMeldKind(selected);
+        const preferenceBonus = preferences.preferredMeldKind === 'none' || kind === preferences.preferredMeldKind
+          ? preferences.meldKindPreferenceBonus
+          : 0;
+        const value = selected.length * 10 + (selected.length >= 7 ? 100 : 0) + preferenceBonus;
+        if (value > bestValue) {
+          best = [...selected];
+          bestValue = value;
+        }
+      }
+    }
+    for (let index = start; index < hand.length; index += 1) {
+      if (!canStillFormMeld(selected, hand[index])) continue;
+      selected.push(hand[index]);
+      search(index + 1);
+      selected.pop();
+    }
+  };
+  search(0);
+  return best;
+}
+
 type ChooseDiscardOptions = {
   opponentMelds?: Meld[];
   opponentPlayers?: Array<Pick<GameState['players'][number], 'deadTaken' | 'hand'>>;
@@ -457,6 +493,7 @@ export function runComputerTurnSteps(
     applyAction('conservar-ficha-inicial', (current) => keepOpeningDraw(current, playerId));
   }
 
+  let retainedForManipulation: Set<string> | null = null;
   while (next.phase === 'play' && next.currentPlayer === playerId) {
     const currentHand = next.players[playerId].hand;
     const ownMelds = next.melds.filter((meld) => meld.team === team);
@@ -464,7 +501,10 @@ export function runComputerTurnSteps(
       meldsToTry: Meld[],
       isPreferredExtension: (meld: Meld, tile: Tile, candidate: GameState) => boolean = () => true,
     ): boolean => {
-      const canSupportMeld = (meld: Meld) => currentHand.some((tile) =>
+      const extensionHand = retainedForManipulation
+        ? currentHand.filter((tile) => !retainedForManipulation?.has(tile.id))
+        : currentHand;
+      const canSupportMeld = (meld: Meld) => extensionHand.some((tile) =>
         canSupportCanastaWithWild(next, meld, tile, playerId)
         && mayExtendMeld(meld, tile)
         && getMeldKind([...meld.tiles, tile]) === meld.kind);
@@ -481,8 +521,8 @@ export function runComputerTurnSteps(
 
       for (const meld of orderedMelds) {
         const meldHand = canSupportMeld(meld)
-          ? [...currentHand].sort((a, b) => Number(canSupportCanastaWithWild(next, meld, b, playerId)) - Number(canSupportCanastaWithWild(next, meld, a, playerId)))
-          : currentHand;
+          ? [...extensionHand].sort((a, b) => Number(canSupportCanastaWithWild(next, meld, b, playerId)) - Number(canSupportCanastaWithWild(next, meld, a, playerId)))
+          : extensionHand;
         for (const tile of meldHand) {
           if (!mayExtendMeld(meld, tile)) continue;
           if (getMeldKind([...meld.tiles, tile]) !== meld.kind) continue;
@@ -517,7 +557,7 @@ export function runComputerTurnSteps(
 
     if (extendMelds(ownMelds.filter((meld) => !isCanasta(meld)))) continue;
 
-    const best = findBestMeld(currentHand, (tiles) => {
+    const isAllowedMeld = (tiles: Tile[]) => {
       const candidate = tryRuleAction(() => layMeld(next, playerId, tiles.map((tile) => tile.id)));
       return candidate !== null
         && !leavesOnlyRestrictedTile(candidate, playerId)
@@ -525,7 +565,26 @@ export function runComputerTurnSteps(
           || wildActionClosesRound(candidate, playerId)
           || wildActionTakesDead(next, candidate, playerId)
           || canLayPairsRunWithWild(next, candidate));
-    }, preferences);
+    };
+    if (retainedForManipulation === null && next.mode === 'individual' && preferences.manipulateOpponentOnSinglePlay) {
+      const retained = findMeldToRetain(
+        currentHand,
+        (tiles) => tryRuleAction(() => layMeld(next, playerId, tiles.map((tile) => tile.id))) !== null,
+        isAllowedMeld,
+        preferences,
+      );
+      if (retained) {
+        retainedForManipulation = new Set(retained.map((tile) => tile.id));
+        logGameDebug('computer:meld-decision', {
+          action: 'retener-juego-para-manipular',
+          tileIds: retained.map((tile) => tile.id),
+        });
+      }
+    }
+    const availableHand = retainedForManipulation
+      ? currentHand.filter((tile) => !retainedForManipulation?.has(tile.id))
+      : currentHand;
+    const best = findBestMeld(availableHand, isAllowedMeld, preferences);
     if (best) {
       const layMeldProbability = next.mode === 'pairs'
         ? preferences.layMeldProbabilityForPairs
