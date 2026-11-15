@@ -7,10 +7,11 @@ import { chooseDiscard, findBestMeld, runComputerTurn, runComputerTurnSteps } fr
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
 const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0) =>
   createGameWithRandomStarter(target, random, scores, round, starter);
-const computerState = ({ hand, melds = [], stock = [], discard = [], deadTaken = false, deadPiles = [[], []], phase = 'draw', restrictedDiscardTileId = null }) => {
+const computerState = ({ hand, melds = [], stock = [], discard = [], deadTaken = false, deadPiles = [[], []], opponentHand, opponentDeadTaken = false, phase = 'draw', restrictedDiscardTileId = null }) => {
   const initial = createGame(2000, () => 0.5);
   const players = [...initial.players];
   players[1] = { ...players[1], hand, deadTaken };
+  players[0] = { ...players[0], hand: opponentHand ?? players[0].hand, deadTaken: opponentDeadTaken };
   return { ...initial, players, melds, stock, discard, phase, currentPlayer: 1, deadPiles, restrictedDiscardTileId };
 };
 const exhaustiveBestMeld = (hand) => {
@@ -76,9 +77,37 @@ describe('descarte de la computadora', () => {
     const joker = tile('computer-discard-joker', null, 0, 'joker');
     const hand = [one, thirteen, joker];
 
-    assert.equal(chooseDiscard(hand), one);
+    assert.equal(chooseDiscard(hand), thirteen);
     assert.equal(chooseDiscard(hand, one.id), thirteen);
     assert.throws(() => chooseDiscard([one], one.id), /No hay una ficha legal para descartar/);
+  });
+
+  it('ajusta el puntaje de las fichas según el riesgo de corte del oponente', () => {
+    const one = tile('computer-risk-one', 'red', 1);
+    const thirteen = tile('computer-risk-thirteen', 'blue', 13);
+    const hand = [one, thirteen];
+    const opponentCanasta = {
+      id: 'computer-risk-opponent-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) => tile(`computer-risk-opponent-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 0,
+    };
+
+    assert.equal(chooseDiscard(hand).id, thirteen.id);
+    assert.equal(chooseDiscard(hand, null, {
+      opponentPlayers: [{ deadTaken: true, hand: Array.from({ length: 10 }, (_, index) => tile(`computer-risk-not-close-${index}`, 'green', index + 3)) }],
+    }).id, one.id);
+    assert.equal(chooseDiscard(hand, null, {
+      opponentMelds: [opponentCanasta],
+      opponentPlayers: [{ deadTaken: true, hand: [tile('computer-risk-near-cut-card', 'yellow', 10)] }],
+    }).id, one.id);
+    assert.equal(chooseDiscard(hand, null, {
+      opponentMelds: [opponentCanasta],
+      opponentPlayers: [
+        { deadTaken: true, hand: Array.from({ length: 10 }, (_, index) => tile(`computer-risk-partner-hand-${index}`, 'green', index + 3)) },
+        { deadTaken: false, hand: [tile('computer-risk-partner-near-cut', 'yellow', 10), tile('computer-risk-partner-last', 'yellow', 11)] },
+      ],
+    }).id, one.id);
   });
 
   it('conserva un #1 útil que puede seguir al #13 en una escalera', () => {
@@ -118,10 +147,12 @@ describe('descarte de la computadora', () => {
       team: 0,
     };
     const hand = [eight, five];
+    const opponentPlayers = [{ deadTaken: true, hand: Array.from({ length: 10 }, (_, index) => tile(`opponent-not-near-cut-${index}`, 'green', index + 3)) }];
 
-    assert.equal(chooseDiscard(hand).id, eight.id);
+    assert.equal(chooseDiscard(hand, null, { opponentPlayers }).id, eight.id);
     assert.equal(chooseDiscard(hand, null, {
       opponentMelds: [meld],
+      opponentPlayers,
       preferences: { ...DEFAULT_AI_PREFERENCES, avoidOpponentCanastaDiscards: true },
     }).id, five.id);
   });
@@ -292,6 +323,74 @@ describe('turnos de la computadora', () => {
 
     assert.equal(steps[0].discard.length, 2);
     assert.equal(steps[0].players[1].hand.length, 6);
+  });
+
+  it('evita levantar el pozo ante un rival cerca de cortar si no completa canasta', () => {
+    const opponentCanasta = {
+      id: 'near-cut-opponent-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) => tile(`near-cut-opponent-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 0,
+    };
+    const hand = [
+      tile('near-cut-ai-run-four', 'red', 4),
+      tile('near-cut-ai-run-six', 'red', 6),
+      tile('near-cut-ai-unmatched-one', 'blue', 1),
+      tile('near-cut-ai-unmatched-ten', 'yellow', 10),
+    ];
+    const discard = [tile('near-cut-ai-run-five-in-pile', 'red', 5)];
+    const stock = [tile('near-cut-ai-stock', 'green', 12)];
+    const state = computerState({
+      hand,
+      melds: [opponentCanasta],
+      discard,
+      stock,
+      opponentHand: [tile('near-cut-opponent-one', 'green', 4), tile('near-cut-opponent-two', 'yellow', 9)],
+      opponentDeadTaken: true,
+    });
+
+    const avoidsPile = runComputerTurnSteps(state);
+
+    assert.equal(avoidsPile[0].discard.length, 1);
+    assert.equal(avoidsPile[0].players[1].hand.length, hand.length + 1);
+    assert.equal(avoidsPile[0].stock.length, 0);
+
+    const ownCanasta = {
+      id: 'near-cut-ai-existing-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) => tile(`near-cut-ai-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 1,
+    };
+    const allowsPile = runComputerTurnSteps({ ...state, melds: [opponentCanasta, ownCanasta] });
+
+    assert.equal(allowsPile[0].discard.length, 0);
+    assert.equal(allowsPile[0].players[1].hand.length, hand.length + discard.length);
+  });
+
+  it('permite levantar el pozo si permite formar una canasta pese al rival cerca de cortar', () => {
+    const opponentCanasta = {
+      id: 'near-cut-canasta-forming-opponent-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) => tile(`near-cut-canasta-forming-opponent-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 0,
+    };
+    const hand = ['red', 'blue', 'green', 'yellow'].map((color, index) =>
+      tile(`near-cut-canasta-forming-hand-${index}`, color, 9));
+    const discard = ['red', 'blue', 'green'].map((color, index) =>
+      tile(`near-cut-canasta-forming-pile-${index}`, color, 9));
+    const state = computerState({
+      hand,
+      melds: [opponentCanasta],
+      discard,
+      stock: [tile('near-cut-canasta-forming-stock', 'yellow', 12)],
+      opponentHand: [tile('near-cut-canasta-forming-opponent-one', 'green', 4)],
+      opponentDeadTaken: true,
+    });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.equal(steps[0].players[1].hand.length, hand.length + discard.length);
   });
 
   it('puede retener combinaciones formadas según la probabilidad del perfil', () => {

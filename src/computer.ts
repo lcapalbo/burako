@@ -60,6 +60,7 @@ export function findBestMeld(
 
 type ChooseDiscardOptions = {
   opponentMelds?: Meld[];
+  opponentPlayers?: Array<Pick<GameState['players'][number], 'deadTaken' | 'hand'>>;
   discardPile?: Tile[];
   preferences?: AiPreferences;
 };
@@ -71,7 +72,10 @@ export function chooseDiscard(
 ): Tile {
   const preferences = options.preferences ?? DEFAULT_AI_PREFERENCES;
   const opponentMelds = options.opponentMelds ?? [];
+  const opponentPlayers = options.opponentPlayers ?? [];
   const discardPile = options.discardPile ?? [];
+  const opponentHasTakenDead = opponentPlayers.some((player) => player.deadTaken);
+  const opponentNearCut = isOpponentNearCut(opponentMelds, opponentPlayers);
   const score = (tile: Tile) => {
     const sameValue = hand.filter((other) => other.id !== tile.id && other.kind === 'number' && other.value === tile.value).length;
     const sameRun = tile.kind === 'number'
@@ -88,8 +92,9 @@ export function chooseDiscard(
       && !opponentMelds.some(isCanasta)
       && opponentMelds.some((meld) => [5, 6].some((targetSize) =>
         canExtendOpponentMeldToSize(meld, discardPileAfterTile, targetSize)));
+    const tilePointsScore = opponentNearCut ? -tilePoints(tile) : opponentHasTakenDead ? 0 : tilePoints(tile);
     return (tile.kind === 'joker' ? 120 : tile.value === 2 ? 80 : 0)
-      + sameValue * 12 + sameRun * 12 - tilePoints(tile)
+      + sameValue * 12 + sameRun * 12 + tilePointsScore
       + (helpsOpponentCanasta || extendsOpponentMeld ? 1000 : 0);
   };
   const candidates = hand.filter((tile) => tile.id !== excludedTileId);
@@ -214,6 +219,46 @@ function canExtendOpponentMeldToSize(meld: Meld, discardPile: Tile[], targetSize
   return canExtendMeldWithDiscardTiles(meld, candidates, needed, () => true);
 }
 
+function canFormMeldOfSizeWithDiscardTile(tiles: Tile[], size: number, discardIds: Set<string>): boolean {
+  const selected: Tile[] = [];
+  const search = (start: number): boolean => {
+    if (selected.length === size) {
+      return selected.some((tile) => discardIds.has(tile.id)) && getMeldKind(selected) !== null;
+    }
+    if (tiles.length - start < size - selected.length) return false;
+
+    for (let index = start; index < tiles.length; index += 1) {
+      const tile = tiles[index];
+      if (!canStillFormMeld(selected, tile)) continue;
+      selected.push(tile);
+      const canForm = search(index + 1);
+      selected.pop();
+      if (canForm) return true;
+    }
+    return false;
+  };
+  return search(0);
+}
+
+function canFormCanastaWithDiscard(state: GameState, playerId: number): boolean {
+  const team = state.players[playerId].team;
+  const discardIds = new Set(state.discard.map((tile) => tile.id));
+  const available = [...state.players[playerId].hand, ...state.discard];
+  if (canFormMeldOfSizeWithDiscardTile(available, 7, discardIds)) return true;
+
+  for (const meld of state.melds) {
+    if (meld.team !== team) continue;
+    const needed = 7 - meld.tiles.length;
+    if (needed <= 0) continue;
+    const candidates = getCompatibleDiscardTiles(meld, available);
+    if (canExtendMeldWithDiscardTiles(meld, candidates, needed, (tiles) =>
+      tiles.some((tile) => discardIds.has(tile.id)) && isCanasta({ ...meld, tiles }))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function canCompleteCanastaFromDiscardPile(meld: Meld, discardPile: Tile[]): boolean {
   const candidates = getCompatibleDiscardTiles(meld, discardPile);
 
@@ -229,6 +274,15 @@ function canCompleteCanastaFromDiscardPile(meld: Meld, discardPile: Tile[]): boo
     if (canExtendWith(count, (tiles) => isCleanMeld({ ...meld, tiles }))) return true;
   }
   return false;
+}
+
+function isOpponentNearCut(
+  opponentMelds: Meld[],
+  opponentPlayers: Array<Pick<GameState['players'][number], 'deadTaken' | 'hand'>>,
+): boolean {
+  return opponentMelds.some(isCanasta)
+    && opponentPlayers.some((player) => player.deadTaken)
+    && opponentPlayers.some((player) => player.hand.length === 1 || player.hand.length === 2);
 }
 
 function wildActionClosesRound(candidate: GameState, playerId: number): boolean {
@@ -285,12 +339,18 @@ export function runComputerTurnSteps(
     && next.discard.length <= MAX_DISCARD_TILES_TO_EVALUATE;
   const completesMeldFromDiscard = canEvaluateDiscard
     && canCompleteWithDiscard(hand, next.discard, discardWindow);
-  const shouldEvaluateOwnMelds = canEvaluateDiscard && !completesMeldFromDiscard
+  const opponentPlayers = next.players.filter((otherPlayer) => otherPlayer.team !== team);
+  const opponentMelds = next.melds.filter((meld) => meld.team !== team);
+  const opponentNearCut = isOpponentNearCut(opponentMelds, opponentPlayers);
+  const ownTeamHasCanasta = next.melds.some((meld) => meld.team === team && isCanasta(meld));
+  const shouldAvoidDiscardPile = canEvaluateDiscard && opponentNearCut && !ownTeamHasCanasta
+    && !canFormCanastaWithDiscard(next, playerId);
+  const shouldEvaluateOwnMelds = canEvaluateDiscard && !shouldAvoidDiscardPile && !completesMeldFromDiscard
     && (preferences.ownMeldDiscardPileEvaluationProbability >= 1
       || (preferences.ownMeldDiscardPileEvaluationProbability > 0
         && random() < preferences.ownMeldDiscardPileEvaluationProbability));
-  const shouldLift = completesMeldFromDiscard
-    || (shouldEvaluateOwnMelds     && canExtendMeldWithDiscard(next, playerId, discardWindow));
+  const shouldLift = !shouldAvoidDiscardPile && (completesMeldFromDiscard
+    || (shouldEvaluateOwnMelds && canExtendMeldWithDiscard(next, playerId, discardWindow)));
 
   if (next.phase === 'draw') {
     if (next.stock.length === 0) {
@@ -364,6 +424,7 @@ export function runComputerTurnSteps(
   if (next.phase === 'play' && next.currentPlayer === playerId && next.players[playerId].hand.length > 0) {
     const tile = chooseDiscard(next.players[playerId].hand, next.restrictedDiscardTileId, {
       opponentMelds: next.melds.filter((meld) => meld.team !== team),
+      opponentPlayers: next.players.filter((otherPlayer) => otherPlayer.team !== team),
       discardPile: next.discard,
       preferences,
     });
