@@ -647,7 +647,7 @@ describe('turnos de la computadora', () => {
     ];
     const state = computerState({ hand, deadTaken: true, phase: 'play' });
 
-    const next = runComputerTurn(state);
+    const next = runComputerTurn(state, { ...DEFAULT_AI_PREFERENCES, layMeldProbability: 1 });
 
     assert.equal(next.phase, 'draw');
     assert.equal(next.currentPlayer, 0);
@@ -896,7 +896,7 @@ describe('turnos de la computadora', () => {
       phase: 'play',
     });
 
-    const steps = runComputerTurnSteps(state);
+    const steps = runComputerTurnSteps(state, { ...DEFAULT_AI_PREFERENCES, layMeldProbability: 1 });
 
     assert.equal(steps[0].players[1].deadTaken, true);
     assert.ok(steps[0].melds[0].tiles.some((item) => item.id === joker.id));
@@ -941,7 +941,7 @@ describe('turnos de la computadora', () => {
       phase: 'play',
     });
 
-    const next = runComputerTurn(state);
+    const next = runComputerTurn(state, { ...DEFAULT_AI_PREFERENCES, layMeldProbability: 1 });
 
     assert.equal(next.phase, 'round-over');
     assert.ok(next.melds.some((meld) => meld.tiles.some((item) => item.id === joker.id)));
