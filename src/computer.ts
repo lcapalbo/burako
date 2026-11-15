@@ -27,6 +27,39 @@ function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
   return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
 }
 
+function canMeldHandCompletely(hand: Tile[]): boolean {
+  const results = new Map<string, boolean>();
+  const canMeldRemaining = (remaining: Tile[]): boolean => {
+    if (remaining.length === 0) return true;
+    const key = remaining.map((tile) => tile.id).sort().join('|');
+    const cached = results.get(key);
+    if (cached !== undefined) return cached;
+
+    const selected = [remaining[0]];
+    const search = (start: number): boolean => {
+      if (selected.length >= 3 && getMeldKind(selected)) {
+        const selectedIds = new Set(selected.map((tile) => tile.id));
+        if (canMeldRemaining(remaining.filter((tile) => !selectedIds.has(tile.id)))) return true;
+      }
+      for (let index = start; index < remaining.length; index += 1) {
+        const tile = remaining[index];
+        if (!canStillFormMeld(selected, tile)) continue;
+        selected.push(tile);
+        const canFinish = search(index + 1);
+        selected.pop();
+        if (canFinish) return true;
+      }
+      return false;
+    };
+
+    const canFinish = search(1);
+    results.set(key, canFinish);
+    return canFinish;
+  };
+
+  return canMeldRemaining(hand);
+}
+
 export function findBestMeld(
   hand: Tile[],
   isAllowed: (tiles: Tile[]) => boolean = () => true,
@@ -339,6 +372,15 @@ function wildActionTakesDead(state: GameState, candidate: GameState, playerId: n
   return !teamHadTakenDead && teamHasTakenDead;
 }
 
+function canTakeDeadAfterMeldSequence(state: GameState, candidate: GameState, playerId: number): boolean {
+  const team = state.players[playerId].team;
+  if (
+    state.players.some((player) => player.team === team && player.deadTaken)
+    || !candidate.deadPiles[team]?.length
+  ) return false;
+  return canMeldHandCompletely(candidate.players[playerId].hand);
+}
+
 function getRunWildcardPosition(meld: Meld): { index: number; start: number } | null {
   const runColor = meld.tiles.find((tile) => tile.kind === 'number' && tile.value !== 2)?.color;
   if (meld.kind !== 'run' || !runColor) return null;
@@ -557,16 +599,28 @@ export function runComputerTurnSteps(
 
     if (extendMelds(ownMelds.filter((meld) => !isCanasta(meld)))) continue;
 
+    const hasGuaranteedDeadTakingSequence = canTakeDeadAfterMeldSequence(next, next, playerId);
     const isAllowedMeld = (tiles: Tile[]) => {
       const candidate = tryRuleAction(() => layMeld(next, playerId, tiles.map((tile) => tile.id)));
       return candidate !== null
         && !leavesOnlyRestrictedTile(candidate, playerId)
+        && (!hasGuaranteedDeadTakingSequence
+          || candidate.phase === 'round-over'
+          || candidate.phase === 'match-over'
+          || wildActionTakesDead(next, candidate, playerId)
+          || canTakeDeadAfterMeldSequence(next, candidate, playerId))
         && (!tiles.some(isWild)
           || wildActionClosesRound(candidate, playerId)
           || wildActionTakesDead(next, candidate, playerId)
+          || canTakeDeadAfterMeldSequence(next, candidate, playerId)
           || canLayPairsRunWithWild(next, candidate));
     };
-    if (retainedForManipulation === null && next.mode === 'individual' && preferences.manipulateOpponentOnSinglePlay) {
+    if (
+      !hasGuaranteedDeadTakingSequence
+      && retainedForManipulation === null
+      && next.mode === 'individual'
+      && preferences.manipulateOpponentOnSinglePlay
+    ) {
       const retained = findMeldToRetain(
         currentHand,
         (tiles) => tryRuleAction(() => layMeld(next, playerId, tiles.map((tile) => tile.id))) !== null,
@@ -589,7 +643,7 @@ export function runComputerTurnSteps(
       const layMeldProbability = next.mode === 'pairs'
         ? preferences.layMeldProbabilityForPairs
         : preferences.layMeldProbability;
-      if (layMeldProbability < 1 && random() >= layMeldProbability) break;
+      if (!hasGuaranteedDeadTakingSequence && layMeldProbability < 1 && random() >= layMeldProbability) break;
 
       const candidate = tryRuleAction(() => layMeld(next, playerId, best.map((tile) => tile.id)));
       if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) break;

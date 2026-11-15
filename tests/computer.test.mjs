@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { createGame as createGameWithRandomStarter, getMeldKind, isCleanMeld } from '../.test-build/game.js';
-import { DEFAULT_AI_PREFERENCES } from '../.test-build/aiProfiles.js';
+import { AI_PROFILES, DEFAULT_AI_PREFERENCES } from '../.test-build/aiProfiles.js';
 import { chooseDiscard, findBestMeld, runComputerTurn, runComputerTurnSteps } from '../.test-build/computer.js';
 
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
@@ -1117,6 +1117,59 @@ describe('turnos de la computadora', () => {
     assert.equal(steps[0].players[1].deadTaken, true);
     assert.ok(steps[0].melds[0].tiles.some((item) => item.id === joker.id));
     assert.equal(steps[0].players[1].hand.length, dead.length);
+  });
+
+  it('encadena varias combinaciones con comodín para tomar directamente el muerto ignorando layMeldProbability y retencion de juegos', () => {
+    const dead = Array.from({ length: 11 }, (_, index) => tile(`computer-sequence-dead-${index}`, 'yellow', index + 3));
+    const twelveLeg = {
+      id: 'computer-sequence-twelve-leg',
+      kind: 'leg',
+      tiles: [
+        tile('computer-sequence-red-twelve', 'red', 12),
+        tile('computer-sequence-blue-twelve', 'blue', 12),
+        tile('computer-sequence-yellow-twelve', 'yellow', 12),
+      ],
+      team: 1,
+    };
+    const state = computerState({
+      hand: [
+        tile('computer-sequence-yellow-four', 'yellow', 4),
+        tile('computer-sequence-yellow-two', 'yellow', 2),
+        tile('computer-sequence-blue-two', 'blue', 2),
+        tile('computer-sequence-red-four', 'red', 4),
+        tile('computer-sequence-blue-thirteen', 'blue', 13),
+        tile('computer-sequence-green-four', 'green', 4),
+        tile('computer-sequence-green-eight', 'green', 8),
+        tile('computer-sequence-green-thirteen', 'green', 13),
+      ],
+      melds: [twelveLeg],
+      discard: [
+        tile('computer-sequence-green-twelve-one', 'green', 12),
+        tile('computer-sequence-green-seven', 'green', 7),
+        tile('computer-sequence-green-twelve-two', 'green', 12),
+      ],
+      stock: [tile('computer-sequence-stock', 'red', 10)],
+      deadPiles: [[], dead],
+    });
+
+    const dataProfile = AI_PROFILES.find((profile) => profile.id === 'data');
+    const dataState = {
+      ...state,
+      players: state.players.map((player) => player.id === 1 ? { ...player, aiProfileId: 'data' } : player),
+    };
+    const steps = runComputerTurnSteps(dataState, dataProfile.preferences, () => 0.99);
+
+    const deadTakenStep = steps.find((step) => step.players[1].deadTaken);
+
+    assert.ok(deadTakenStep);
+    assert.equal(deadTakenStep.players[1].hand.length, dead.length);
+    assert.ok(deadTakenStep.melds.some((meld) =>
+      meld.kind === 'leg' && meld.tiles.some((item) => item.id === 'computer-sequence-blue-thirteen')
+        && meld.tiles.some((item) => item.id === 'computer-sequence-green-thirteen')));
+    assert.ok(deadTakenStep.melds.some((meld) =>
+      meld.kind === 'run' && meld.tiles.some((item) => item.id === 'computer-sequence-green-seven')
+        && meld.tiles.some((item) => item.id === 'computer-sequence-green-eight')));
+    assert.equal(deadTakenStep.melds.find((meld) => meld.id === twelveLeg.id).tiles.length, 5);
   });
 
   it('permite bajar un juego con comodín cuando la jugada cierra', () => {
