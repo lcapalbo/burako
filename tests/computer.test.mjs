@@ -573,7 +573,7 @@ describe('turnos de la computadora', () => {
     ];
     const state = computerState({ hand, discard, stock: [tile('computer-ten-stock', 'red', 10)] });
 
-    const steps = runComputerTurnSteps(state);
+    const steps = runComputerTurnSteps(state, DEFAULT_AI_PREFERENCES, () => 0);
 
     assert.equal(steps[0].discard.length, 0);
     assert.ok(steps.some((step) => step.melds.some((meld) => meld.tiles.length === 4)));
@@ -1170,6 +1170,79 @@ describe('turnos de la computadora', () => {
       meld.kind === 'run' && meld.tiles.some((item) => item.id === 'computer-sequence-green-seven')
         && meld.tiles.some((item) => item.id === 'computer-sequence-green-eight')));
     assert.equal(deadTakenStep.melds.find((meld) => meld.id === twelveLeg.id).tiles.length, 5);
+  });
+
+  it('encadena combinaciones naturales para tomar el muerto ignorando layMeldProbability', () => {
+    const dead = Array.from({ length: 11 }, (_, index) => tile(`computer-natural-dead-${index}`, 'yellow', index + 3));
+    const twelveLeg = {
+      id: 'computer-natural-twelve-leg',
+      kind: 'leg',
+      tiles: [
+        tile('computer-natural-red-twelve', 'red', 12),
+        tile('computer-natural-blue-twelve', 'blue', 12),
+        tile('computer-natural-yellow-twelve', 'yellow', 12),
+      ],
+      team: 1,
+    };
+    const state = computerState({
+      hand: [
+        tile('computer-natural-yellow-four', 'yellow', 4),
+        tile('computer-natural-red-four', 'red', 4),
+        tile('computer-natural-green-four', 'green', 4),
+        tile('computer-natural-red-thirteen', 'red', 13),
+        tile('computer-natural-blue-thirteen', 'blue', 13),
+        tile('computer-natural-yellow-thirteen', 'yellow', 13),
+        tile('computer-natural-green-five', 'green', 5),
+        tile('computer-natural-green-six', 'green', 6),
+      ],
+      melds: [twelveLeg],
+      discard: [
+        tile('computer-natural-green-twelve-one', 'green', 12),
+        tile('computer-natural-green-seven', 'green', 7),
+        tile('computer-natural-green-twelve-two', 'green', 12),
+      ],
+      stock: [tile('computer-natural-stock', 'red', 10)],
+      deadPiles: [[], dead],
+    });
+    const dataProfile = AI_PROFILES.find((profile) => profile.id === 'data');
+    const dataState = {
+      ...state,
+      players: state.players.map((player) => player.id === 1 ? { ...player, aiProfileId: 'data' } : player),
+    };
+
+    const steps = runComputerTurnSteps(dataState, dataProfile.preferences, () => 0.99);
+    const deadTakenStep = steps.find((step) => step.players[1].deadTaken);
+
+    assert.ok(deadTakenStep);
+    assert.equal(deadTakenStep.players[1].hand.length, dead.length);
+    assert.ok(deadTakenStep.melds.every((meld) =>
+      meld.tiles.every((item) => item.value !== 2 && item.kind !== 'joker')));
+  });
+
+  it('cierra con una canasta larga aunque layMeldProbability del perfil la rechazaría', () => {
+    const state = computerState({
+      hand: [
+        tile('computer-long-close-red-eight-one', 'red', 8),
+        tile('computer-long-close-red-eight-two', 'red', 8),
+        tile('computer-long-close-blue-eight-one', 'blue', 8),
+        tile('computer-long-close-blue-eight-two', 'blue', 8),
+        tile('computer-long-close-green-eight-one', 'green', 8),
+        tile('computer-long-close-yellow-eight-one', 'yellow', 8),
+        tile('computer-long-close-yellow-eight-two', 'yellow', 8),
+      ],
+      deadTaken: true,
+      phase: 'play',
+    });
+    const dataProfile = AI_PROFILES.find((profile) => profile.id === 'data');
+    const dataState = {
+      ...state,
+      players: state.players.map((player) => player.id === 1 ? { ...player, aiProfileId: 'data' } : player),
+    };
+
+    const next = runComputerTurn(dataState, dataProfile.preferences, () => 0.99);
+
+    assert.equal(next.phase, 'round-over');
+    assert.equal(next.melds[0].tiles.length, 7);
   });
 
   it('permite bajar un juego con comodín cuando la jugada cierra', () => {

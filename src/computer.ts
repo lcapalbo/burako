@@ -357,7 +357,7 @@ function isOpponentNearCut(
     && opponentPlayers.some((player) => player.hand.length === 1 || player.hand.length === 2);
 }
 
-function wildActionClosesRound(candidate: GameState, playerId: number): boolean {
+function meldActionClosesRound(candidate: GameState, playerId: number): boolean {
   if (candidate.phase === 'round-over' || candidate.phase === 'match-over') return true;
   const [lastTile] = candidate.players[playerId].hand;
   if (candidate.phase !== 'play' || !lastTile) return false;
@@ -577,7 +577,7 @@ export function runComputerTurnSteps(
               && !canKeepPairsRunWithWild(next, candidate, meld.id))
             || (isWild(tile)
               && !canSupportCanastaWithWild(next, meld, tile, playerId)
-              && !wildActionClosesRound(candidate, playerId)
+              && !meldActionClosesRound(candidate, playerId)
               && !wildActionTakesDead(next, candidate, playerId))
           ) continue;
           next = candidate;
@@ -610,7 +610,7 @@ export function runComputerTurnSteps(
           || wildActionTakesDead(next, candidate, playerId)
           || canTakeDeadAfterMeldSequence(next, candidate, playerId))
         && (!tiles.some(isWild)
-          || wildActionClosesRound(candidate, playerId)
+          || meldActionClosesRound(candidate, playerId)
           || wildActionTakesDead(next, candidate, playerId)
           || canTakeDeadAfterMeldSequence(next, candidate, playerId)
           || canLayPairsRunWithWild(next, candidate));
@@ -643,10 +643,15 @@ export function runComputerTurnSteps(
       const layMeldProbability = next.mode === 'pairs'
         ? preferences.layMeldProbabilityForPairs
         : preferences.layMeldProbability;
-      if (!hasGuaranteedDeadTakingSequence && layMeldProbability < 1 && random() >= layMeldProbability) break;
-
       const candidate = tryRuleAction(() => layMeld(next, playerId, best.map((tile) => tile.id)));
       if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) break;
+      const closesRound = meldActionClosesRound(candidate, playerId);
+      if (
+        !hasGuaranteedDeadTakingSequence
+        && !closesRound
+        && layMeldProbability < 1
+        && random() >= layMeldProbability
+      ) break;
       next = candidate;
       steps.push(next);
       logGameDebug('computer:meld-decision', { action: 'bajar-juego', tileIds: best.map((tile) => tile.id) });
