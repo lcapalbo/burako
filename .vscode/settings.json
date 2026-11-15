@@ -16,5 +16,10 @@
 	"cSpell.words": [
 		"Burako",
 		"Puntaje"
-	]
+	],
+	"files.exclude": {
+		"**/dist": true,
+		"**/.test-build": true,
+		"**/node_modules": true
+	}
 }

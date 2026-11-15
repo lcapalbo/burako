@@ -7,11 +7,11 @@ import { chooseDiscard, findBestMeld, runComputerTurn, runComputerTurnSteps } fr
 const tile = (id, color, value, kind = 'number') => ({ id, color, value, kind });
 const createGame = (target = 2000, random = Math.random, scores = [0, 0], round = 1, starter = 0) =>
   createGameWithRandomStarter(target, random, scores, round, starter);
-const computerState = ({ hand, melds = [], stock = [], discard = [], deadTaken = false, phase = 'draw', restrictedDiscardTileId = null }) => {
+const computerState = ({ hand, melds = [], stock = [], discard = [], deadTaken = false, deadPiles = [[], []], phase = 'draw', restrictedDiscardTileId = null }) => {
   const initial = createGame(2000, () => 0.5);
   const players = [...initial.players];
   players[1] = { ...players[1], hand, deadTaken };
-  return { ...initial, players, melds, stock, discard, phase, currentPlayer: 1, deadPiles: [[], []], restrictedDiscardTileId };
+  return { ...initial, players, melds, stock, discard, phase, currentPlayer: 1, deadPiles, restrictedDiscardTileId };
 };
 const exhaustiveBestMeld = (hand) => {
   let best = null;
@@ -142,6 +142,52 @@ describe('descarte de la computadora', () => {
       preferences: { ...DEFAULT_AI_PREFERENCES, avoidOpponentCanastaDiscards: true },
     }).id, joker.id);
   });
+
+  it('considera el pozo completo al evitar que un rival complete una canasta', () => {
+    const meld = {
+      id: 'opponent-run-one-to-five',
+      kind: 'run',
+      tiles: [1, 2, 3, 4, 5].map((value) => tile(`opponent-run-${value}`, 'green', value)),
+      team: 0,
+    };
+    const six = tile('opponent-pile-run-six', 'green', 6);
+    const safeFive = tile('opponent-pile-safe-five-red', 'red', 5);
+    const otherFive = tile('opponent-pile-safe-five-blue', 'blue', 5);
+    const sevenInPile = tile('opponent-pile-run-seven', 'green', 7);
+    const preferences = { ...DEFAULT_AI_PREFERENCES, avoidOpponentCanastaDiscards: true };
+
+    assert.equal(chooseDiscard([six, safeFive, otherFive]).id, six.id);
+    const discard = chooseDiscard([six, safeFive, otherFive], null, {
+      opponentMelds: [meld],
+      discardPile: [sevenInPile],
+      preferences,
+    });
+
+    assert.ok([safeFive.id, otherFive.id].includes(discard.id));
+  });
+
+  it('considera varias fichas del pozo para limpiar una canasta rival', () => {
+    const meld = {
+      id: 'opponent-dirty-run-with-two-gaps',
+      kind: 'run',
+      tiles: [2, 4, 5, 7, 8, 9, 10].map((value) => tile(`opponent-dirty-run-${value}`, 'red', value)),
+      team: 0,
+    };
+    const six = tile('opponent-pile-clean-run-six', 'red', 6);
+    const safeTwelve = tile('opponent-pile-safe-twelve-blue', 'blue', 12);
+    const otherSafeTwelve = tile('opponent-pile-safe-twelve-green', 'green', 12);
+    const threeInPile = tile('opponent-pile-clean-run-three', 'red', 3);
+    const preferences = { ...DEFAULT_AI_PREFERENCES, avoidOpponentCanastaDiscards: true };
+
+    assert.equal(chooseDiscard([six, safeTwelve, otherSafeTwelve]).id, six.id);
+    const discardAvoidingClean = chooseDiscard([six, safeTwelve, otherSafeTwelve], null, {
+      opponentMelds: [meld],
+      discardPile: [threeInPile],
+      preferences,
+    });
+
+    assert.ok([safeTwelve.id, otherSafeTwelve.id].includes(discardAvoidingClean.id));
+  });
 });
 
 describe('turnos de la computadora', () => {
@@ -232,7 +278,7 @@ describe('turnos de la computadora', () => {
 
     const evaluatesMelds = (probability, random) => runComputerTurnSteps(state, {
       ...DEFAULT_AI_PREFERENCES,
-      ownMeldPozoEvaluationProbability: probability,
+      ownMeldDiscardPileEvaluationProbability: probability,
     }, random);
     const skipsMelds = evaluatesMelds(0, () => 0.5);
     const considersMelds = evaluatesMelds(1, () => 0.5);
@@ -260,7 +306,7 @@ describe('turnos de la computadora', () => {
     assert.ok(next.discard.some((item) => item.id === topDiscard.id));
   });
 
-  it('considera las diez fichas superiores y puede formar un juego con dos del pozo y dos del atril', () => {
+  it('considera hasta veinte fichas superiores y puede formar un juego con dos del pozo y dos del atril', () => {
     const hand = [
       tile('computer-run-five', 'green', 5),
       tile('computer-run-eight', 'green', 8),
@@ -269,8 +315,10 @@ describe('turnos de la computadora', () => {
       tile('computer-unrelated-four', 'yellow', 4),
     ];
     const discard = [
+      ...Array.from({ length: 17 }, (_, index) => tile(`computer-top-twenty-old-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], (index % 13) + 1)),
       tile('computer-run-six-discard', 'green', 6),
-      tile('computer-run-joker-discard', null, 0, 'joker'),
+      tile('computer-run-eight-discard-one', 'red', 8),
+      tile('computer-run-eight-discard-two', 'blue', 8),
     ];
     const state = computerState({ hand, discard, stock: [tile('computer-ten-stock', 'red', 10)] });
 
@@ -280,7 +328,7 @@ describe('turnos de la computadora', () => {
     assert.ok(steps.some((step) => step.melds.some((meld) => meld.tiles.length === 4)));
   });
 
-  it('levanta el pozo cuando un comodín completa una combinación compatible', () => {
+  it('levanta el pozo por una combinación compatible y conserva el comodín', () => {
     const five = tile('computer-wild-run-five', 'green', 5);
     const six = tile('computer-wild-run-six', 'green', 6);
     const joker = tile('computer-wild-run-joker', null, 0, 'joker');
@@ -295,10 +343,10 @@ describe('turnos de la computadora', () => {
     const meld = steps.flatMap((step) => step.melds).find((candidate) => candidate.tiles.some((item) => item.id === joker.id));
 
     assert.equal(steps[0].discard.length, 0);
-    assert.equal(meld?.kind, 'run');
-    assert.ok(meld?.tiles.some((item) => item.id === five.id));
-    assert.ok(meld?.tiles.some((item) => item.id === six.id));
-    assert.ok(meld?.tiles.every((item) => !unrelated.some((other) => other.id === item.id)));
+    assert.equal(meld, undefined);
+    assert.ok(steps.at(-1).players[1].hand.some((item) => item.id === joker.id));
+    assert.ok(steps.at(-1).players[1].hand.some((item) => item.id === five.id));
+    assert.ok(steps.at(-1).players[1].hand.some((item) => item.id === six.id));
   });
 
   it('no levanta el pozo si el comodín no puede hacer compatibles las fichas', () => {
@@ -341,7 +389,7 @@ describe('turnos de la computadora', () => {
     assert.equal(steps[0].players[1].hand.length, 12);
   });
 
-  it('no considera fichas anteriores a las diez superiores del pozo', () => {
+  it('no evalúa pozos de más de veinte fichas', () => {
     const hand = [tile('computer-outside-hand-1', 'red', 8), tile('computer-outside-hand-2', 'blue', 12)];
     const discard = [
       tile('computer-outside-match-1', 'yellow', 8),
@@ -355,6 +403,7 @@ describe('turnos de la computadora', () => {
       tile('computer-outside-6', 'blue', 10),
       tile('computer-outside-7', 'green', 3),
       tile('computer-outside-8', 'green', 7),
+      ...Array.from({ length: 10 }, (_, index) => tile(`computer-outside-extra-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], (index % 13) + 1)),
     ];
     const state = computerState({ hand, discard, stock: [tile('computer-outside-stock', 'yellow', 11)] });
 
@@ -455,7 +504,7 @@ describe('turnos de la computadora', () => {
     assert.match(next.result, /Terminó la mano/);
   });
 
-  it('extiende una pierna con el mismo número o un comodín, no con fichas incompatibles', () => {
+  it('extiende una pierna con el mismo número y reserva el comodín', () => {
     const meld = {
       id: 'computer-leg-eights',
       kind: 'leg',
@@ -470,19 +519,17 @@ describe('turnos de la computadora', () => {
     const steps = runComputerTurnSteps(state);
     const next = runComputerTurn(state);
 
-    assert.equal(steps.length, 3);
+    assert.equal(steps.length, 2);
     assert.equal(steps[0].melds[0].tiles.length, 4);
-    assert.equal(steps[1].melds[0].tiles.length, 5);
-    assert.equal(steps[2].currentPlayer, 0);
-    assert.deepEqual(next, steps[2]);
+    assert.equal(steps[1].currentPlayer, 0);
+    assert.deepEqual(next, steps[1]);
     assert.ok(next.melds[0].tiles.some((item) => item.id === matching.id));
-    assert.ok(next.melds[0].tiles.some((item) => item.id === wild.id));
-    assert.equal(next.melds[0].tiles.length, 5);
-    assert.ok(next.melds[0].tiles.every((item) => item.id !== 'computer-leg-unmatched-1'));
-    assert.ok(next.melds[0].tiles.every((item) => item.id !== 'computer-leg-unmatched-9'));
+    assert.ok(next.melds[0].tiles.every((item) => item.id !== wild.id));
+    assert.equal(next.melds[0].tiles.length, 4);
+    assert.ok(next.players[1].hand.some((item) => item.id === wild.id));
   });
 
-  it('extiende una escalera con el mismo color o un comodín, no con fichas incompatibles', () => {
+  it('extiende una escalera con el mismo color y reserva el comodín', () => {
     const meld = {
       id: 'computer-green-run',
       kind: 'run',
@@ -497,8 +544,116 @@ describe('turnos de la computadora', () => {
     const next = runComputerTurn(state);
 
     assert.ok(next.melds[0].tiles.some((item) => item.id === matching.id));
-    assert.ok(next.melds[0].tiles.some((item) => item.id === wild.id));
-    assert.equal(next.melds[0].tiles.length, 5);
+    assert.ok(next.melds[0].tiles.every((item) => item.id !== wild.id));
+    assert.equal(next.melds[0].tiles.length, 4);
+    assert.ok(next.players[1].hand.some((item) => item.id === wild.id));
     for (const item of unmatched) assert.ok(next.melds[0].tiles.every((meldTile) => meldTile.id !== item.id));
+  });
+
+  it('no baja una escalera con comodín ni una pierna de #2 si no dan un beneficio inmediato', () => {
+    const joker = tile('computer-retained-run-joker', null, 0, 'joker');
+    const jokerRun = computerState({
+      hand: [
+        tile('computer-retained-run-five', 'red', 5),
+        tile('computer-retained-run-six', 'red', 6),
+        joker,
+        tile('computer-retained-run-unrelated', 'blue', 11),
+      ],
+      phase: 'play',
+    });
+    const twos = [
+      tile('computer-retained-leg-two-red', 'red', 2),
+      tile('computer-retained-leg-two-blue', 'blue', 2),
+      tile('computer-retained-leg-two-green', 'green', 2),
+    ];
+    const twoLeg = computerState({
+      hand: [...twos, tile('computer-retained-leg-unrelated', 'yellow', 13)],
+      phase: 'play',
+    });
+
+    const jokerSteps = runComputerTurnSteps(jokerRun);
+    const twoSteps = runComputerTurnSteps(twoLeg);
+
+    assert.equal(jokerSteps.some((step) => step.melds.length > 0), false);
+    assert.ok(jokerSteps.at(-1).players[1].hand.some((item) => item.id === joker.id));
+    assert.equal(twoSteps.some((step) => step.melds.length > 0), false);
+    assert.ok(twos.every((two) => twoSteps.at(-1).players[1].hand.some((item) => item.id === two.id)));
+  });
+
+  it('baja un juego con comodín para tomar directamente el muerto', () => {
+    const joker = tile('computer-dead-joker', null, 0, 'joker');
+    const dead = Array.from({ length: 11 }, (_, index) => tile(`computer-dead-tile-${index}`, 'yellow', index + 3));
+    const state = computerState({
+      hand: [tile('computer-dead-run-five', 'red', 5), tile('computer-dead-run-six', 'red', 6), joker],
+      deadPiles: [[], dead],
+      phase: 'play',
+    });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].players[1].deadTaken, true);
+    assert.ok(steps[0].melds[0].tiles.some((item) => item.id === joker.id));
+    assert.equal(steps[0].players[1].hand.length, dead.length);
+  });
+
+  it('permite extender con un comodín si eso toma directamente el muerto', () => {
+    const joker = tile('computer-extension-dead-joker', null, 0, 'joker');
+    const dead = Array.from({ length: 11 }, (_, index) => tile(`computer-extension-dead-tile-${index}`, 'yellow', index + 3));
+    const meld = {
+      id: 'computer-extension-dead-run',
+      kind: 'run',
+      tiles: [4, 5, 6].map((value) => tile(`computer-extension-dead-run-${value}`, 'red', value)),
+      team: 1,
+    };
+    const state = computerState({ hand: [joker], melds: [meld], deadPiles: [[], dead], phase: 'play' });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].players[1].deadTaken, true);
+    assert.ok(steps[0].melds[0].tiles.some((item) => item.id === joker.id));
+    assert.equal(steps[0].players[1].hand.length, dead.length);
+  });
+
+  it('permite bajar un juego con comodín cuando la jugada cierra', () => {
+    const joker = tile('computer-meld-cut-joker', null, 0, 'joker');
+    const canasta = {
+      id: 'computer-existing-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) => tile(`computer-existing-canasta-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 1,
+    };
+    const state = computerState({
+      hand: [
+        tile('computer-meld-cut-five', 'red', 5),
+        tile('computer-meld-cut-six', 'red', 6),
+        joker,
+        tile('computer-meld-cut-discard', 'blue', 12),
+      ],
+      melds: [canasta],
+      deadTaken: true,
+      phase: 'play',
+    });
+
+    const next = runComputerTurn(state);
+
+    assert.equal(next.phase, 'round-over');
+    assert.ok(next.melds.some((meld) => meld.tiles.some((item) => item.id === joker.id)));
+  });
+
+  it('permite sumar un comodín cuando la jugada completa canasta y cierra', () => {
+    const joker = tile('computer-cut-joker', null, 0, 'joker');
+    const meld = {
+      id: 'computer-cut-run',
+      kind: 'run',
+      tiles: [1, 2, 3, 4, 5, 6].map((value) => tile(`computer-cut-run-${value}`, 'red', value)),
+      team: 1,
+    };
+    const state = computerState({ hand: [joker], melds: [meld], deadTaken: true, phase: 'play' });
+
+    const next = runComputerTurn(state);
+
+    assert.equal(next.phase, 'round-over');
+    assert.equal(next.melds[0].tiles.length, 7);
+    assert.ok(next.melds[0].tiles.some((item) => item.id === joker.id));
   });
 });

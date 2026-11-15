@@ -6,7 +6,7 @@ export type AiPreferences = {
   meldKindPreferenceBonus: number;
   avoidOpponentCanastaDiscards: boolean;
   layMeldProbability: number;
-  ownMeldPozoEvaluationProbability: number;
+  ownMeldDiscardPileEvaluationProbability: number;
 };
 
 export type AiProfile = {
@@ -17,12 +17,12 @@ export type AiProfile = {
 };
 
 export const DEFAULT_AI_PREFERENCES: AiPreferences = {
-  discardPileWindow: 10,
-  preferredMeldKind: 'run',
-  meldKindPreferenceBonus: 2,
-  avoidOpponentCanastaDiscards: false,
-  layMeldProbability: 1,
-  ownMeldPozoEvaluationProbability: 1,
+  discardPileWindow: 20, // Cantidad máxima de fichas superiores del pozo que analiza.
+  preferredMeldKind: 'run', // Tipo de combinación que recibe una bonificación al elegir qué bajar.
+  meldKindPreferenceBonus: 2, // Magnitud de la preferencia por pierna o escalera.
+  avoidOpponentCanastaDiscards: false, // Evita descartes que ayuden a completar o limpiar canastas rivales.
+  layMeldProbability: 1, // Probabilidad de bajar una combinación disponible.
+  ownMeldDiscardPileEvaluationProbability: 1, // Probabilidad de levantar el pozo para extender juegos propios.
 };
 
 const preferences = (overrides: Partial<AiPreferences>): AiPreferences => ({
@@ -31,18 +31,18 @@ const preferences = (overrides: Partial<AiPreferences>): AiPreferences => ({
 });
 
 export const AI_PROFILES = [
-  { id: 'bender', name: 'Bender', avatar: '/avatars/bender.svg', preferences: preferences({ discardPileWindow: 4, preferredMeldKind: 'leg', meldKindPreferenceBonus: 5, layMeldProbability: 0.8, ownMeldPozoEvaluationProbability: 0.25 }) },
-  { id: 'daneel-olivaw', name: 'R. Daneel Olivaw', avatar: '/avatars/daneel_olivaw.svg', preferences: preferences({ avoidOpponentCanastaDiscards: true, ownMeldPozoEvaluationProbability: 0.9 }) },
-  { id: 'data', name: 'Data', avatar: '/avatars/data.svg', preferences: preferences({ discardPileWindow: 8, meldKindPreferenceBonus: 3, avoidOpponentCanastaDiscards: true, layMeldProbability: 0.85, ownMeldPozoEvaluationProbability: 0.7 }) },
-  { id: 'hal-9000', name: 'HAL 9000', avatar: '/avatars/hal_9000.svg', preferences: preferences({ preferredMeldKind: 'leg', meldKindPreferenceBonus: 6, avoidOpponentCanastaDiscards: true, layMeldProbability: 0.7, ownMeldPozoEvaluationProbability: 0.4 }) },
+  { id: 'bender', name: 'Bender', avatar: '/avatars/bender.svg', preferences: preferences({ discardPileWindow: 8, preferredMeldKind: 'leg', meldKindPreferenceBonus: 5, layMeldProbability: 0.8, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
+  { id: 'daneel-olivaw', name: 'R. Daneel Olivaw', avatar: '/avatars/daneel_olivaw.svg', preferences: preferences({ avoidOpponentCanastaDiscards: true, ownMeldDiscardPileEvaluationProbability: 0.9 }) },
+  { id: 'data', name: 'Data', avatar: '/avatars/data.svg', preferences: preferences({ discardPileWindow: 16, meldKindPreferenceBonus: 3, avoidOpponentCanastaDiscards: true, layMeldProbability: 0.85, ownMeldDiscardPileEvaluationProbability: 0.7 }) },
+  { id: 'hal-9000', name: 'HAL 9000', avatar: '/avatars/hal_9000.svg', preferences: preferences({ preferredMeldKind: 'leg', meldKindPreferenceBonus: 6, avoidOpponentCanastaDiscards: true, layMeldProbability: 0.7, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
   { id: 'multivac', name: 'Multivac', avatar: '/avatars/multivac.svg', preferences: preferences({ avoidOpponentCanastaDiscards: true }) },
-  { id: 'r2-d2', name: 'R2-D2', avatar: '/avatars/r2d2.svg', preferences: preferences({ discardPileWindow: 5, preferredMeldKind: 'leg', meldKindPreferenceBonus: 4, ownMeldPozoEvaluationProbability: 0 }) },
-  { id: 'robotina', name: 'Robotina', avatar: '/avatars/robotina.svg', preferences: preferences({ discardPileWindow: 6, preferredMeldKind: 'leg', meldKindPreferenceBonus: 5, layMeldProbability: 0.65, ownMeldPozoEvaluationProbability: 0.3 }) },
-  { id: 'sonny', name: 'Sonny', avatar: '/avatars/sonny_ns-5.svg', preferences: preferences({ discardPileWindow: 8, meldKindPreferenceBonus: 3, avoidOpponentCanastaDiscards: true, ownMeldPozoEvaluationProbability: 0.6 }) },
-  { id: 'bot', name: 'Bot', avatar: '/avatars/bot.svg', preferences: preferences({ discardPileWindow: 3, preferredMeldKind: 'leg', meldKindPreferenceBonus: 4, layMeldProbability: 0.55, ownMeldPozoEvaluationProbability: 0.2 }) },
+  { id: 'r2-d2', name: 'R2-D2', avatar: '/avatars/r2d2.svg', preferences: preferences({ discardPileWindow: 10, preferredMeldKind: 'leg', meldKindPreferenceBonus: 4, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
+  { id: 'robotina', name: 'Robotina', avatar: '/avatars/robotina.svg', preferences: preferences({ discardPileWindow: 12, preferredMeldKind: 'leg', meldKindPreferenceBonus: 5, layMeldProbability: 0.65, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
+  { id: 'sonny', name: 'Sonny', avatar: '/avatars/sonny_ns-5.svg', preferences: preferences({ discardPileWindow: 16, meldKindPreferenceBonus: 3, avoidOpponentCanastaDiscards: true, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
+  { id: 'bot', name: 'Bot', avatar: '/avatars/bot.svg', preferences: preferences({ discardPileWindow: 6, preferredMeldKind: 'leg', meldKindPreferenceBonus: 4, layMeldProbability: 0.55, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
   { id: 'computer', name: 'Computadora', avatar: '/avatars/computer.svg', preferences: DEFAULT_AI_PREFERENCES },
-  { id: 'npc', name: 'NPC', avatar: '/avatars/npc.svg', preferences: preferences({ discardPileWindow: 4, preferredMeldKind: 'leg', meldKindPreferenceBonus: 6, layMeldProbability: 0.45, ownMeldPozoEvaluationProbability: 0.1 }) },
-  { id: 'robot', name: 'Robot', avatar: '/avatars/robot.svg', preferences: preferences({ discardPileWindow: 7, meldKindPreferenceBonus: 4, avoidOpponentCanastaDiscards: true, layMeldProbability: 0.8, ownMeldPozoEvaluationProbability: 0.45 }) },
+  { id: 'npc', name: 'NPC', avatar: '/avatars/npc.svg', preferences: preferences({ discardPileWindow: 8, preferredMeldKind: 'leg', meldKindPreferenceBonus: 6, layMeldProbability: 0.45, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
+  { id: 'robot', name: 'Robot', avatar: '/avatars/robot.svg', preferences: preferences({ discardPileWindow: 14, meldKindPreferenceBonus: 4, avoidOpponentCanastaDiscards: true, layMeldProbability: 0.8, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
 ] as const satisfies readonly AiProfile[];
 
 export type AiProfileId = (typeof AI_PROFILES)[number]['id'];
