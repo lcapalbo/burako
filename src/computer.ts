@@ -519,7 +519,38 @@ function canTakeDeadAfterMeldSequence(state: GameState, candidate: GameState, pl
     state.players.some((player) => player.team === team && player.deadTaken)
     || !candidate.deadPiles[team]?.length
   ) return false;
-  return canMeldHandCompletely(candidate.players[playerId].hand);
+  if (candidate.players.some((player) => player.team === team && player.deadTaken)) return true;
+
+  const visited = new Set<string>();
+  const canPlayOut = (current: GameState): boolean => {
+    const hand = current.players[playerId].hand;
+    if (canMeldHandCompletely(hand)) return true;
+    if (hand.some((tile) =>
+      tile.id !== current.restrictedDiscardTileId
+      && canMeldHandCompletely(hand.filter((handTile) => handTile.id !== tile.id)))) return true;
+
+    const key = [
+      hand.map((tile) => tile.id).sort().join(','),
+      ...current.melds
+        .filter((meld) => meld.team === team)
+        .map((meld) => `${meld.id}:${meld.tiles.map((tile) => tile.id).join(',')}`),
+    ].join('|');
+    if (visited.has(key)) return false;
+    visited.add(key);
+
+    for (const meld of current.melds) {
+      if (meld.team !== team) continue;
+      for (const tile of hand) {
+        if (!mayExtendMeld(meld, tile) || getMeldKind([...meld.tiles, tile]) !== meld.kind) continue;
+        const extended = tryRuleAction(() => addToMeld(current, playerId, meld.id, [tile.id]));
+        if (!extended) continue;
+        if (extended.players[playerId].deadTaken || canPlayOut(extended)) return true;
+      }
+    }
+    return false;
+  };
+
+  return canPlayOut(candidate);
 }
 
 function canCloseAfterMeldSequence(state: GameState, playerId: number): boolean {
@@ -597,6 +628,14 @@ function canSupportCanastaWithWild(state: GameState, meld: Meld, tile: Tile, pla
     && state.players.some((player) => player.team !== team && player.deadTaken);
 }
 
+function getWildExtensionPenalty(meld: Meld, tile: Tile): number {
+  if (!isWild(tile)) return 0;
+  if (!isCanasta(meld)) return -meld.tiles.length;
+  const updatedMeld = { ...meld, tiles: [...meld.tiles, tile] };
+  const dirtiesCanasta = isCleanMeld(meld) && !isCleanMeld(updatedMeld);
+  return 100 + Number(dirtiesCanasta) * 100;
+}
+
 function canLayPairsRunWithWild(state: GameState, candidate: GameState): boolean {
   if (state.mode !== 'pairs') return false;
   const meld = candidate.melds[candidate.melds.length - 1];
@@ -655,6 +694,11 @@ export function runComputerTurnSteps(
     && next.discard.length <= MAX_DISCARD_TILES_TO_EVALUATE;
   const completesMeldFromDiscard = canEvaluateDiscard
     && canCompleteWithDiscard(hand, next.discard, discardWindow);
+  const liftedForDead = canEvaluateDiscard
+    ? tryRuleAction(() => takeDiscardPile(next, playerId))
+    : null;
+  const canTakeDeadFromDiscard = liftedForDead !== null
+    && canTakeDeadAfterMeldSequence(liftedForDead, liftedForDead, playerId);
   const opponentPlayers = next.players.filter((otherPlayer) => otherPlayer.team !== team);
   const opponentMelds = next.melds.filter((meld) => meld.team !== team);
   const opponentNearCut = isOpponentNearCut(opponentMelds, opponentPlayers);
@@ -665,7 +709,7 @@ export function runComputerTurnSteps(
     && (preferences.ownMeldDiscardPileEvaluationProbability >= 1
       || (preferences.ownMeldDiscardPileEvaluationProbability > 0
         && random() < preferences.ownMeldDiscardPileEvaluationProbability));
-  const shouldLift = !shouldAvoidDiscardPile && (completesMeldFromDiscard
+  const shouldLift = !shouldAvoidDiscardPile && (canTakeDeadFromDiscard || completesMeldFromDiscard
     || (shouldEvaluateOwnMelds && canExtendMeldWithDiscard(next, playerId, discardWindow)));
 
   if (next.phase === 'draw') {
@@ -694,9 +738,12 @@ export function runComputerTurnSteps(
   while (next.phase === 'play' && next.currentPlayer === playerId) {
     const currentHand = next.players[playerId].hand;
     const ownMelds = next.melds.filter((meld) => meld.team === team);
+    const hasGuaranteedDeadTakingSequence = canTakeDeadAfterMeldSequence(next, next, playerId);
+    const prioritizeDeadTakingWilds = hasGuaranteedDeadTakingSequence && currentHand.some(isWild);
     const extendMelds = (
       meldsToTry: Meld[],
       isPreferredExtension: (meld: Meld, tile: Tile, candidate: GameState) => boolean = () => true,
+      allowPenalizedCanastaWilds = true,
     ): boolean => {
       const extensionHand = retainedForManipulation
         ? currentHand.filter((tile) => !retainedForManipulation?.has(tile.id))
@@ -705,8 +752,21 @@ export function runComputerTurnSteps(
         canSupportCanastaWithWild(next, meld, tile, playerId)
         && mayExtendMeld(meld, tile)
         && getMeldKind([...meld.tiles, tile]) === meld.kind);
-      const orderedMelds = meldsToTry.some(canSupportMeld)
+      const getMeldPenalty = (meld: Meld) => {
+        const penalties = extensionHand
+          .filter((tile) => mayExtendMeld(meld, tile) && getMeldKind([...meld.tiles, tile]) === meld.kind)
+          .map((tile) => getWildExtensionPenalty(meld, tile));
+        return penalties.length ? Math.min(...penalties) : Number.POSITIVE_INFINITY;
+      };
+      const sortedMelds = prioritizeDeadTakingWilds
         ? [...meldsToTry].sort((a, b) => {
+          const penaltyA = getMeldPenalty(a);
+          const penaltyB = getMeldPenalty(b);
+          return penaltyA === penaltyB ? 0 : penaltyA - penaltyB;
+        })
+        : meldsToTry;
+      const orderedMelds = sortedMelds.some(canSupportMeld)
+        ? [...sortedMelds].sort((a, b) => {
           const supportsA = canSupportMeld(a);
           const supportsB = canSupportMeld(b);
           const supportDifference = Number(supportsB) - Number(supportsA);
@@ -714,12 +774,14 @@ export function runComputerTurnSteps(
           if (!supportsA || !supportsB) return 0;
           return Number(b.kind === 'run') - Number(a.kind === 'run');
         })
-        : meldsToTry;
+        : sortedMelds;
 
       for (const meld of orderedMelds) {
         const meldHand = canSupportMeld(meld)
           ? [...extensionHand].sort((a, b) => Number(canSupportCanastaWithWild(next, meld, b, playerId)) - Number(canSupportCanastaWithWild(next, meld, a, playerId)))
-          : extensionHand;
+          : prioritizeDeadTakingWilds
+            ? [...extensionHand].sort((a, b) => getWildExtensionPenalty(meld, a) - getWildExtensionPenalty(meld, b))
+            : extensionHand;
         for (const tile of meldHand) {
           if (!mayExtendMeld(meld, tile)) continue;
           if (getMeldKind([...meld.tiles, tile]) !== meld.kind) continue;
@@ -727,13 +789,22 @@ export function runComputerTurnSteps(
           if (
             !candidate
             || leavesOnlyRestrictedTile(candidate, playerId)
-            || (isCanasta(meld) && !isPreferredExtension(meld, tile, candidate))
+            || (!allowPenalizedCanastaWilds
+              && prioritizeDeadTakingWilds
+              && isCanasta(meld)
+              && isWild(tile)
+              && !isPreferredExtension(meld, tile, candidate))
+            || (isCanasta(meld)
+              && !isPreferredExtension(meld, tile, candidate)
+              && !(hasGuaranteedDeadTakingSequence
+                && canTakeDeadAfterMeldSequence(next, candidate, playerId)))
             || (!canSupportCanastaWithWild(next, meld, tile, playerId)
               && !canKeepPairsRunWithWild(next, candidate, meld.id))
             || (isWild(tile)
               && !canSupportCanastaWithWild(next, meld, tile, playerId)
               && !meldActionClosesRound(candidate, playerId)
-              && !wildActionTakesDead(next, candidate, playerId))
+              && !wildActionTakesDead(next, candidate, playerId)
+              && !canTakeDeadAfterMeldSequence(next, candidate, playerId))
           ) continue;
           next = candidate;
           steps.push(next);
@@ -745,16 +816,20 @@ export function runComputerTurnSteps(
       return false;
     };
 
-    if (extendMelds(
-      ownMelds.filter(isCanasta),
-      (meld, tile, candidate) =>
-        canPurifyCanastaByExtending(meld, candidate, meld.id)
-        || canHelpPurifyRunCanasta(meld, tile),
-    )) continue;
+    const canastaMelds = ownMelds.filter(isCanasta);
+    const nonCanastaMelds = ownMelds.filter((meld) => !isCanasta(meld));
+    const isPreferredCanastaExtension = (meld: Meld, tile: Tile, candidate: GameState) =>
+      canPurifyCanastaByExtending(meld, candidate, meld.id)
+      || canHelpPurifyRunCanasta(meld, tile);
+    if (extendMelds(canastaMelds, isPreferredCanastaExtension, false)) continue;
 
-    if (extendMelds(ownMelds.filter((meld) => !isCanasta(meld)))) continue;
+    if (prioritizeDeadTakingWilds) {
+      if (extendMelds(ownMelds, (meld, tile, candidate) =>
+        !isCanasta(meld) || isPreferredCanastaExtension(meld, tile, candidate))) continue;
+    } else if (extendMelds(nonCanastaMelds)) {
+      continue;
+    }
 
-    const hasGuaranteedDeadTakingSequence = canTakeDeadAfterMeldSequence(next, next, playerId);
     const hasGuaranteedRoundClosingSequence = canCloseAfterMeldSequence(next, playerId);
     const hasGuaranteedMeldSequence = hasGuaranteedDeadTakingSequence || hasGuaranteedRoundClosingSequence;
     const isAllowedMeld = (tiles: Tile[]) => {

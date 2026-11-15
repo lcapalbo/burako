@@ -1387,7 +1387,7 @@ describe('turnos de la computadora', () => {
     assert.ok(next.melds[0].tiles.some((item) => item.id === joker.id));
   });
 
-  it('permite levantar el pozo para completar canasta, bajar juegos y cortar mano', () => {
+  it('levanta el pozo para completar canasta, bajar juegos y cortar mano', () => {
     const melds = [
       {
         id: 'robotina-scenario-leg-four',
@@ -1478,5 +1478,201 @@ describe('turnos de la computadora', () => {
         && meld.tiles.some((item) => item.id === 'robotina-scenario-green-three')
         && (meld.tiles.some((item) => item.id === 'robotina-scenario-green-one')
           || meld.tiles.some((item) => item.id === 'robotina-scenario-yellow-three'))));
+  });
+
+  it('levanta el pozo si puede vaciar el atril y tomar el muerto directo extendiendo juegos existentes', () => {
+    const dead = Array.from({ length: 11 }, (_, index) => tile(`robotina-dead-priority-${index}`, 'yellow', index + 3));
+    const melds = [
+      {
+        id: 'robotina-dead-priority-red-canasta',
+        kind: 'run',
+        tiles: [3, 4, 5, 6, 7, 8, 9, 10].map((value) => tile(`robotina-dead-priority-red-${value}`, 'red', value)),
+        team: 1,
+      },
+      {
+        id: 'robotina-dead-priority-green-run',
+        kind: 'run',
+        tiles: [6, 7, 8, 9].map((value) => tile(`robotina-dead-priority-green-${value}`, 'green', value)),
+        team: 1,
+      },
+      {
+        id: 'robotina-dead-priority-blue-run',
+        kind: 'run',
+        tiles: [8, 9, 10, 11].map((value) => tile(`robotina-dead-priority-blue-${value}`, 'blue', value)),
+        team: 1,
+      },
+      {
+        id: 'robotina-dead-priority-six-leg',
+        kind: 'leg',
+        tiles: ['blue', 'red', 'yellow'].map((color) => tile(`robotina-dead-priority-six-${color}`, color, 6)),
+        team: 1,
+      },
+    ];
+    const state = computerState({
+      hand: [
+        tile('robotina-dead-priority-green-two', 'green', 2),
+        tile('robotina-dead-priority-red-two', 'red', 2),
+        tile('robotina-dead-priority-yellow-two', 'yellow', 2),
+        tile('robotina-dead-priority-blue-four-a', 'blue', 4),
+        tile('robotina-dead-priority-yellow-four', 'yellow', 4),
+        tile('robotina-dead-priority-blue-four-b', 'blue', 4),
+        tile('robotina-dead-priority-blue-thirteen', 'blue', 13),
+      ],
+      melds,
+      discard: [
+        tile('robotina-dead-priority-green-five', 'green', 5),
+        tile('robotina-dead-priority-blue-six', 'blue', 6),
+      ],
+      stock: [tile('robotina-dead-priority-stock', 'red', 5)],
+      deadPiles: [[], dead],
+    });
+    const robotinaProfile = AI_PROFILES.find((profile) => profile.id === 'robotina');
+    const robotinaState = {
+      ...state,
+      players: state.players.map((player) => player.id === 1 ? { ...player, aiProfileId: 'robotina' } : player),
+    };
+
+    const steps = runComputerTurnSteps(robotinaState, robotinaProfile.preferences, () => 0.99);
+    const deadTakenStep = steps.find((step) => step.players[1].deadTaken);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.ok(deadTakenStep);
+    assert.equal(deadTakenStep.players[1].hand.length, dead.length);
+  });
+
+  it('levanta el pozo para tomar el muerto indirectamente tras descartar la ficha restante', () => {
+    const dead = Array.from({ length: 11 }, (_, index) => tile(`robotina-indirect-dead-${index}`, 'yellow', index + 3));
+    const melds = [
+      {
+        id: 'robotina-indirect-red-canasta',
+        kind: 'run',
+        tiles: [3, 4, 5, 6, 7, 8, 9, 10].map((value) => tile(`robotina-indirect-red-${value}`, 'red', value)),
+        team: 1,
+      },
+      {
+        id: 'robotina-indirect-ones',
+        kind: 'leg',
+        tiles: [
+          tile('robotina-indirect-red-one-a', 'red', 1),
+          tile('robotina-indirect-green-one-a', 'green', 1),
+          tile('robotina-indirect-green-one-b', 'green', 1),
+        ],
+        team: 0,
+      },
+      {
+        id: 'robotina-indirect-green-run',
+        kind: 'run',
+        tiles: [9, 10, 11].map((value) => tile(`robotina-indirect-green-${value}`, 'green', value)),
+        team: 1,
+      },
+      {
+        id: 'robotina-indirect-opponent-run',
+        kind: 'run',
+        tiles: [
+          tile('robotina-indirect-opponent-red-nine', 'red', 9),
+          tile('robotina-indirect-opponent-red-ten', 'red', 10),
+          tile('robotina-indirect-opponent-blue-two', 'blue', 2),
+          tile('robotina-indirect-opponent-red-twelve', 'red', 12),
+        ],
+        team: 0,
+      },
+      {
+        id: 'robotina-indirect-opponent-yellow-run',
+        kind: 'run',
+        tiles: [
+          ...[9, 10, 11, 12].map((value) => tile(`robotina-indirect-opponent-yellow-${value}`, 'yellow', value)),
+          tile('robotina-indirect-opponent-joker', null, 0, 'joker'),
+          tile('robotina-indirect-opponent-yellow-one', 'yellow', 1),
+        ],
+        team: 0,
+      },
+      {
+        id: 'robotina-indirect-seven-leg',
+        kind: 'leg',
+        tiles: ['blue', 'green', 'yellow'].map((color) => tile(`robotina-indirect-seven-${color}`, color, 7)),
+        team: 1,
+      },
+      {
+        id: 'robotina-indirect-opponent-one-leg',
+        kind: 'leg',
+        tiles: [
+          tile('robotina-indirect-opponent-red-one-b', 'red', 1),
+          tile('robotina-indirect-opponent-yellow-one-b', 'yellow', 1),
+          tile('robotina-indirect-opponent-joker-two', null, 0, 'joker'),
+        ],
+        team: 0,
+      },
+      {
+        id: 'robotina-indirect-blue-run',
+        kind: 'run',
+        tiles: [8, 9, 10, 11].map((value) => tile(`robotina-indirect-blue-${value}`, 'blue', value)),
+        team: 1,
+      },
+      {
+        id: 'robotina-indirect-yellow-run',
+        kind: 'run',
+        tiles: [9, 10, 11].map((value) => tile(`robotina-indirect-yellow-${value}`, 'yellow', value)),
+        team: 1,
+      },
+      {
+        id: 'robotina-indirect-three-leg',
+        kind: 'leg',
+        tiles: [
+          tile('robotina-indirect-yellow-three-a', 'yellow', 3),
+          tile('robotina-indirect-blue-three', 'blue', 3),
+          tile('robotina-indirect-yellow-three-b', 'yellow', 3),
+        ],
+        team: 1,
+      },
+      {
+        id: 'robotina-indirect-six-leg',
+        kind: 'leg',
+        tiles: ['yellow', 'red', 'blue'].map((color) => tile(`robotina-indirect-six-${color}`, color, 6)),
+        team: 1,
+      },
+    ];
+    const opponentHand = Array.from({ length: 9 }, (_, index) => tile(`robotina-indirect-opponent-hand-${index}`, 'green', index + 2));
+    const state = computerState({
+      hand: [
+        tile('robotina-indirect-green-two', 'green', 2),
+        tile('robotina-indirect-red-two', 'red', 2),
+        tile('robotina-indirect-yellow-two', 'yellow', 2),
+        tile('robotina-indirect-blue-four-a', 'blue', 4),
+        tile('robotina-indirect-yellow-four', 'yellow', 4),
+        tile('robotina-indirect-blue-four-b', 'blue', 4),
+        tile('robotina-indirect-blue-thirteen', 'blue', 13),
+      ],
+      melds,
+      discard: [
+        tile('robotina-indirect-green-five', 'green', 5),
+        tile('robotina-indirect-blue-six', 'blue', 6),
+      ],
+      stock: [tile('robotina-indirect-stock', 'red', 5)],
+      deadPiles: [[], dead],
+      opponentHand,
+      opponentDeadTaken: true,
+    });
+    const robotinaProfile = AI_PROFILES.find((profile) => profile.id === 'robotina');
+    const robotinaState = {
+      ...state,
+      players: state.players.map((player) => player.id === 1 ? { ...player, aiProfileId: 'robotina' } : player),
+    };
+
+    const steps = runComputerTurnSteps(robotinaState, robotinaProfile.preferences, () => 0.99);
+    const deadTakenStep = steps.find((step) => step.players[1].deadTaken);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.ok(deadTakenStep);
+    assert.equal(deadTakenStep.players[1].indirectDead, true);
+    assert.equal(deadTakenStep.discard.at(-1).id, 'robotina-indirect-green-five');
+    assert.equal(deadTakenStep.players[1].hand.length, dead.length);
+    const blueRun = deadTakenStep.melds.find((meld) => meld.id === 'robotina-indirect-blue-run');
+    const redCanasta = deadTakenStep.melds.find((meld) => meld.id === 'robotina-indirect-red-canasta');
+    assert.ok(blueRun.tiles.some((item) => item.value === 2));
+    assert.equal(redCanasta.tiles.length, 8);
+    assert.ok(deadTakenStep.melds
+      .filter((meld) => meld.team === 1 && meld.id !== redCanasta.id)
+      .flatMap((meld) => meld.tiles)
+      .filter((item) => item.value === 2).length >= 2);
   });
 });
