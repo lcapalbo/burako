@@ -412,8 +412,8 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
           phase: 'match-over',
           winner: winningTeam,
           result: winningTeam === 0
-            ? '¡Felicitaciones, ganaste la mano!'
-            : `${state.mode === 'pairs' ? 'El equipo rival' : `Otra vez será: ${opponentName}`} ganó la mano.`,
+            ? state.mode === 'pairs' ? '¡Felicitaciones, ganaron la mano!' : '¡Felicitaciones, ganaste la mano!'
+            : state.mode === 'pairs' ? 'Otra vez será: el equipo rival ganó la mano.' : `Otra vez será: ${opponentName} ganó la mano.`,
         };
   }
   const targetScore = typeof state.target === 'number' ? state.target : Number.POSITIVE_INFINITY;
@@ -421,9 +421,9 @@ function scoreRound(state: GameState, closureWinner: number | null): GameState {
   let matchWinner: number | null = null;
   let result: string | null = null;
   const matchResult = (winner: number | null) => winner === 0
-    ? '¡Felicitaciones, ganaste la partida!'
+    ? state.mode === 'pairs' ? '¡Felicitaciones, ganaron la partida!' : '¡Felicitaciones, ganaste la partida!'
     : winner === 1
-      ? `${state.mode === 'pairs' ? 'El equipo rival' : `Otra vez será: ${opponentName}`} ganó la partida.`
+      ? state.mode === 'pairs' ? 'Otra vez será: el equipo rival ganó la partida.' : `Otra vez será: ${opponentName} ganó la partida.`
       : 'La partida termina en empate.';
   if (reached[0] && reached[1]) {
     matchWinner = scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1;

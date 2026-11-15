@@ -547,6 +547,52 @@ describe('puntaje de la mano', () => {
     assert.match(tiedScore.result, /empate/i);
   });
 
+  it('usa textos plurales al anunciar el resultado de una partida por parejas', () => {
+    const makeCleanCanasta = (team, prefix) => ({
+      id: `${prefix}-canasta`,
+      kind: 'run',
+      tiles: [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`${prefix}-${value}`, 'red', value)),
+      team,
+    });
+    const makeDirtyCanasta = (prefix, team = 1) => ({
+      id: `${prefix}-canasta`,
+      kind: 'run',
+      tiles: [
+        tile(`${prefix}-3`, 'blue', 3),
+        tile(`${prefix}-4`, 'blue', 4),
+        tile(`${prefix}-joker`, null, 0, 'joker'),
+        tile(`${prefix}-6`, 'blue', 6),
+        tile(`${prefix}-7`, 'blue', 7),
+        tile(`${prefix}-8`, 'blue', 8),
+        tile(`${prefix}-9`, 'blue', 9),
+      ],
+      team,
+    });
+    const exhaustedPairState = (scores, melds) => {
+      const initial = createGame(2000, () => 0.5, scores, 1, 0, undefined, 'pairs');
+      return {
+        ...initial,
+        players: initial.players.map((player) => ({ ...player, hand: [], deadTaken: true })),
+        melds,
+        stock: [],
+        deadPiles: [[], []],
+        phase: 'draw',
+      };
+    };
+
+    const pairWins = finishEmptyStock(exhaustedPairState([1990, 1990], [
+      makeCleanCanasta(0, 'pair-winner'),
+      makeDirtyCanasta('pair-loser'),
+    ]), 0);
+    assert.equal(pairWins.result, '¡Felicitaciones, ganaron la partida!');
+
+    const pairLoses = finishEmptyStock(exhaustedPairState([1990, 1990], [
+      makeDirtyCanasta('pair-loser', 0),
+      makeCleanCanasta(1, 'pair-winner'),
+    ]), 0);
+    assert.equal(pairLoses.result, 'Otra vez será: el equipo rival ganó la partida.');
+  });
+
   it('suma bono de canasta y cierre al cerrar legalmente', () => {
     const initial = createGame(2000, () => 0.5);
     const meldTiles = [3, 4, 5, 6, 7, 8, 9].map((value) => tile(`run-${value}`, 'red', value));
@@ -764,6 +810,33 @@ describe('cierre por corte', () => {
     assert.equal(ended.phase, 'match-over');
     assert.equal(ended.winner, 1);
     assert.equal(ended.result, `Otra vez será: ${initial.players[1].name} ganó la mano.`);
+  });
+
+  it('usa textos plurales al anunciar el resultado de una mano por parejas', () => {
+    const initial = createGame('cut', () => 0.5, [0, 0], 1, 0, undefined, 'pairs');
+    const canasta = (prefix, color) => [3, 4, 5, 6, 7, 8, 9]
+      .map((value) => tile(`${prefix}-${value}`, color, value));
+    const winningPlayers = [...initial.players];
+    winningPlayers[0] = { ...winningPlayers[0], hand: canasta('pair-human', 'red'), deadTaken: true };
+    const pairWins = layMeld({
+      ...initial,
+      players: winningPlayers,
+      currentPlayer: 0,
+      deadPiles: [[], []],
+      phase: 'play',
+    }, 0, winningPlayers[0].hand.map((item) => item.id));
+    assert.equal(pairWins.result, '¡Felicitaciones, ganaron la mano!');
+
+    const losingPlayers = [...initial.players];
+    losingPlayers[1] = { ...losingPlayers[1], hand: canasta('pair-computer', 'blue'), deadTaken: true };
+    const pairLoses = layMeld({
+      ...initial,
+      players: losingPlayers,
+      currentPlayer: 1,
+      deadPiles: [[], []],
+      phase: 'play',
+    }, 1, losingPlayers[1].hand.map((item) => item.id));
+    assert.equal(pairLoses.result, 'Otra vez será: el equipo rival ganó la mano.');
   });
 });
 
