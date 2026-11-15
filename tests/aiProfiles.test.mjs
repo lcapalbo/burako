@@ -41,11 +41,4 @@ describe('perfiles de IA', () => {
     assert.equal(new Set(players.slice(1).map((player) => player.aiProfileId)).size, 3);
     assert.equal(players[1].name, 'HAL 9000');
   });
-
-  it('incluye los avatares genéricos disponibles', () => {
-    assert.deepEqual(
-      AI_PROFILES.filter((profile) => ['bot', 'computer', 'npc', 'robot'].includes(profile.id)).map((profile) => profile.avatar),
-      ['/avatars/bot.svg', '/avatars/computer.svg', '/avatars/npc.svg', '/avatars/robot.svg'],
-    );
-  });
 });

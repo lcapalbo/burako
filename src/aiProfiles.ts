@@ -5,6 +5,7 @@ export type AiPreferences = {
   preferredMeldKind: MeldKind;
   meldKindPreferenceBonus: number;
   avoidOpponentCanastaDiscards: boolean;
+  avoidOpponentMeldExtensions: boolean;
   layMeldProbability: number;
   ownMeldDiscardPileEvaluationProbability: number;
 };
@@ -21,6 +22,7 @@ export const DEFAULT_AI_PREFERENCES: AiPreferences = {
   preferredMeldKind: 'run', // Tipo de combinación que recibe una bonificación al elegir qué bajar.
   meldKindPreferenceBonus: 2, // Magnitud de la preferencia por pierna o escalera.
   avoidOpponentCanastaDiscards: false, // Evita descartes que ayuden a completar o limpiar canastas rivales.
+  avoidOpponentMeldExtensions: false, // Evita que rivales sin canasta lleven sus juegos a cinco o seis fichas.
   layMeldProbability: 1, // Probabilidad de bajar una combinación disponible.
   ownMeldDiscardPileEvaluationProbability: 1, // Probabilidad de levantar el pozo para extender juegos propios.
 };
@@ -31,11 +33,11 @@ const preferences = (overrides: Partial<AiPreferences>): AiPreferences => ({
 });
 
 export const AI_PROFILES = [
-  { id: 'bender', name: 'Bender', avatar: '/avatars/bender.svg', preferences: preferences({ discardPileWindow: 8, preferredMeldKind: 'leg', meldKindPreferenceBonus: 5, layMeldProbability: 0.8, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
-  { id: 'daneel-olivaw', name: 'R. Daneel Olivaw', avatar: '/avatars/daneel_olivaw.svg', preferences: preferences({ avoidOpponentCanastaDiscards: true, ownMeldDiscardPileEvaluationProbability: 0.9 }) },
-  { id: 'data', name: 'Data', avatar: '/avatars/data.svg', preferences: preferences({ discardPileWindow: 16, meldKindPreferenceBonus: 3, avoidOpponentCanastaDiscards: true, layMeldProbability: 0.85, ownMeldDiscardPileEvaluationProbability: 0.7 }) },
+  { id: 'bender', name: 'Bender', avatar: '/avatars/bender.svg', preferences: preferences({ discardPileWindow: 8, preferredMeldKind: 'leg', meldKindPreferenceBonus: 5, avoidOpponentMeldExtensions: true, layMeldProbability: 0.8, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
+  { id: 'daneel-olivaw', name: 'R. Daneel Olivaw', avatar: '/avatars/daneel_olivaw.svg', preferences: preferences({ avoidOpponentCanastaDiscards: true, avoidOpponentMeldExtensions: true, ownMeldDiscardPileEvaluationProbability: 0.9 }) },
+  { id: 'data', name: 'Data', avatar: '/avatars/data.svg', preferences: preferences({ discardPileWindow: 16, meldKindPreferenceBonus: 3, avoidOpponentCanastaDiscards: true, avoidOpponentMeldExtensions: true, layMeldProbability: 0.85, ownMeldDiscardPileEvaluationProbability: 0.7 }) },
   { id: 'hal-9000', name: 'HAL 9000', avatar: '/avatars/hal_9000.svg', preferences: preferences({ preferredMeldKind: 'leg', meldKindPreferenceBonus: 6, avoidOpponentCanastaDiscards: true, layMeldProbability: 0.7, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
-  { id: 'multivac', name: 'Multivac', avatar: '/avatars/multivac.svg', preferences: preferences({ avoidOpponentCanastaDiscards: true }) },
+  { id: 'multivac', name: 'Multivac', avatar: '/avatars/multivac.svg', preferences: preferences({ avoidOpponentCanastaDiscards: true, avoidOpponentMeldExtensions: true }) },
   { id: 'r2-d2', name: 'R2-D2', avatar: '/avatars/r2d2.svg', preferences: preferences({ discardPileWindow: 10, preferredMeldKind: 'leg', meldKindPreferenceBonus: 4, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
   { id: 'robotina', name: 'Robotina', avatar: '/avatars/robotina.svg', preferences: preferences({ discardPileWindow: 12, preferredMeldKind: 'leg', meldKindPreferenceBonus: 5, layMeldProbability: 0.65, ownMeldDiscardPileEvaluationProbability: 0.6 }) },
   { id: 'sonny', name: 'Sonny', avatar: '/avatars/sonny_ns-5.svg', preferences: preferences({ discardPileWindow: 16, meldKindPreferenceBonus: 3, avoidOpponentCanastaDiscards: true, ownMeldDiscardPileEvaluationProbability: 0.6 }) },

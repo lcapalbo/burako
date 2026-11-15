@@ -143,6 +143,62 @@ describe('descarte de la computadora', () => {
     }).id, joker.id);
   });
 
+  it('evita ayudar a juegos rivales a llegar a cinco o seis fichas', () => {
+    const extension = tile('opponent-growth-eight', 'yellow', 8);
+    const safeFive = tile('opponent-growth-safe-five-red', 'red', 5);
+    const otherFive = tile('opponent-growth-safe-five-blue', 'blue', 5);
+    const preferences = { ...DEFAULT_AI_PREFERENCES, avoidOpponentMeldExtensions: true };
+
+    for (const existingLength of [4, 5]) {
+      const meld = {
+        id: `opponent-growth-${existingLength}-eights`,
+        kind: 'leg',
+        tiles: Array.from({ length: existingLength }, (_, index) =>
+          tile(`opponent-growth-${existingLength}-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+        team: 0,
+      };
+      const hand = [extension, safeFive, otherFive];
+
+      assert.equal(chooseDiscard(hand).id, extension.id);
+      assert.notEqual(chooseDiscard(hand, null, { opponentMelds: [meld], preferences }).id, extension.id);
+    }
+  });
+
+  it('evalúa extensiones que combinan el pozo con el descarte y las ignora si el rival ya tiene canasta', () => {
+    const meld = {
+      id: 'opponent-growth-three-eights',
+      kind: 'leg',
+      tiles: [0, 1, 2].map((index) => tile(`opponent-growth-three-${index}`, ['red', 'blue', 'green'][index], 8)),
+      team: 0,
+    };
+    const extension = tile('opponent-growth-pile-eight', 'yellow', 8);
+    const safeFive = tile('opponent-growth-pile-safe-five-red', 'red', 5);
+    const otherFive = tile('opponent-growth-pile-safe-five-blue', 'blue', 5);
+    const eightInPile = tile('opponent-growth-eight-in-pile', 'red', 8);
+    const preferences = { ...DEFAULT_AI_PREFERENCES, avoidOpponentMeldExtensions: true };
+    const hand = [extension, safeFive, otherFive];
+
+    assert.equal(chooseDiscard(hand).id, extension.id);
+    assert.notEqual(chooseDiscard(hand, null, {
+      opponentMelds: [meld],
+      discardPile: [eightInPile],
+      preferences,
+    }).id, extension.id);
+
+    const canasta = {
+      id: 'opponent-growth-already-has-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) => tile(`opponent-growth-canasta-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 10)),
+      team: 0,
+    };
+
+    assert.equal(chooseDiscard(hand, null, {
+      opponentMelds: [meld, canasta],
+      discardPile: [eightInPile],
+      preferences,
+    }).id, extension.id);
+  });
+
   it('considera el pozo completo al evitar que un rival complete una canasta', () => {
     const meld = {
       id: 'opponent-run-one-to-five',

@@ -17,6 +17,11 @@
 		"Burako",
 		"Puntaje"
 	],
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/.test-build": true,
+		"**/dist": true
+	},
 	"files.exclude": {
 		"**/dist": true,
 		"**/.test-build": true,

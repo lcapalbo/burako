@@ -81,11 +81,16 @@ export function chooseDiscard(
         return other.id !== tile.id && other.kind === 'number' && other.color === tile.color && (distance <= 2 || wrapsThroughOne);
       }).length
       : 0;
+    const discardPileAfterTile = [...discardPile, tile];
     const helpsOpponentCanasta = preferences.avoidOpponentCanastaDiscards
-      && opponentMelds.some((meld) => canCompleteCanastaFromDiscardPile(meld, [...discardPile, tile]));
+      && opponentMelds.some((meld) => canCompleteCanastaFromDiscardPile(meld, discardPileAfterTile));
+    const extendsOpponentMeld = preferences.avoidOpponentMeldExtensions
+      && !opponentMelds.some(isCanasta)
+      && opponentMelds.some((meld) => [5, 6].some((targetSize) =>
+        canExtendOpponentMeldToSize(meld, discardPileAfterTile, targetSize)));
     return (tile.kind === 'joker' ? 120 : tile.value === 2 ? 80 : 0)
       + sameValue * 12 + sameRun * 12 - tilePoints(tile)
-      + (helpsOpponentCanasta ? 1000 : 0);
+      + (helpsOpponentCanasta || extendsOpponentMeld ? 1000 : 0);
   };
   const candidates = hand.filter((tile) => tile.id !== excludedTileId);
   const discard = [...candidates].sort((a, b) => score(a) - score(b))[0];
@@ -171,29 +176,49 @@ function mayExtendMeld(meld: GameState['melds'][number], tile: Tile): boolean {
   ));
 }
 
-function canCompleteCanastaFromDiscardPile(meld: Meld, discardPile: Tile[]): boolean {
-  const candidates = discardPile.filter((tile) =>
+function canExtendMeldWithDiscardTiles(
+  meld: Meld,
+  candidates: Tile[],
+  count: number,
+  isAllowed: (tiles: Tile[]) => boolean,
+): boolean {
+  const selected: Tile[] = [];
+  const search = (start: number): boolean => {
+    if (selected.length === count) {
+      const tiles = [...meld.tiles, ...selected];
+      return getMeldKind(tiles) === meld.kind && isAllowed(tiles);
+    }
+
+    for (let index = start; index < candidates.length; index += 1) {
+      const tile = candidates[index];
+      if (!canStillFormMeld([...meld.tiles, ...selected], tile)) continue;
+      selected.push(tile);
+      const canExtend = search(index + 1);
+      selected.pop();
+      if (canExtend) return true;
+    }
+    return false;
+  };
+  return search(0);
+}
+
+function getCompatibleDiscardTiles(meld: Meld, discardPile: Tile[]): Tile[] {
+  return discardPile.filter((tile) =>
     !meld.tiles.some((existing) => existing.id === tile.id) && mayExtendMeld(meld, tile));
+}
+
+function canExtendOpponentMeldToSize(meld: Meld, discardPile: Tile[], targetSize: number): boolean {
+  const needed = targetSize - meld.tiles.length;
+  if (needed <= 0) return false;
+  const candidates = getCompatibleDiscardTiles(meld, discardPile);
+  return canExtendMeldWithDiscardTiles(meld, candidates, needed, () => true);
+}
+
+function canCompleteCanastaFromDiscardPile(meld: Meld, discardPile: Tile[]): boolean {
+  const candidates = getCompatibleDiscardTiles(meld, discardPile);
 
   const canExtendWith = (count: number, predicate: (tiles: Tile[]) => boolean): boolean => {
-    const selected: Tile[] = [];
-    const search = (start: number): boolean => {
-      if (selected.length === count) {
-        const tiles = [...meld.tiles, ...selected];
-        return getMeldKind(tiles) === meld.kind && predicate(tiles);
-      }
-
-      for (let index = start; index < candidates.length; index += 1) {
-        const tile = candidates[index];
-        if (!canStillFormMeld([...meld.tiles, ...selected], tile)) continue;
-        selected.push(tile);
-        const canComplete = search(index + 1);
-        selected.pop();
-        if (canComplete) return true;
-      }
-      return false;
-    };
-    return search(0);
+    return canExtendMeldWithDiscardTiles(meld, candidates, count, predicate);
   };
 
   const needed = 7 - meld.tiles.length;
