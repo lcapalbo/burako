@@ -73,7 +73,11 @@ export function chooseDiscard(
   const score = (tile: Tile) => {
     const sameValue = hand.filter((other) => other.id !== tile.id && other.kind === 'number' && other.value === tile.value).length;
     const sameRun = tile.kind === 'number'
-      ? hand.filter((other) => other.id !== tile.id && other.color === tile.color && Math.abs(other.value - tile.value) <= 2).length
+      ? hand.filter((other) => {
+        const distance = Math.abs(other.value - tile.value);
+        const wrapsThroughOne = distance >= 11;
+        return other.id !== tile.id && other.kind === 'number' && other.color === tile.color && (distance <= 2 || wrapsThroughOne);
+      }).length
       : 0;
     const helpsOpponentCanasta = preferences.avoidOpponentCanastaDiscards && opponentMelds.some((meld) => {
       const extendedTiles = [...meld.tiles, tile];
@@ -82,7 +86,7 @@ export function chooseDiscard(
         || (isCanasta(meld) && !isCleanMeld(meld) && isCleanMeld({ ...meld, tiles: extendedTiles }));
     });
     return (tile.kind === 'joker' ? 100 : tile.value === 2 ? 80 : 0)
-      + sameValue * 12 + sameRun * 8 - tilePoints(tile)
+      + sameValue * 12 + sameRun * 12 - tilePoints(tile)
       + (helpsOpponentCanasta ? 1000 : 0);
   };
   const candidates = hand.filter((tile) => tile.id !== excludedTileId);

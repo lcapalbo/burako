@@ -81,6 +81,15 @@ describe('descarte de la computadora', () => {
     assert.throws(() => chooseDiscard([one], one.id), /No hay una ficha legal para descartar/);
   });
 
+  it('conserva un #1 útil que puede seguir al #13 en una escalera', () => {
+    const blueThirteen = tile('computer-discard-run-blue-thirteen', 'blue', 13);
+    const blueOne = tile('computer-discard-run-blue-one', 'blue', 1);
+    const greenThirteen = tile('computer-discard-run-green-thirteen', 'green', 13);
+    const redFive = tile('computer-discard-run-red-five', 'red', 5);
+
+    assert.equal(chooseDiscard([blueThirteen, blueOne, greenThirteen, redFive]).id, redFive.id);
+  });
+
   it('evita descartar la ficha que completaría una canasta rival si tiene esa preferencia', () => {
     const eight = tile('opponent-canasta-eighth', 'red', 8);
     const five = tile('opponent-canasta-safe-five', 'green', 5);
