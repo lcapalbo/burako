@@ -54,6 +54,22 @@ describe('búsqueda de juegos', () => {
     }
   });
 
+  it('conserva combinaciones válidas al podar grupos incompatibles', () => {
+    const hands = [
+      [tile('prune-red-four', 'red', 4), tile('prune-blue-four', 'blue', 4), tile('prune-blue-five', 'blue', 5), tile('prune-green-five', 'green', 5)],
+      [tile('prune-green-two', 'green', 2), tile('prune-green-three', 'green', 3), tile('prune-green-four', 'green', 4), tile('prune-red-two', 'red', 2)],
+      [tile('prune-red-thirteen', 'red', 13), tile('prune-red-one-a', 'red', 1), tile('prune-red-one-b', 'red', 1), tile('prune-red-two-a', 'red', 2)],
+      [tile('prune-leg-two-red', 'red', 2), tile('prune-leg-two-blue', 'blue', 2), tile('prune-leg-two-green', 'green', 2)],
+      [tile('prune-red-eight', 'red', 8), tile('prune-blue-eight', 'blue', 8), tile('prune-joker', null, 0, 'joker')],
+    ];
+
+    for (const hand of hands) {
+      const expected = exhaustiveBestMeld(hand)?.map((item) => item.id) ?? null;
+      const actual = findBestMeld(hand)?.map((item) => item.id) ?? null;
+      assert.deepEqual(actual, expected);
+    }
+  });
+
   it('prefiere piernas cuando la personalidad así lo indica', () => {
     const hand = [
       tile('personality-run-five', 'red', 5),
@@ -1242,6 +1258,20 @@ describe('turnos de la computadora', () => {
     const next = runComputerTurn(dataState, dataProfile.preferences, () => 0.99);
 
     assert.equal(next.phase, 'round-over');
+    assert.equal(next.melds[0].tiles.length, 7);
+  });
+
+  it('reconoce una canasta de escalera con vuelta del #1 al evaluar el cierre', () => {
+    const state = computerState({
+      hand: [8, 9, 10, 11, 12, 13, 1].map((value) => tile(`computer-run-canasta-${value}`, 'green', value)),
+      deadTaken: true,
+      phase: 'play',
+    });
+
+    const next = runComputerTurn(state, { ...DEFAULT_AI_PREFERENCES, layMeldProbability: 0 });
+
+    assert.equal(next.phase, 'round-over');
+    assert.equal(next.melds[0].kind, 'run');
     assert.equal(next.melds[0].tiles.length, 7);
   });
 

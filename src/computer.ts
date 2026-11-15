@@ -1,4 +1,5 @@
 import {
+  COLORS,
   addToMeld,
   discardTile,
   drawFromStock,
@@ -24,43 +25,180 @@ const MAX_MELD_CANDIDATE_SIZE = 4;
 const RUN_SEQUENCE_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1];
 
 function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
-  return selected.every((tile) => isWild(tile) || isWild(candidate) || tile.value === candidate.value || tile.color === candidate.color);
+  let legValue: number | null = null;
+  let legHasNatural = false;
+  let legWilds = 0;
+  let legIsPossible = true;
+  let runColor: Tile['color'] | undefined;
+  let runIsPossible = selected.length + 1 <= RUN_SEQUENCE_VALUES.length;
+  let runValues = 0;
+  let runOnes = 0;
+  let twos = 0;
+  let coloredTwos = 0;
+  let jokers = 0;
+  const tiles = [...selected, candidate];
+
+  for (const tile of tiles) {
+    if (tile.kind === 'joker') {
+      legWilds += 1;
+      jokers += 1;
+      continue;
+    }
+
+    if (tile.value === 2) {
+      twos += 1;
+      if (tile.color !== null) coloredTwos += 1;
+      continue;
+    }
+
+    if (tile.color === null || tile.value < 1 || tile.value > 13) {
+      legIsPossible = false;
+      runIsPossible = false;
+      continue;
+    }
+
+    if (legValue === null) {
+      legValue = tile.value;
+    } else if (legValue !== tile.value) {
+      legIsPossible = false;
+    }
+    legHasNatural = true;
+
+    if (runColor === undefined) {
+      runColor = tile.color;
+    } else if (runColor !== tile.color) {
+      runIsPossible = false;
+    }
+    if (tile.value === 1) {
+      runOnes += 1;
+      if (runOnes > 2) runIsPossible = false;
+    } else {
+      const valueBit = 1 << tile.value;
+      if ((runValues & valueBit) !== 0) runIsPossible = false;
+      runValues |= valueBit;
+    }
+  }
+
+  legWilds += legHasNatural ? twos : twos - coloredTwos;
+  legIsPossible = legIsPossible && legWilds <= 1;
+  if (!legHasNatural && jokers > 1) legIsPossible = false;
+
+  const naturalTwoCount = runColor === undefined
+    ? Number(coloredTwos > 0)
+    : Number(tiles.some((tile) =>
+      tile.kind === 'number' && tile.value === 2 && tile.color === runColor));
+  runIsPossible = runIsPossible && jokers + twos - naturalTwoCount <= 1;
+
+  return legIsPossible || runIsPossible;
 }
 
 function canMeldHandCompletely(hand: Tile[], requireCanasta = false): boolean {
+  if (requireCanasta && !canFormCanastaFromHand(hand)) return false;
+
+  const tileMasks = hand.map((_, index) => 1n << BigInt(index));
+  const meldKinds = new Map<bigint, ReturnType<typeof getMeldKind>>();
+  const meldSupport = hand.map(() => 0);
+  for (let first = 0; first < hand.length - 2; first += 1) {
+    for (let second = first + 1; second < hand.length - 1; second += 1) {
+      for (let third = second + 1; third < hand.length; third += 1) {
+        const tiles = [hand[first], hand[second], hand[third]];
+        if (!canStillFormMeld(tiles.slice(0, 2), tiles[2])) continue;
+        const kind = getMeldKind(tiles);
+        const mask = tileMasks[first] | tileMasks[second] | tileMasks[third];
+        meldKinds.set(mask, kind);
+        if (kind) {
+          meldSupport[first] += 1;
+          meldSupport[second] += 1;
+          meldSupport[third] += 1;
+        }
+      }
+    }
+  }
+  if (meldSupport.some((count) => count === 0)) return false;
+
   const results = new Map<string, boolean>();
-  const canMeldRemaining = (remaining: Tile[], hasCanasta: boolean): boolean => {
-    if (remaining.length === 0) return !requireCanasta || hasCanasta;
-    const key = `${hasCanasta ? 1 : 0}|${remaining.map((tile) => tile.id).sort().join('|')}`;
+  const canMeldRemaining = (remainingMask: bigint, hasCanasta: boolean): boolean => {
+    if (remainingMask === 0n) return !requireCanasta || hasCanasta;
+    const key = `${hasCanasta ? 1 : 0}|${remainingMask}`;
     const cached = results.get(key);
     if (cached !== undefined) return cached;
 
-    const selected = [remaining[0]];
-    const search = (start: number): boolean => {
-      if (selected.length >= 3 && getMeldKind(selected)) {
-        const selectedIds = new Set(selected.map((tile) => tile.id));
-        if (canMeldRemaining(
-          remaining.filter((tile) => !selectedIds.has(tile.id)),
-          hasCanasta || selected.length >= 7,
-        )) return true;
+    let anchorIndex = -1;
+    let anchorSupport = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < hand.length; index += 1) {
+      if ((remainingMask & tileMasks[index]) === 0n) continue;
+      if (meldSupport[index] < anchorSupport) {
+        anchorIndex = index;
+        anchorSupport = meldSupport[index];
       }
-      for (let index = start; index < remaining.length; index += 1) {
-        const tile = remaining[index];
+    }
+
+    const selected = [hand[anchorIndex]];
+    const search = (start: number, selectedMask: bigint): boolean => {
+      if (selected.length >= 3) {
+        let kind: ReturnType<typeof getMeldKind>;
+        if (meldKinds.has(selectedMask)) {
+          kind = meldKinds.get(selectedMask) ?? null;
+        } else {
+          kind = getMeldKind(selected);
+          meldKinds.set(selectedMask, kind);
+        }
+        if (
+          kind &&
+          canMeldRemaining(
+            remainingMask ^ selectedMask,
+            hasCanasta || selected.length >= 7,
+          )
+        ) return true;
+      }
+      for (let index = start; index < hand.length; index += 1) {
+        if (index === anchorIndex || (remainingMask & tileMasks[index]) === 0n) continue;
+        const tile = hand[index];
         if (!canStillFormMeld(selected, tile)) continue;
         selected.push(tile);
-        const canFinish = search(index + 1);
+        const canFinish = search(index + 1, selectedMask | tileMasks[index]);
         selected.pop();
         if (canFinish) return true;
       }
       return false;
     };
 
-    const canFinish = search(1);
+    const canFinish = search(0, tileMasks[anchorIndex]);
     results.set(key, canFinish);
     return canFinish;
   };
 
-  return canMeldRemaining(hand, false);
+  return canMeldRemaining((1n << BigInt(hand.length)) - 1n, false);
+}
+
+function canFormCanastaFromHand(hand: Tile[]): boolean {
+  for (let value = 1; value <= 13; value += 1) {
+    const naturalCount = hand.filter((tile) =>
+      tile.kind === 'number' && tile.value === value && tile.color !== null).length;
+    const wildCount = hand.filter((tile) =>
+      tile.kind === 'joker'
+      || (tile.kind === 'number' && tile.value === 2 && (value !== 2 || tile.color === null))).length;
+    if (naturalCount >= 7 || (naturalCount >= 6 && wildCount > 0)) return true;
+  }
+
+  for (const color of COLORS) {
+    for (let start = 0; start <= RUN_SEQUENCE_VALUES.length - 7; start += 1) {
+      const positions = RUN_SEQUENCE_VALUES.slice(start, start + 7);
+      let missing = 0;
+      for (const value of positions) {
+        if (!hand.some((tile) => tile.kind === 'number' && tile.color === color && tile.value === value)) {
+          missing += 1;
+        }
+      }
+      if (missing > 1) continue;
+
+      const naturalTwoCount = Number(positions.includes(2)
+        && hand.some((tile) => tile.kind === 'number' && tile.color === color && tile.value === 2));
+      const wildCount = hand.filter((tile) => isWild(tile)).length - naturalTwoCount;
+      if (missing === 0 || wildCount > 0) return true;
+    }
+  }
+  return false;
 }
 
 export function findBestMeld(

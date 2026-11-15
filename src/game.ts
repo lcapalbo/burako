@@ -68,30 +68,41 @@ function orderRunTiles(tiles: Tile[], allowWilds = true): Tile[] | null {
   for (const color of COLORS) {
     for (let start = 0; start <= RUN_VALUES.length - tiles.length; start += 1) {
       const positions = RUN_VALUES.slice(start, start + tiles.length);
-      const used = new Set<string>();
-      const ordered: Tile[] = [];
-      const assign = (index: number, wilds: number): boolean => {
-        if (index === positions.length) return true;
-        const value = positions[index];
-        for (const tile of tiles) {
-          if (used.has(tile.id)) continue;
-          const natural = tile.kind === 'number' && tile.color === color && tile.value === value;
-          if (natural) {
-            used.add(tile.id);
-            ordered[index] = tile;
-            if (assign(index + 1, wilds)) return true;
-            used.delete(tile.id);
-          }
-          if (!natural && allowWilds && isWild(tile) && wilds < 1) {
-            used.add(tile.id);
-            ordered[index] = tile;
-            if (assign(index + 1, wilds + 1)) return true;
-            used.delete(tile.id);
-          }
+      const positionCounts = new Map<number, number>();
+      for (const value of positions) {
+        positionCounts.set(value, (positionCounts.get(value) ?? 0) + 1);
+      }
+
+      const naturalTiles = new Map<number, Tile[]>();
+      const wildTiles: Tile[] = [];
+      let valid = true;
+      for (const tile of tiles) {
+        const matchingPositions = positionCounts.get(tile.value) ?? 0;
+        const matchedTiles = naturalTiles.get(tile.value) ?? [];
+        if (tile.kind === 'number' && tile.color === color && matchedTiles.length < matchingPositions) {
+          matchedTiles.push(tile);
+          naturalTiles.set(tile.value, matchedTiles);
+        } else if (allowWilds && isWild(tile) && wildTiles.length === 0) {
+          wildTiles.push(tile);
+        } else {
+          valid = false;
+          break;
         }
-        return false;
-      };
-      if (assign(0, 0)) return ordered;
+      }
+      if (!valid) continue;
+
+      const ordered: Tile[] = [];
+      for (const value of positions) {
+        const natural = naturalTiles.get(value)?.pop();
+        const wild = natural ? undefined : wildTiles.pop();
+        const tile = natural ?? wild;
+        if (!tile) {
+          valid = false;
+          break;
+        }
+        ordered.push(tile);
+      }
+      if (valid) return ordered;
     }
   }
   return null;
