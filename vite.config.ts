@@ -34,6 +34,7 @@ export default defineConfig(({ command }) => ({
         ],
       },
       workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
         navigateFallback: 'index.html',
         navigateFallbackAllowlist: [/^\/burako\/$/],
       },

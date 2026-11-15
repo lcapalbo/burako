@@ -9,7 +9,7 @@ La aplicación se publica como sitio estático bajo `/burako/`, no requiere back
 
 ## Decisión
 
-Convertir la aplicación en una PWA con un manifiesto, iconos y un service worker generado por Vite. El service worker precachea el shell y los recursos de producción para habilitar el uso sin conexión. Las actualizaciones se descargan automáticamente y esperan a que se cierre la versión activa para no interrumpir una partida.
+Convertir la aplicación en una PWA con un manifiesto, iconos y un service worker generado por Vite. El service worker precachea el shell y todos los recursos de producción (incluidos los SVG y las imágenes estáticas) para habilitar el uso sin conexión. Las rutas de recursos estáticos respetan el prefijo de publicación `/burako/`. Las actualizaciones se descargan automáticamente y esperan a que se cierre la versión activa para no interrumpir una partida.
 
 ## Consecuencias
 

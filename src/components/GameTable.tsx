@@ -17,6 +17,9 @@ import { getAiProfileById } from '../aiProfiles';
 
 export type MeldDensity = 'normal' | 'compact' | 'minimum';
 
+const getPublicAssetPath = (path: string): string =>
+  `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
+
 type GameTableProps = {
   game: GameState;
   feltTableRef: RefObject<HTMLElement>;
@@ -132,7 +135,7 @@ export function GameTable({
           aria-expanded={showAvatarNames}
           onClick={onToggleAvatarNames}
         >
-          <img className="side-player-avatar" src={profile.avatar} alt="" aria-hidden="true" />
+          <img className="side-player-avatar" src={getPublicAssetPath(profile.avatar)} alt="" aria-hidden="true" />
           {showAvatarNames && <span className="avatar-tooltip">{player.name}</span>}
         </button>
         <div className="side-player-rack" data-animation-zone={`hand-${player.id}`} aria-label={`Fichas del atril de ${player.name}`}>
@@ -183,7 +186,7 @@ export function GameTable({
           aria-expanded={showAvatarNames}
           onClick={onToggleAvatarNames}
         >
-          <img className="top-player-avatar" src={topProfile.avatar} alt="" aria-hidden="true" />
+          <img className="top-player-avatar" src={getPublicAssetPath(topProfile.avatar)} alt="" aria-hidden="true" />
           {showAvatarNames && <span className="avatar-tooltip">{topPlayer.name}</span>}
         </button>
         <button
@@ -193,7 +196,7 @@ export function GameTable({
           aria-expanded={showAvatarNames}
           onClick={onToggleAvatarNames}
         >
-          <img className="bottom-player-avatar" src="/avatars/player.svg" alt="" aria-hidden="true" />
+          <img className="bottom-player-avatar" src={getPublicAssetPath('/avatars/player.svg')} alt="" aria-hidden="true" />
           {showAvatarNames && <span className="avatar-tooltip">Vos</span>}
         </button>
         <div className="meld-area">
