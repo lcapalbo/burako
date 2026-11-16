@@ -370,14 +370,38 @@ describe('turnos de la computadora', () => {
     assert.equal(avoidsPile[0].discard.length, 1);
     assert.equal(avoidsPile[0].players[1].hand.length, hand.length + 1);
     assert.equal(avoidsPile[0].stock.length, 0);
+  });
 
+  it('evita levantar el pozo ante un rival cerca de cortar si no tiene canasta', () => {
+    const opponentCanasta = {
+      id: 'near-cut-opponent-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) => tile(`near-cut-opponent-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 0,
+    };
     const ownCanasta = {
       id: 'near-cut-ai-existing-canasta',
       kind: 'leg',
       tiles: Array.from({ length: 7 }, (_, index) => tile(`near-cut-ai-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
       team: 1,
     };
-    const allowsPile = runComputerTurnSteps({ ...state, melds: [opponentCanasta, ownCanasta] });
+    const hand = [
+      tile('near-cut-ai-run-four', 'red', 4),
+      tile('near-cut-ai-run-six', 'red', 6),
+      tile('near-cut-ai-unmatched-one', 'blue', 1),
+      tile('near-cut-ai-unmatched-ten', 'yellow', 10),
+    ];
+    const discard = [tile('near-cut-ai-run-five-in-pile', 'red', 5)];
+    const stock = [tile('near-cut-ai-stock', 'green', 12)];
+    const state = computerState({
+      hand,
+      melds: [opponentCanasta, ownCanasta],
+      discard,
+      stock,
+      opponentHand: [tile('near-cut-opponent-one', 'green', 4), tile('near-cut-opponent-two', 'yellow', 9)],
+      opponentDeadTaken: true,
+    });
+    const allowsPile = runComputerTurnSteps(state);
 
     assert.equal(allowsPile[0].discard.length, 0);
     assert.equal(allowsPile[0].players[1].hand.length, hand.length + discard.length);
