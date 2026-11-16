@@ -319,7 +319,8 @@ export function chooseDiscard(
 function canCompleteWithDiscard(hand: Tile[], discard: Tile[], discardWindow: number): boolean {
   const discardTiles = discard.slice(-discardWindow);
   const discardIds = new Set(discardTiles.map((tile) => tile.id));
-  const candidates = [...hand, ...discardTiles];
+  const candidates = [...discardTiles, ...hand];
+  const firstHandTileId = hand[0]?.id;
   const selected: Tile[] = [];
   let canComplete = false;
 
@@ -333,6 +334,7 @@ function canCompleteWithDiscard(hand: Tile[], discard: Tile[], discardWindow: nu
     for (let index = start; index < candidates.length; index += 1) {
       const tile = candidates[index];
       if (!canStillFormMeld(selected, tile)) continue;
+      if (selected.length === 0 && candidates[index]?.id === firstHandTileId) break;
       selected.push(tile);
       search(index + 1);
       selected.pop();
