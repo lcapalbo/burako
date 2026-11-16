@@ -375,7 +375,7 @@ function canExtendMeldWithDiscard(state: GameState, playerId: number, discardWin
 
       for (let index = start; index < candidates.length; index += 1) {
         const tile = candidates[index];
-        if (!canStillFormMeld([...meld.tiles, ...selected], tile)) continue;
+        if (!canStillFormMeld([...selected, ...meld.tiles], tile)) continue;
         selected.push(tile);
         search(index + 1);
         selected.pop();
