@@ -433,6 +433,44 @@ describe('turnos de la computadora', () => {
     assert.equal(steps[0].players[1].hand.length, hand.length + discard.length);
   });
 
+  it('permite levantar el pozo si completa una canasta extendiendo un juego propio con fichas de la mano', () => {
+    const opponentCanasta = {
+      id: 'near-cut-extending-opponent-canasta',
+      kind: 'leg',
+      tiles: Array.from({ length: 7 }, (_, index) => tile(`near-cut-extending-opponent-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      team: 0,
+    };
+    const ownRun = {
+      id: 'near-cut-extending-own-run',
+      kind: 'run',
+      tiles: [3, 4, 5, 6, 7].map((value) => tile(`near-cut-extending-own-${value}`, 'red', value)),
+      team: 1,
+    };
+    const hand = [
+      tile('near-cut-extending-hand-eight', 'red', 8),
+      tile('near-cut-extending-hand-blue-four', 'blue', 4),
+      tile('near-cut-extending-hand-blue-five', 'blue', 5),
+      tile('near-cut-extending-hand-green-one', 'green', 1),
+    ];
+    const discard = [
+      tile('near-cut-extending-pile-nine', 'red', 9),
+      tile('near-cut-extending-pile-blue-six', 'blue', 6),
+    ];
+    const state = computerState({
+      hand,
+      melds: [opponentCanasta, ownRun],
+      discard,
+      stock: [tile('near-cut-extending-stock', 'yellow', 12)],
+      opponentHand: [tile('near-cut-extending-opponent-one', 'green', 4)],
+      opponentDeadTaken: true,
+    });
+
+    const steps = runComputerTurnSteps(state);
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.equal(steps[0].players[1].hand.length, hand.length + discard.length);
+  });
+
   it('puede retener combinaciones formadas según la probabilidad del perfil', () => {
     const hand = [
       tile('retain-run-three', 'red', 3),

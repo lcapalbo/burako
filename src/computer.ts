@@ -400,6 +400,7 @@ function canExtendMeldWithDiscardTiles(
   candidates: Tile[],
   count: number,
   isAllowed: (tiles: Tile[]) => boolean,
+  firstSelectionLimit = candidates.length,
 ): boolean {
   const selected: Tile[] = [];
   const search = (start: number): boolean => {
@@ -408,7 +409,8 @@ function canExtendMeldWithDiscardTiles(
       return getMeldKind(tiles) === meld.kind && isAllowed(tiles);
     }
 
-    for (let index = start; index < candidates.length; index += 1) {
+    const end = selected.length === 0 ? firstSelectionLimit : candidates.length;
+    for (let index = start; index < end; index += 1) {
       const tile = candidates[index];
       if (!canStillFormMeld([...meld.tiles, ...selected], tile)) continue;
       selected.push(tile);
@@ -434,6 +436,8 @@ function canExtendOpponentMeldToSize(meld: Meld, discardPile: Tile[], targetSize
 }
 
 function canFormMeldOfSizeWithDiscardTile(tiles: Tile[], size: number, discardIds: Set<string>): boolean {
+  const discardTiles = tiles.filter((tile) => discardIds.has(tile.id));
+  const candidates = [...discardTiles, ...tiles.filter((tile) => !discardIds.has(tile.id))];
   const selected: Tile[] = [];
   const search = (start: number): boolean => {
     if (selected.length === size) {
@@ -441,8 +445,9 @@ function canFormMeldOfSizeWithDiscardTile(tiles: Tile[], size: number, discardId
     }
     if (tiles.length - start < size - selected.length) return false;
 
-    for (let index = start; index < tiles.length; index += 1) {
-      const tile = tiles[index];
+    const end = selected.length === 0 ? discardTiles.length : candidates.length;
+    for (let index = start; index < end; index += 1) {
+      const tile = candidates[index];
       if (!canStillFormMeld(selected, tile)) continue;
       selected.push(tile);
       const canForm = search(index + 1);
@@ -457,7 +462,7 @@ function canFormMeldOfSizeWithDiscardTile(tiles: Tile[], size: number, discardId
 function canFormCanastaWithDiscard(state: GameState, playerId: number): boolean {
   const team = state.players[playerId].team;
   const discardIds = new Set(state.discard.map((tile) => tile.id));
-  const available = [...state.players[playerId].hand, ...state.discard];
+  const available = [...state.discard, ...state.players[playerId].hand];
   if (canFormMeldOfSizeWithDiscardTile(available, 7, discardIds)) return true;
 
   for (const meld of state.melds) {
@@ -465,8 +470,9 @@ function canFormCanastaWithDiscard(state: GameState, playerId: number): boolean 
     const needed = 7 - meld.tiles.length;
     if (needed <= 0) continue;
     const candidates = getCompatibleDiscardTiles(meld, available);
+    const firstSelectionLimit = candidates.filter((tile) => discardIds.has(tile.id)).length;
     if (canExtendMeldWithDiscardTiles(meld, candidates, needed, (tiles) =>
-      tiles.some((tile) => discardIds.has(tile.id)) && isCanasta({ ...meld, tiles }))) {
+      tiles.some((tile) => discardIds.has(tile.id)) && isCanasta({ ...meld, tiles }), firstSelectionLimit)) {
       return true;
     }
   }
