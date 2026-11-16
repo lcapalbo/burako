@@ -36,7 +36,7 @@ function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
   let twos = 0;
   let coloredTwos = 0;
   let jokers = 0;
-  const tiles = [...selected, candidate];
+  const tiles = [candidate, ...selected];
 
   for (const tile of tiles) {
     if (tile.kind === 'joker') {
@@ -54,7 +54,7 @@ function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
     if (tile.color === null || tile.value < 1 || tile.value > 13) {
       legIsPossible = false;
       runIsPossible = false;
-      continue;
+      return false;
     }
 
     if (legValue === null) {
@@ -77,6 +77,7 @@ function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
       if ((runValues & valueBit) !== 0) runIsPossible = false;
       runValues |= valueBit;
     }
+    if (!legIsPossible && !runIsPossible) return false;
   }
 
   legWilds += legHasNatural ? twos : twos - coloredTwos;

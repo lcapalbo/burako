@@ -61,6 +61,8 @@ describe('búsqueda de juegos', () => {
       [tile('prune-red-thirteen', 'red', 13), tile('prune-red-one-a', 'red', 1), tile('prune-red-one-b', 'red', 1), tile('prune-red-two-a', 'red', 2)],
       [tile('prune-leg-two-red', 'red', 2), tile('prune-leg-two-blue', 'blue', 2), tile('prune-leg-two-green', 'green', 2)],
       [tile('prune-red-eight', 'red', 8), tile('prune-blue-eight', 'blue', 8), tile('prune-joker', null, 0, 'joker')],
+      [tile('prune-run-two', 'red', 2), tile('prune-run-three', 'red', 3), tile('prune-run-four', 'red', 4), tile('prune-run-joker', null, 0, 'joker')],
+      [tile('prune-leg-eight-red', 'red', 8), tile('prune-leg-eight-blue', 'blue', 8), tile('prune-leg-eight-green', 'green', 8), tile('prune-leg-eight-wild-two', 'yellow', 2)],
     ];
 
     for (const hand of hands) {
