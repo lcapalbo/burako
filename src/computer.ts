@@ -320,7 +320,6 @@ function canCompleteWithDiscard(hand: Tile[], discard: Tile[], discardWindow: nu
   const discardTiles = discard.slice(-discardWindow);
   const discardIds = new Set(discardTiles.map((tile) => tile.id));
   const candidates = [...discardTiles, ...hand];
-  const firstHandTileId = hand[0]?.id;
   const selected: Tile[] = [];
   let canComplete = false;
 
@@ -331,10 +330,10 @@ function canCompleteWithDiscard(hand: Tile[], discard: Tile[], discardWindow: nu
     }
     if (canComplete || selected.length === MAX_MELD_CANDIDATE_SIZE) return;
 
-    for (let index = start; index < candidates.length; index += 1) {
+    const end = selected.length === 0 ? discardTiles.length : candidates.length;
+    for (let index = start; index < end; index += 1) {
       const tile = candidates[index];
       if (!canStillFormMeld(selected, tile)) continue;
-      if (selected.length === 0 && candidates[index]?.id === firstHandTileId) break;
       selected.push(tile);
       search(index + 1);
       selected.pop();
