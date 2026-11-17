@@ -23,6 +23,14 @@ import { DEFAULT_AI_PREFERENCES, type AiPreferences } from './aiProfiles.js';
 const MAX_DISCARD_TILES_TO_EVALUATE = 20;
 const MAX_MELD_CANDIDATE_SIZE = 4;
 const RUN_SEQUENCE_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1];
+const MELD_VALUE_PER_TILE = 10;
+const MELD_WILD_TILE_PENALTY = 12;
+const UNUSED_DISCARD_TILE_PENALTY = 4;
+const MIN_DISCARD_MELD_VALUE = 15;
+const MIN_DISCARD_MELD_ADVANTAGE = 5;
+const DISCARD_JOKER_VALUE = 50;
+const DISCARD_WILD_TWO_VALUE = 20;
+const MIN_DISCARD_WILD_GAIN = 12;
 
 function canStillFormMeld(selected: Tile[], candidate: Tile): boolean {
   let legValue: number | null = null;
@@ -317,33 +325,62 @@ export function chooseDiscard(
   return discard;
 }
 
-function canCompleteWithDiscard(hand: Tile[], discard: Tile[], discardWindow: number): boolean {
-  const discardTiles = discard.slice(-discardWindow);
-  const discardIds = new Set(discardTiles.map((tile) => tile.id));
-  const candidates = [...discardTiles, ...hand];
+type MeldPlan = { tiles: Tile[]; value: number };
+
+function getMeldValue(
+  tiles: Tile[],
+  preferences: AiPreferences,
+  kind: ReturnType<typeof getMeldKind> = getMeldKind(tiles),
+  penalizedWildTileIds?: Set<string>,
+): number {
+  if (!kind) return Number.NEGATIVE_INFINITY;
+  const preferenceBonus = preferences.preferredMeldKind === 'none' || kind === preferences.preferredMeldKind
+    ? preferences.meldKindPreferenceBonus
+    : 0;
+  return tiles.length * MELD_VALUE_PER_TILE
+    + (tiles.length >= 7 ? 100 : 0)
+    + preferenceBonus
+    - tiles.filter((tile) =>
+      isWild(tile) && (!penalizedWildTileIds || penalizedWildTileIds.has(tile.id))).length * MELD_WILD_TILE_PENALTY;
+}
+
+function findBestMeldPlan(
+  hand: Tile[],
+  isAllowed: (tiles: Tile[]) => boolean,
+  preferences: AiPreferences,
+  requiredTileIds?: Set<string>,
+  discardTiles?: Tile[],
+  penalizedWildTileIds?: Set<string>,
+): MeldPlan | null {
+  let best: MeldPlan | null = null;
   const selected: Tile[] = [];
-  let canComplete = false;
-
   const search = (start: number): void => {
-    if (selected.length >= 3 && selected.some((tile) => discardIds.has(tile.id)) && getMeldKind(selected)) {
-      canComplete = true;
-      return;
+    const kind = selected.length >= 3 ? getMeldKind(selected) : null;
+    if (
+      kind
+      && (!requiredTileIds || selected.some((tile) => requiredTileIds.has(tile.id)))
+      && isAllowed(selected)
+    ) {
+      const selectedIds = new Set(selected.map((tile) => tile.id));
+      const unusedDiscardCount = requiredTileIds
+        ? (discardTiles ?? []).filter((tile) =>
+          !isWild(tile) && !selectedIds.has(tile.id)).length
+        : 0;
+      const value = getMeldValue(selected, preferences, kind, penalizedWildTileIds)
+        - unusedDiscardCount * UNUSED_DISCARD_TILE_PENALTY;
+      if (!best || value > best.value) best = { tiles: [...selected], value };
     }
-    if (canComplete || selected.length === MAX_MELD_CANDIDATE_SIZE) return;
-
-    const end = selected.length === 0 ? discardTiles.length : candidates.length;
-    for (let index = start; index < end; index += 1) {
-      const tile = candidates[index];
+    if (selected.length === MAX_MELD_CANDIDATE_SIZE) return;
+    for (let index = start; index < hand.length; index += 1) {
+      const tile = hand[index];
       if (!canStillFormMeld(selected, tile)) continue;
       selected.push(tile);
       search(index + 1);
       selected.pop();
-      if (canComplete) return;
     }
   };
-
   search(0);
-  return canComplete;
+  return best;
 }
 
 function canExtendMeldWithDiscard(state: GameState, playerId: number, discardWindow: number): boolean {
@@ -385,6 +422,29 @@ function canExtendMeldWithDiscard(state: GameState, playerId: number, discardWin
 
     search(0);
     if (canExtend) return true;
+  }
+  return false;
+}
+
+function canCompleteExistingCanastaFromDiscard(
+  state: GameState,
+  lifted: GameState,
+  playerId: number,
+  discardWindow: number,
+): boolean {
+  const team = state.players[playerId].team;
+  if (state.melds.some((meld) => meld.team === team && isCanasta(meld))) return false;
+  const discardIds = new Set(state.discard.slice(-discardWindow).map((tile) => tile.id));
+  const discardTilesInHand = lifted.players[playerId].hand.filter((tile) => discardIds.has(tile.id));
+
+  for (const meld of state.melds) {
+    if (meld.team !== team || meld.tiles.length !== 6) continue;
+    for (const tile of discardTilesInHand) {
+      if (
+        getMeldKind([...meld.tiles, tile]) === meld.kind
+        && tryRuleAction(() => addToMeld(lifted, playerId, meld.id, [tile.id]))
+      ) return true;
+    }
   }
   return false;
 }
@@ -672,6 +732,39 @@ function tryRuleAction(action: () => GameState): GameState | null {
   }
 }
 
+function getAllowedComputerMeld(
+  state: GameState,
+  playerId: number,
+  tiles: Tile[],
+  hasGuaranteedDeadTakingSequence: boolean,
+  hasGuaranteedRoundClosingSequence: boolean,
+): GameState | null {
+  const candidate = tryRuleAction(() => layMeld(state, playerId, tiles.map((tile) => tile.id)));
+  if (!candidate || leavesOnlyRestrictedTile(candidate, playerId)) return null;
+  if (
+    hasGuaranteedDeadTakingSequence
+    && candidate.phase !== 'round-over'
+    && candidate.phase !== 'match-over'
+    && !wildActionTakesDead(state, candidate, playerId)
+    && !canTakeDeadAfterMeldSequence(state, candidate, playerId)
+  ) return null;
+  if (
+    hasGuaranteedRoundClosingSequence
+    && candidate.phase !== 'round-over'
+    && candidate.phase !== 'match-over'
+    && !canCloseAfterMeldSequence(candidate, playerId)
+  ) return null;
+  if (
+    tiles.some(isWild)
+    && !meldActionClosesRound(candidate, playerId)
+    && !wildActionTakesDead(state, candidate, playerId)
+    && !canTakeDeadAfterMeldSequence(state, candidate, playerId)
+    && !canCloseAfterMeldSequence(candidate, playerId)
+    && !canLayPairsRunWithWild(state, candidate)
+  ) return null;
+  return candidate;
+}
+
 function leavesOnlyRestrictedTile(state: GameState, playerId: number): boolean {
   if (state.phase !== 'play' || state.currentPlayer !== playerId || state.players[playerId].hand.length !== 1) return false;
   return state.players[playerId].hand[0].id === state.restrictedDiscardTileId;
@@ -700,25 +793,114 @@ export function runComputerTurnSteps(
   const canEvaluateDiscard = next.phase === 'draw'
     && canLift
     && next.discard.length <= MAX_DISCARD_TILES_TO_EVALUATE;
-  const completesMeldFromDiscard = canEvaluateDiscard
-    && canCompleteWithDiscard(hand, next.discard, discardWindow);
   const liftedForDead = canEvaluateDiscard
     ? tryRuleAction(() => takeDiscardPile(next, playerId))
     : null;
   const canTakeDeadFromDiscard = liftedForDead !== null
     && canTakeDeadAfterMeldSequence(liftedForDead, liftedForDead, playerId);
+  const canCompleteOwnCanastaFromDiscard = liftedForDead !== null
+    && canCompleteExistingCanastaFromDiscard(next, liftedForDead, playerId, discardWindow);
   const opponentPlayers = next.players.filter((otherPlayer) => otherPlayer.team !== team);
   const opponentMelds = next.melds.filter((meld) => meld.team !== team);
   const opponentNearCut = isOpponentNearCut(opponentMelds, opponentPlayers);
   const ownTeamHasCanasta = next.melds.some((meld) => meld.team === team && isCanasta(meld));
-  const shouldAvoidDiscardPile = canEvaluateDiscard && opponentNearCut && !ownTeamHasCanasta
-    && !canFormCanastaWithDiscard(next, playerId);
-  const shouldEvaluateOwnMelds = canEvaluateDiscard && !shouldAvoidDiscardPile && !completesMeldFromDiscard
+  const canFormCanastaToAvoidCut = canEvaluateDiscard
+    && opponentNearCut
+    && !ownTeamHasCanasta
+    && canFormCanastaWithDiscard(next, playerId);
+  const shouldAvoidDiscardPile = canEvaluateDiscard
+    && opponentNearCut
+    && !ownTeamHasCanasta
+    && !canFormCanastaToAvoidCut;
+  const discardTiles = next.discard.slice(-discardWindow);
+  const discardTileIds = new Set(discardTiles.map((tile) => tile.id));
+  const discardWildTileIds = new Set(discardTiles.filter(isWild).map((tile) => tile.id));
+  const handTileIds = new Set(hand.map((tile) => tile.id));
+  const discardWildGain = next.discard.reduce((value, tile) =>
+    value + (tile.kind === 'joker'
+      ? DISCARD_JOKER_VALUE
+      : tile.value === 2 ? DISCARD_WILD_TWO_VALUE : -UNUSED_DISCARD_TILE_PENALTY), 0);
+  const canLayOnLiftedHand = (tiles: Tile[]) => liftedForDead !== null
+    && tryRuleAction(() => layMeld(liftedForDead, playerId, tiles.map((tile) => tile.id))) !== null;
+  const candidateMeldPlan = canEvaluateDiscard && liftedForDead
+    ? findBestMeldPlan(
+      [...hand, ...discardTiles],
+      canLayOnLiftedHand,
+      preferences,
+      discardTileIds,
+      next.discard,
+      handTileIds,
+    )
+    : null;
+  const candidateWildMeldPlan = canEvaluateDiscard && liftedForDead && discardWildTileIds.size > 0
+    ? findBestMeldPlan(
+      [...hand, ...discardTiles],
+      canLayOnLiftedHand,
+      preferences,
+      discardWildTileIds,
+      next.discard,
+      handTileIds,
+    )
+    : null;
+  const canGainValuableWildFromDiscard = canEvaluateDiscard
+    && discardWildGain >= MIN_DISCARD_WILD_GAIN
+    && candidateWildMeldPlan !== null;
+  const handMeldPlan = canEvaluateDiscard && liftedForDead
+    ? findBestMeldPlan(hand, canLayOnLiftedHand, preferences)
+    : null;
+  const longerHandMeld = canEvaluateDiscard && liftedForDead
+    ? findBestMeld(hand, canLayOnLiftedHand, preferences)
+    : null;
+  const canCloseAfterLift = candidateMeldPlan !== null
+    && liftedForDead !== null
+    && canCloseAfterMeldSequence(liftedForDead, playerId);
+  const canCloseOnlyAfterLift = canCloseAfterLift
+    && !canCloseAfterMeldSequence(next, playerId);
+  const bestHandMeldValue = Math.max(
+    handMeldPlan?.value ?? Number.NEGATIVE_INFINITY,
+    longerHandMeld && longerHandMeld.length > MAX_MELD_CANDIDATE_SIZE
+      ? getMeldValue(longerHandMeld, preferences)
+      : Number.NEGATIVE_INFINITY,
+  );
+  const canCompleteWorthwhileMeld = candidateMeldPlan !== null
+    && liftedForDead !== null
+    && candidateMeldPlan.value >= MIN_DISCARD_MELD_VALUE
+    && (
+      bestHandMeldValue === Number.NEGATIVE_INFINITY
+      || candidateMeldPlan.value >= bestHandMeldValue + MIN_DISCARD_MELD_ADVANTAGE
+    )
+    && getAllowedComputerMeld(
+      liftedForDead,
+      playerId,
+      candidateMeldPlan.tiles,
+      canTakeDeadFromDiscard,
+      canCloseAfterLift,
+    ) !== null;
+  const shouldEvaluateOwnMelds = canEvaluateDiscard
+    && !shouldAvoidDiscardPile
+    && !canCompleteWorthwhileMeld
+    && !canCompleteOwnCanastaFromDiscard
+    && !canGainValuableWildFromDiscard
     && (preferences.ownMeldDiscardPileEvaluationProbability >= 1
       || (preferences.ownMeldDiscardPileEvaluationProbability > 0
         && random() < preferences.ownMeldDiscardPileEvaluationProbability));
-  const shouldLift = !shouldAvoidDiscardPile && (canTakeDeadFromDiscard || completesMeldFromDiscard
+  const shouldLift = !shouldAvoidDiscardPile && (
+    canTakeDeadFromDiscard
+    || canCompleteOwnCanastaFromDiscard
+    || canFormCanastaToAvoidCut
+    || canCloseOnlyAfterLift
+    || canCompleteWorthwhileMeld
+    || canGainValuableWildFromDiscard
     || (shouldEvaluateOwnMelds && canExtendMeldWithDiscard(next, playerId, discardWindow)));
+  let plannedDiscardMeld = shouldLift
+    && canCompleteWorthwhileMeld
+    && !canTakeDeadFromDiscard
+    && !canCompleteOwnCanastaFromDiscard
+    && !canCloseOnlyAfterLift
+    && !canCloseAfterLift
+    && !canFormCanastaToAvoidCut
+    ? candidateMeldPlan?.tiles ?? null
+    : null;
 
   if (next.phase === 'draw') {
     if (next.stock.length === 0) {
@@ -747,6 +929,32 @@ export function runComputerTurnSteps(
     const currentHand = next.players[playerId].hand;
     const ownMelds = next.melds.filter((meld) => meld.team === team);
     const hasGuaranteedDeadTakingSequence = canTakeDeadAfterMeldSequence(next, next, playerId);
+    const hasGuaranteedRoundClosingSequence = canCloseAfterMeldSequence(next, playerId);
+    const hasGuaranteedMeldSequence = hasGuaranteedDeadTakingSequence || hasGuaranteedRoundClosingSequence;
+    if (plannedDiscardMeld) {
+      const tilesToPlay = plannedDiscardMeld;
+      const plannedCandidate = tilesToPlay.every((tile) =>
+        currentHand.some((handTile) => handTile.id === tile.id))
+        ? getAllowedComputerMeld(
+          next,
+          playerId,
+          tilesToPlay,
+          hasGuaranteedDeadTakingSequence,
+          hasGuaranteedRoundClosingSequence,
+        )
+        : null;
+      plannedDiscardMeld = null;
+      if (plannedCandidate) {
+        next = plannedCandidate;
+        steps.push(next);
+        logGameDebug('computer:meld-decision', {
+          action: 'bajar-juego-del-pozo',
+          tileIds: tilesToPlay.map((tile) => tile.id),
+        });
+        logGameDebug('computer:step-applied', { action: 'bajar-juego-del-pozo', state: summarizeGameState(next) });
+        continue;
+      }
+    }
     const prioritizeDeadTakingWilds = hasGuaranteedDeadTakingSequence && currentHand.some(isWild);
     const extendMelds = (
       meldsToTry: Meld[],
@@ -838,28 +1046,13 @@ export function runComputerTurnSteps(
       continue;
     }
 
-    const hasGuaranteedRoundClosingSequence = canCloseAfterMeldSequence(next, playerId);
-    const hasGuaranteedMeldSequence = hasGuaranteedDeadTakingSequence || hasGuaranteedRoundClosingSequence;
-    const isAllowedMeld = (tiles: Tile[]) => {
-      const candidate = tryRuleAction(() => layMeld(next, playerId, tiles.map((tile) => tile.id)));
-      return candidate !== null
-        && !leavesOnlyRestrictedTile(candidate, playerId)
-        && (!hasGuaranteedDeadTakingSequence
-          || candidate.phase === 'round-over'
-          || candidate.phase === 'match-over'
-          || wildActionTakesDead(next, candidate, playerId)
-          || canTakeDeadAfterMeldSequence(next, candidate, playerId))
-        && (!hasGuaranteedRoundClosingSequence
-          || candidate.phase === 'round-over'
-          || candidate.phase === 'match-over'
-          || canCloseAfterMeldSequence(candidate, playerId))
-        && (!tiles.some(isWild)
-          || meldActionClosesRound(candidate, playerId)
-          || wildActionTakesDead(next, candidate, playerId)
-          || canTakeDeadAfterMeldSequence(next, candidate, playerId)
-          || canCloseAfterMeldSequence(candidate, playerId)
-          || canLayPairsRunWithWild(next, candidate));
-    };
+    const isAllowedMeld = (tiles: Tile[]) => getAllowedComputerMeld(
+      next,
+      playerId,
+      tiles,
+      hasGuaranteedDeadTakingSequence,
+      hasGuaranteedRoundClosingSequence,
+    ) !== null;
     if (
       !hasGuaranteedMeldSequence
       && retainedForManipulation === null

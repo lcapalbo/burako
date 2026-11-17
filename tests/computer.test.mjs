@@ -593,9 +593,9 @@ describe('turnos de la computadora', () => {
 
   it('puede ignorar probabilísticamente el valor de extender sus juegos al evaluar el pozo', () => {
     const meld = {
-      id: 'own-six-eights',
+      id: 'own-five-eights',
       kind: 'leg',
-      tiles: Array.from({ length: 6 }, (_, index) => tile(`own-six-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
+      tiles: Array.from({ length: 5 }, (_, index) => tile(`own-five-eight-${index}`, ['red', 'blue', 'green', 'yellow'][index % 4], 8)),
       team: 1,
     };
     const hand = [
@@ -637,7 +637,7 @@ describe('turnos de la computadora', () => {
     assert.ok(next.discard.some((item) => item.id === topDiscard.id));
   });
 
-  it('considera hasta veinte fichas superiores y puede formar un juego con dos del pozo y dos del atril', () => {
+  it('roba del montón si un pozo largo agrega más fichas de las que justifica el juego', () => {
     const hand = [
       tile('computer-run-five', 'green', 5),
       tile('computer-run-eight', 'green', 8),
@@ -655,11 +655,78 @@ describe('turnos de la computadora', () => {
 
     const steps = runComputerTurnSteps(state, DEFAULT_AI_PREFERENCES, () => 0);
 
-    assert.equal(steps[0].discard.length, 0);
-    assert.ok(steps.some((step) => step.melds.some((meld) => meld.tiles.length === 4)));
+    assert.equal(steps[0].discard.length, discard.length);
+    assert.equal(steps[0].players[1].hand.length, hand.length + 1);
+    assert.equal(steps[0].stock.length, 0);
   });
 
-  it('levanta el pozo por una combinación compatible y conserva el comodín', () => {
+  it('roba del montón si el pozo gasta un #2 que mejora juegos disponibles en la mano', () => {
+    const hand = [
+      tile('npc-blue-two', 'blue', 2),
+      tile('npc-blue-five', 'blue', 5),
+      tile('npc-yellow-thirteen', 'yellow', 13),
+      tile('npc-blue-three-a', 'blue', 3),
+      tile('npc-blue-one', 'blue', 1),
+      tile('npc-green-one', 'green', 1),
+      tile('npc-blue-three-b', 'blue', 3),
+      tile('npc-blue-six', 'blue', 6),
+      tile('npc-green-eight', 'green', 8),
+      tile('npc-blue-eight', 'blue', 8),
+      tile('npc-green-five', 'green', 5),
+    ];
+    const yellowTwelve = tile('npc-discard-yellow-twelve', 'yellow', 12);
+    const state = computerState({
+      hand,
+      discard: [tile('npc-discard-red-thirteen', 'red', 13), yellowTwelve],
+      stock: [tile('npc-stock', 'green', 3)],
+    });
+    const npcProfile = AI_PROFILES.find(({ id }) => id === 'npc');
+    state.players[1] = { ...state.players[1], aiProfileId: 'npc' };
+
+    const steps = runComputerTurnSteps(state, npcProfile.preferences, () => 0.25);
+
+    assert.equal(getMeldKind([yellowTwelve, hand[2], hand[0]]), 'run');
+    assert.equal(getMeldKind([hand[3], hand[0], hand[1], hand[7]]), 'run');
+    assert.equal(steps[0].discard.length, 2);
+    assert.equal(steps[0].players[1].hand.length, hand.length + 1);
+    assert.equal(steps[0].stock.length, 0);
+  });
+
+  it('levanta y juega el pozo cuando amplía claramente una pierna natural', () => {
+    const hand = [
+      tile('computer-lift-eight-red', 'red', 8),
+      tile('computer-lift-eight-blue', 'blue', 8),
+      tile('computer-lift-eight-green', 'green', 8),
+      tile('computer-lift-one-blue', 'blue', 1),
+      tile('computer-lift-four-yellow', 'yellow', 4),
+    ];
+    const fourthEight = tile('computer-lift-eight-yellow', 'yellow', 8);
+    const state = computerState({
+      hand,
+      discard: [fourthEight],
+      stock: [tile('computer-lift-stock', 'green', 10)],
+    });
+    const npcProfile = AI_PROFILES.find(({ id }) => id === 'npc');
+    state.players[1] = { ...state.players[1], aiProfileId: 'npc' };
+
+    const steps = runComputerTurnSteps(
+      state,
+      { ...npcProfile.preferences, layMeldProbability: 0 },
+      () => 0.99,
+    );
+    const playedMeld = steps.flatMap((step) => step.melds).find((meld) =>
+      meld.tiles.some((item) => item.id === fourthEight.id));
+
+    assert.equal(steps[0].discard.length, 0);
+    assert.deepEqual(playedMeld?.tiles.map((item) => item.id).sort(), [
+      'computer-lift-eight-blue',
+      'computer-lift-eight-green',
+      'computer-lift-eight-red',
+      'computer-lift-eight-yellow',
+    ]);
+  });
+
+  it('valora y conserva el comodín especial que gana al levantar el pozo', () => {
     const five = tile('computer-wild-run-five', 'green', 5);
     const six = tile('computer-wild-run-six', 'green', 6);
     const joker = tile('computer-wild-run-joker', null, 0, 'joker');
@@ -674,9 +741,10 @@ describe('turnos de la computadora', () => {
     const meld = steps.flatMap((step) => step.melds).find((candidate) => candidate.tiles.some((item) => item.id === joker.id));
 
     assert.equal(steps[0].discard.length, 0);
+    assert.equal(steps[0].stock.length, 1);
     assert.equal(meld, undefined);
+    assert.equal(steps[0].players[1].hand.length, 5);
     assert.ok(steps.at(-1).players[1].hand.some((item) => item.id === joker.id));
-    assert.ok(steps.at(-1).players[1].hand.some((item) => item.id === five.id));
     assert.ok(steps.at(-1).players[1].hand.some((item) => item.id === six.id));
   });
 
@@ -698,15 +766,15 @@ describe('turnos de la computadora', () => {
     assert.ok(steps.every((step) => step.melds.length === 0));
   });
 
-  it('levanta un pozo de hasta diez fichas si el juego está entre las fichas superiores', () => {
+  it('roba del montón si un juego pequeño no compensa levantar diez fichas', () => {
     const hand = [tile('computer-top-ten-hand-1', 'blue', 4), tile('computer-top-ten-hand-2', 'red', 9)];
     const discard = [
       tile('computer-top-ten-old-1', 'red', 1),
-      tile('computer-top-ten-old-2', 'blue', 4),
-      tile('computer-top-ten-old-3', 'green', 9),
+      tile('computer-top-ten-old-2', 'blue', 7),
+      tile('computer-top-ten-old-3', 'green', 11),
       tile('computer-top-ten-old-4', 'yellow', 3),
       tile('computer-top-ten-old-5', 'red', 6),
-      tile('computer-top-ten-old-6', 'blue', 8),
+      tile('computer-top-ten-old-6', 'blue', 10),
       tile('computer-top-ten-old-7', 'green', 12),
       tile('computer-top-ten-match-1', 'yellow', 8),
       tile('computer-top-ten-match-2', 'red', 8),
@@ -716,8 +784,9 @@ describe('turnos de la computadora', () => {
 
     const steps = runComputerTurnSteps(state);
 
-    assert.equal(steps[0].discard.length, 0);
-    assert.equal(steps[0].players[1].hand.length, 12);
+    assert.equal(steps[0].discard.length, discard.length);
+    assert.equal(steps[0].players[1].hand.length, hand.length + 1);
+    assert.equal(steps[0].stock.length, 0);
   });
 
   it('no evalúa pozos de más de veinte fichas', () => {
