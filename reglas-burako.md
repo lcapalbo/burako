@@ -59,8 +59,3 @@ Una combinación de 7 fichas o más es una **canasta**: **limpia** si no usa com
 (*) Si tomás el muerto de forma indirecta, sumás 100 puntos solo si jugás de nuevo antes del cierre. Si no, restás 100 puntos como si no hubieses tomado el muerto, e ignorás las fichas de tu atril (no restan sus puntajes).
 
 La pareja suma los puntos de sus fichas bajadas solo si tiene al menos una canasta. Si no tiene ninguna, resta los puntos de todas sus fichas bajadas y de las que quedaron en sus atriles.
-
-## Información que usa la IA en parejas
-
-- Cada IA evalúa su propia mano y los juegos bajados que todos pueden ver; no consulta la mano oculta de su pareja.
-- Al decidir qué descartar, una IA puede considerar los juegos de cualquiera de los dos rivales y evitar una ficha que les permita completar o limpiar una canasta.
