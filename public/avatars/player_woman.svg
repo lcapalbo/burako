@@ -1,16 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <circle cx="16" cy="16" r="16" fill="#dc704e" />
-
-  <path d="M9 17v-4.5a7 7 0 0 1 14 0V17l2 5-3.2 1.2-1.1-3.1H11.3l-1.1 3.1L7 22l2-5Z"
-    fill="none" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-  <path d="M10 13c1.7-.5 3.2-1.7 4-3.2 1.6 1.7 3.8 2.5 8 2.5v5.2c0 4-2.3 6.5-6 6.5s-6-2.5-6-6.5V13Z"
-    fill="none" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-  <path d="M12.5 15.5h1.7m3.6 0h1.7" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-  <circle cx="13.4" cy="15.5" r=".55" fill="white" />
-  <circle cx="18.6" cy="15.5" r=".55" fill="white" />
-  <path d="M16 16v2.2m-2 1.3h4" fill="none" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-  <circle cx="8.8" cy="18.5" r=".8" fill="white" />
-  <circle cx="23.2" cy="18.5" r=".8" fill="white" />
-  <path d="M13.5 23v1.2l2.5 1.5 2.5-1.5V23M8 29c.5-2.8 2.2-4.4 5-4.4h6c2.8 0 4.5 1.6 5 4.4"
-    fill="none" stroke="white" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+  <defs>
+    <clipPath id="clipCircle">
+      <circle cx="400" cy="400" r="362" />
+    </clipPath>
+  </defs>
+  <circle cx="400" cy="400" r="365" fill="#dc704e" />
+  <g clip-path="url(#clipCircle)">
+    <g transform="translate(400 400) scale(1.18) translate(-400 -400)">
+      <path d="M 235 220 Q 235 110 400 105 Q 565 110 565 220 L 565 540 L 240 540 Z" fill="#3A2418" />
+      <rect x="240" y="460" width="320" height="300" rx="50" fill="#7A4A9A" />
+      <rect x="350" y="460" width="100" height="140" fill="#F5F0E6" />
+      <ellipse cx="400" cy="290" rx="175" ry="165" fill="#F2C9A0" />
+      <path d="M 250 200 Q 240 350 258 440 L 296 490 Q 272 350 282 140 Z" fill="#4A2418" />
+      <path d="M 550 200 Q 560 350 542 480 L 504 490 Q 528 350 518 140 Z" fill="#4A2418" />
+      <path d="M 250 290 Q 250 115 400 110 Q 550 115 550 290 L 520 240 Q 400 200 280 240 Z"
+        fill="#5A2418" />
+      <circle cx="335" cy="300" r="22" fill="#14141E" />
+      <circle cx="465" cy="300" r="22" fill="#14141E" />
+      <path d="M 348 384 Q 375 368 400 384 Q 425 368 452 384 Q 400 418 348 384 Z" fill="#C84A5A" />
+      <path d="M 352 386 Q 400 396 448 386" fill="none" stroke="#7A2432" stroke-width="3"
+        stroke-linecap="round" />
+    </g>
+  </g>
+  <circle cx="400" cy="400" r="365" fill="none" stroke="#FFC850" stroke-width="6" />
 </svg>

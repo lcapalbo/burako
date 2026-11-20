@@ -1,5 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <circle cx="16" cy="16" r="16" fill="#dc704e" />
-  <circle cx="16" cy="11.5" r="4" fill="white" />
-  <path d="M7 27c.7-5.5 4-8.5 9-8.5s8.3 3 9 8.5" fill="white" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+  <defs>
+    <clipPath id="clipCircle">
+      <circle cx="400" cy="400" r="362" />
+    </clipPath>
+  </defs>
+  <circle cx="400" cy="400" r="365" fill="#dc704e" />
+  <g clip-path="url(#clipCircle)">
+    <g transform="translate(400 400) scale(1.18) translate(-400 -400)">
+      <rect x="240" y="460" width="320" height="300" rx="50" fill="#2E7D8A" />
+      <rect x="350" y="460" width="100" height="140" fill="#F5F0E6" />
+      <ellipse cx="400" cy="290" rx="175" ry="165" fill="#F2C9A0" />
+      <path d="M 250 290 Q 250 115 400 110 Q 550 115 550 290 L 520 240 Q 400 200 280 240 Z"
+        fill="#5A3A22" />
+      <circle cx="335" cy="300" r="22" fill="#14141E" />
+      <circle cx="465" cy="300" r="22" fill="#14141E" />
+      <path d="M 350 385 Q 400 415 450 385" fill="none" stroke="#8A4A2A" stroke-width="9"
+        stroke-linecap="round" />
+    </g>
+  </g>
+  <circle cx="400" cy="400" r="365" fill="none" stroke="#FFC850" stroke-width="6" />
 </svg>
