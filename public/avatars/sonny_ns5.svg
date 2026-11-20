@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <defs>
+    <radialGradient id="face" cx="40%" cy="30%" r="85%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="45%" stop-color="#E9EEF3" />
+      <stop offset="78%" stop-color="#C7D0DB" />
+      <stop offset="100%" stop-color="#9AA9BB" />
+    </radialGradient>
+    <linearGradient id="chest" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F2F5F9" />
+      <stop offset="55%" stop-color="#D8E0EA" />
+      <stop offset="100%" stop-color="#AEBBCB" />
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#E8EDF2" />
+      <stop offset="50%" stop-color="#B9C4D0" />
+      <stop offset="100%" stop-color="#8E9DAE" />
+    </linearGradient>
+    <radialGradient id="eye" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#BFE8FF" />
+      <stop offset="45%" stop-color="#3AA8E8" />
+      <stop offset="100%" stop-color="#0B4F8A" />
+    </radialGradient>
+    <clipPath id="clipCircle">
+      <circle cx="400" cy="400" r="362" />
+    </clipPath>
+  </defs>
+  <circle cx="400" cy="400" r="365" fill="#568aa1" />
+  <g clip-path="url(#clipCircle)">
+    <g transform="scale(1)">
+      <path d="M 182 800 L 618 800 L 618 620 Q 618 560 540 550 L 260 550 Q 182 560 182 620 Z"
+        fill="url(#metal)" />
+      <path d="M 250 800 L 550 800 L 550 620 Q 550 580 480 575 L 320 575 Q 250 580 250 620 Z"
+        fill="url(#chest)" opacity="0.96" />
+      <g stroke="#7A8AA0" stroke-width="2" opacity="0.55" fill="none">
+        <path
+          d="M 310 620 L 490 620 M 310 670 L 490 670 M 310 720 L 490 720 M 350 600 L 350 740 M 400 600 L 400 740 M 450 600 L 450 740" />
+        <circle cx="400" cy="680" r="38" />
+      </g>
+      <circle cx="400" cy="680" r="20" fill="#7CC7FF" opacity="0.9" />
+      <circle cx="400" cy="680" r="9" fill="#EAF7FF" />
+      <path d="M 320 560 L 480 560 L 470 610 L 330 610 Z" fill="#151A24" />
+      <path d="M 335 555 L 330 525 L 350 545 L 355 570 Z" fill="#0B0E16" />
+      <path d="M 465 555 L 470 525 L 450 545 L 445 570 Z" fill="#0B0E16" />
+      <path d="M 182 620 Q 220 560 300 560 L 300 650 Q 220 660 185 680 Z" fill="#2A3140" />
+      <path d="M 618 620 Q 580 560 500 560 L 500 650 Q 580 660 615 680 Z" fill="#2A3140" />
+      <path
+        d="M 260 230 Q 280 115 400 115 Q 520 115 540 230 Q 540 335 480 440 Q 440 520 400 520 Q 360 520 320 440 Q 260 335 260 230 Z"
+        fill="url(#face)" />
+      <g>
+        <ellipse cx="345" cy="350" rx="34" ry="20" fill="#FFFFFF" />
+        <ellipse cx="345" cy="350" rx="22" ry="17" fill="url(#eye)" />
+        <circle cx="345" cy="350" r="6" fill="#0A2438" />
+        <circle cx="353" cy="343" r="3" fill="#FFFFFF" />
+      </g>
+      <g>
+        <ellipse cx="455" cy="350" rx="34" ry="20" fill="#FFFFFF" />
+        <ellipse cx="455" cy="350" rx="22" ry="17" fill="url(#eye)" />
+        <circle cx="455" cy="350" r="6" fill="#0A2438" />
+        <circle cx="463" cy="343" r="3" fill="#FFFFFF" />
+      </g>
+      <path d="M 325 320 Q 345 310 365 320" fill="none" stroke="#7A8AA0" stroke-width="3"
+        stroke-linecap="round" />
+      <path d="M 435 320 Q 455 310 475 320" fill="none" stroke="#7A8AA0" stroke-width="3"
+        stroke-linecap="round" />
+      <path d="M 392 370 Q 400 410 408 370 Q 404 430 400 430 Q 396 430 392 370 Z" fill="#C2CDD8"
+        opacity="0.7" />
+      <path d="M 365 475 Q 400 483 435 475" fill="none" stroke="#8A99AB" stroke-width="3"
+        stroke-linecap="round" />
+      <path d="M 400 515 Q 400 545 400 560" stroke="#7A8AA0" stroke-width="2" opacity="0.5" />
+    </g>
+  </g>
+  <circle cx="400" cy="400" r="365" fill="none" stroke="#FFC850" stroke-width="6" />
+</svg>

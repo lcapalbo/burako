@@ -1,35 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <circle cx="16" cy="16" r="16" fill="#568aa1" /> 
-
-  {/* Cabeza y cabello */}
-  <path d="M10.5 12.4a5.5 5.5 0 0 1 11 0v5.1c0 3.4-2.1 5.8-5.5 5.8s-5.5-2.4-5.5-5.8v-5.1Z"
-    fill="none" stroke="white" strokeWidth="1.4" />
-  <path d="M10.7 12.7c1.5-.2 2.7-1.1 3.5-2.2 1.3 1.1 3.6 1.7 6.9 1.7"
-    fill="none" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
-
-  {/* Rasgos sintéticos */}
-  <path d="M12.5 15.2h1.8m3.4 0h1.8"
-    stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-  <circle cx="13.4" cy="15.2" r=".5" fill="white" />
-  <circle cx="18.6" cy="15.2" r=".5" fill="white" />
-  <path d="M16 15.8v2.1m-1.8 1.3h3.6"
-    fill="none" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-
-  {/* Cuello */}
-  <path d="M13.8 22.5v1.2l2.2 1.2 2.2-1.2v-1.2"
-    fill="none" stroke="white" strokeWidth="1.3" strokeLinejoin="round" />
-
-  {/* Uniforme */}
-  <path d="M7.5 29c.4-3.2 2.1-4.8 5-4.8h1l2.5 1.6 2.5-1.6h1c2.9 0 4.6 1.6 5 4.8"
-    fill="none" stroke="white" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-  <path d="m13.5 24.4 2.5 3.2 2.5-3.2M16 27.6V29"
-    fill="none" stroke="white" strokeWidth="1.2" strokeLinejoin="round" />
-
-  {/* Comunicador ovalado con delta */}
-  <ellipse cx="21.4" cy="26.6" rx="2.4" ry="1.55"
-    fill="none" stroke="white" strokeWidth=".8" />
-  <path d="m21.4 25.5-1.15 2h2.3l-1.15-2Z"
-    fill="none" stroke="white" strokeWidth=".65" strokeLinejoin="round" />
-  <path d="M21.4 25.9v.7"
-    stroke="white" strokeWidth=".55" strokeLinecap="round" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+  <defs>
+    <linearGradient id="uniform" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8382A" />
+      <stop offset="100%" stop-color="#B91F1F" />
+    </linearGradient>
+    <clipPath id="clipCircle">
+      <circle cx="400" cy="400" r="362" />
+    </clipPath>
+  </defs>
+  <circle cx="400" cy="400" r="365" fill="#568aa1" />
+  <g clip-path="url(#clipCircle)">
+    <g transform="translate(400 400) scale(1.18) translate(-400 -400)">
+      <ellipse cx="400" cy="290" rx="170" ry="160" fill="#C3EBC0" stroke="#fff" stroke-width="4" />
+      <path
+        d="M 235 285 C 220 165 280 100 400 98 C 520 100 580 165 565 285 L 545 212 Q 400 178 255 212 Z"
+        fill="#2E2618" />
+      <path d="M 268 145 Q 330 105 400 107 Q 470 105 532 145" fill="none" stroke="#4A3A24"
+        stroke-width="3" opacity="0.6" stroke-linecap="round" />
+      <path d="M 285 168 Q 340 128 400 130 Q 460 128 515 168" fill="none" stroke="#4A3A24"
+        stroke-width="2" opacity="0.35" stroke-linecap="round" />
+      <line x1="290" y1="265" x2="360" y2="255" stroke="#322818" stroke-width="6"
+        stroke-linecap="round" />
+      <line x1="440" y1="255" x2="510" y2="265" stroke="#322818" stroke-width="6"
+        stroke-linecap="round" />
+      <ellipse cx="327" cy="307" rx="38" ry="23" fill="#fff" />
+      <ellipse cx="472" cy="307" rx="38" ry="23" fill="#fff" />
+      <circle cx="327" cy="307" r="17" fill="#FFC800" stroke="#B47800" stroke-width="2" />
+      <circle cx="472" cy="307" r="17" fill="#FFC800" stroke="#B47800" stroke-width="2" />
+      <circle cx="327" cy="307" r="6" fill="#141414" />
+      <circle cx="472" cy="307" r="6" fill="#141414" />
+      <line x1="400" y1="330" x2="400" y2="365" stroke="#96B48C" stroke-width="3"
+        stroke-linecap="round" />
+      <path d="M 330 390 Q 400 415 470 390" fill="none" stroke="#966E46" stroke-width="5"
+        stroke-linecap="round" />
+      <path d="M 192 500 Q 162 620 180 740 L 236 740 Q 216 620 240 520 Z" fill="url(#uniform)"
+        stroke="#FFC850" stroke-width="3" />
+      <path d="M 608 500 Q 638 620 620 740 L 564 740 Q 584 620 560 520 Z" fill="url(#uniform)"
+        stroke="#FFC850" stroke-width="3" />
+      <path d="M 178 600 Q 210 640 222 625" fill="none" stroke="#7A1414" stroke-width="3"
+        opacity="0.5" stroke-linecap="round" />
+      <path d="M 622 600 Q 590 640 577 625" fill="none" stroke="#7A1414" stroke-width="3"
+        opacity="0.5" stroke-linecap="round" />
+      <circle cx="225" cy="540" r="55" fill="#B91F1F" />
+      <circle cx="575" cy="540" r="55" fill="#B91F1F" />
+      <rect x="260" y="460" width="280" height="280" rx="40" fill="url(#uniform)" stroke="#FFC850"
+        stroke-width="4" />
+      <polygon points="260,460 540,460 400,560" fill="#1E1E28" />
+      <polygon points="340,460 460,460 400,540" fill="#FFC850" />
+      <ellipse cx="470" cy="610" rx="30" ry="30" fill="#D2D6E0" stroke="#FFC850" stroke-width="3" />
+      <path d="M 458 585 L 482 585 L 470 635 Z" fill="#FFC850" />
+      <ellipse cx="205" cy="752" rx="26" ry="18" fill="#C3EBC0" stroke="#fff" stroke-width="3" />
+      <ellipse cx="595" cy="752" rx="26" ry="18" fill="#C3EBC0" stroke="#fff" stroke-width="3" />
+    </g>
+  </g>
+  <circle cx="400" cy="400" r="365" fill="none" stroke="#FFC850" stroke-width="6" />
 </svg>
